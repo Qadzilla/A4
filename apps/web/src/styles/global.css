@@ -12,3 +12,52 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* BlockNote — match app fonts, sizing, and colors */
+.bn-container .bn-default-styles {
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+}
+
+.bn-container .bn-editor {
+  padding-inline: 0;
+}
+
+/* Placeholder text — darker */
+.bn-container .bn-inline-content:has(> .ProseMirror-trailingBreak:only-child)::before {
+  color: #888;
+}
+
+/* Side menu (drag handle, plus button) — smaller and darker */
+.bn-container [class*="sideMenu"] {
+  font-size: 14px;
+}
+.bn-container [class*="sideMenu"] button {
+  width: 18px;
+  height: 18px;
+}
+.bn-container [class*="sideMenu"] svg {
+  width: 14px;
+  height: 14px;
+  color: #666;
+}
+
+/* Slash menu — match app font */
+.bn-container [class*="suggestionMenu"],
+.bn-container [class*="toolbar"] {
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+}
+
+/* Reset custom cursor.png inside BlockNote */
+.bn-container *,
+.bn-container *::before,
+.bn-container *::after {
+  cursor: auto;
+}
+
+/* Keep editor content white in dark mode (A4 page look) */
+.bn-container[data-color-scheme="dark"] .bn-editor {
+  --bn-colors-editor-background: #fafafa;
+  --bn-colors-editor-text: #1a1a1a;
+}

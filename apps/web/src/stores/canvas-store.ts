@@ -33,6 +33,7 @@ interface CanvasState {
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
   clearPendingRename: () => void;
+  updateItemData: (id: string, data: Record<string, unknown>) => void;
   clearItems: () => void;
   openItem: (id: string) => void;
   closeItem: (id: string) => void;
@@ -64,8 +65,7 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
         nextZIndex: s.nextZIndex + 1,
         selectedItemId: id,
         pendingRenameId: id,
-        openItemIds: s.openItemIds.includes(id) ? s.openItemIds : [...s.openItemIds, id],
-        activeItemId: id,
+        activeItemId: null,
       };
     }),
   removeItem: (id) =>
@@ -120,6 +120,12 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
         items: s.items.map((i) => (i.id === id ? { ...i, zIndex: minZ - 1 } : i)),
       };
     }),
+  updateItemData: (id, data) =>
+    set((s) => ({
+      items: s.items.map((i) =>
+        i.id === id ? { ...i, data: { ...i.data, ...data } } : i,
+      ),
+    })),
   clearPendingRename: () => set({ pendingRenameId: null }),
   clearItems: () => set({ items: [], selectedItemId: null, pendingRenameId: null, nextZIndex: 1, openItemIds: [], activeItemId: null }),
   openItem: (id) =>

@@ -32,9 +32,89 @@ interface CanvasItemRendererProps {
   onOpen: (id: string) => void;
 }
 
-function A4PageContent() {
+/** The document editor renders at 816px wide with p-16 (64px) padding. */
+const DOC_WIDTH = 816;
+
+function getBlockText(block: any): string {
+  if (!block?.content) return '';
+  if (Array.isArray(block.content)) {
+    return block.content
+      .map((c: any) => (c.type === 'text' ? c.text : ''))
+      .join('');
+  }
+  return '';
+}
+
+function BlockPreview({ blocks }: { blocks: any[] }) {
   return (
-    <div className="h-full w-full bg-white dark:bg-zinc-50 border border-black/80 dark:border-border/40 shadow-md" />
+    <div className="p-16 space-y-[3px]">
+      {blocks.map((block, i) => {
+        const text = getBlockText(block);
+        if (!text && block.type !== 'checkListItem') return null;
+        const type = block.type as string;
+        const level = block.props?.level;
+
+        if (type === 'heading') {
+          const cls =
+            level === 1
+              ? 'text-[42px] font-bold leading-tight'
+              : level === 2
+                ? 'text-[28px] font-semibold leading-tight'
+                : 'text-[18px] font-semibold leading-tight';
+          return <p key={i} className={cn(cls, 'text-zinc-900')}>{text}</p>;
+        }
+
+        if (type === 'bulletListItem') {
+          return (
+            <div key={i} className="flex items-baseline gap-[6px] pl-[24px]">
+              <span className="text-[14px] text-zinc-500 leading-snug shrink-0">&#8226;</span>
+              <p className="text-[14px] text-zinc-700 leading-snug">{text}</p>
+            </div>
+          );
+        }
+
+        if (type === 'numberedListItem') {
+          return (
+            <div key={i} className="flex items-baseline gap-[6px] pl-[24px]">
+              <span className="text-[14px] text-zinc-500 leading-snug shrink-0">{(block.props?.index ?? i) + 1}.</span>
+              <p className="text-[14px] text-zinc-700 leading-snug">{text}</p>
+            </div>
+          );
+        }
+
+        if (type === 'checkListItem') {
+          return (
+            <div key={i} className="flex items-center gap-[6px] pl-[24px]">
+              <span className="text-[14px] leading-none shrink-0">{block.props?.checked ? '\u2611' : '\u2610'}</span>
+              <p className="text-[14px] text-zinc-700 leading-snug">{text}</p>
+            </div>
+          );
+        }
+
+        return (
+          <p key={i} className="text-[14px] text-zinc-700 leading-snug">{text}</p>
+        );
+      })}
+    </div>
+  );
+}
+
+function A4PageContent({ item, zoom }: { item: CanvasItem; zoom: number }) {
+  const blocks = (item.data?.content as any[] | undefined) ?? [];
+  const hasContent = blocks.some((b) => getBlockText(b).length > 0);
+  const scale = (item.width * zoom) / DOC_WIDTH;
+
+  return (
+    <div className="h-full w-full bg-white dark:bg-zinc-50 border border-black/80 dark:border-border/40 shadow-md overflow-hidden">
+      {hasContent && (
+        <div
+          className="pointer-events-none select-none origin-top-left"
+          style={{ width: DOC_WIDTH, transform: `scale(${scale})` }}
+        >
+          <BlockPreview blocks={blocks} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -231,7 +311,7 @@ export function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, on
         }}
       >
         {item.type === 'a4-page' ? (
-          <A4PageContent />
+          <A4PageContent item={item} zoom={zoom} />
         ) : (
           <div className="flex h-full w-full items-center justify-center rounded-sm border border-border/40 bg-muted/20 text-xs text-muted-foreground">
             {item.type}

@@ -196,11 +196,11 @@ export default function WorkspaceDetailPage() {
     const el = canvasRef.current;
     if (!el) return;
 
-    const zoomAtCursor = (e: WheelEvent, sensitivity: number) => {
+    const zoomAtCursorDy = (e: WheelEvent, dy: number, sensitivity: number) => {
       const rect = el.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
-      const factor = 1 - e.deltaY * sensitivity;
+      const factor = 1 - dy * sensitivity;
 
       setZoom((prev) => {
         const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * factor));
@@ -214,12 +214,17 @@ export default function WorkspaceDetailPage() {
       e.preventDefault();
       e.stopPropagation();
 
+      // Normalize deltaY: line-mode mice send small values (e.g. 3 lines)
+      const lineMultiplier = e.deltaMode === 1 ? 16 : 1;
+      const dy = e.deltaY * lineMultiplier;
+      const dx = e.deltaX * lineMultiplier;
+
       if (e.ctrlKey || e.metaKey) {
-        zoomAtCursor(e, 0.01);
-      } else if (e.deltaX !== 0) {
-        setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+        zoomAtCursorDy(e, dy, 0.01);
+      } else if (dx !== 0) {
+        setPan((p) => ({ x: p.x - dx, y: p.y - dy }));
       } else {
-        zoomAtCursor(e, 0.005);
+        zoomAtCursorDy(e, dy, 0.003);
       }
     };
 
@@ -373,10 +378,10 @@ export default function WorkspaceDetailPage() {
         onFocusItem={focusItem}
       />
 
-      {activeItem ? (
+      {activeItem && (
         <DocumentView item={activeItem} />
-      ) : (
-      <div className="relative flex flex-1 min-h-0">
+      )}
+      <div className={cn('relative flex flex-1 min-h-0', activeItem && 'hidden')}>
       {/* Main area — workspace canvas */}
       <div
         ref={canvasRef}
@@ -743,7 +748,6 @@ export default function WorkspaceDetailPage() {
         </div>
       </aside>
       </div>
-      )}
 
       {/* Drag ghost */}
       {dragState && (
