@@ -1,0 +1,9 @@
+{
+  "name": "@a4/tailwind-config",
+  "version": "0.0.0",
+  "private": true,
+  "files": ["base.css"],
+  "exports": {
+    "./base.css": "./base.css"
+  }
+}

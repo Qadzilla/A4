@@ -1,0 +1,22 @@
+{
+  "name": "@a4/shared-types",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./trpc": "./src/trpc.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@a4/shared-schemas": "workspace:*",
+    "@trpc/server": "^11.0.0-rc.682",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@a4/typescript-config": "workspace:*",
+    "typescript": "^5.7.3"
+  }
+}

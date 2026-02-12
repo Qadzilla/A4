@@ -1,0 +1,4 @@
+{
+  "extends": "@a4/typescript-config/react.json",
+  "include": ["src"]
+}

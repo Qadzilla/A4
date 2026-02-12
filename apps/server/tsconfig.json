@@ -1,0 +1,10 @@
+{
+  "extends": "@a4/typescript-config/base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "lib": ["ES2022"],
+    "noEmit": false
+  },
+  "include": ["src"]
+}
