@@ -3,6 +3,7 @@ import { chatRouter } from './routers/chat';
 import { financialRouter } from './routers/financial';
 import { folderRouter } from './routers/folder';
 import { healthRouter } from './routers/health';
+import { marketDataRouter } from './routers/market-data';
 import { userRouter } from './routers/user';
 import { workspaceRouter } from './routers/workspace';
 import { router } from './trpc';
@@ -15,6 +16,7 @@ export const appRouter = router({
   financial: financialRouter,
   user: userRouter,
   billing: billingRouter,
+  marketData: marketDataRouter,
 });
 
 export type AppRouter = typeof appRouter;

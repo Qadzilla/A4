@@ -1,4 +1,7 @@
 import type {
+  aggregateBarSchema,
+  aggregateInputSchema,
+  assetClassSchema,
   conversationSchema,
   createConversationSchema,
   createFolderSchema,
@@ -9,7 +12,14 @@ import type {
   folderSchema,
   messageRoleSchema,
   messageSchema,
+  realtimeQuoteSchema,
+  realtimeTradeSchema,
   sendMessageSchema,
+  subscribeInputSchema,
+  tickerDetailSchema,
+  tickerSearchInputSchema,
+  tickerSnapshotSchema,
+  timespanSchema,
   transactionSchema,
   transactionTypeSchema,
   updateFolderSchema,
@@ -17,6 +27,8 @@ import type {
   updateWorkspaceSchema,
   userProfileSchema,
   workspaceSchema,
+  wsClientMessageSchema,
+  wsServerMessageSchema,
 } from '@a4/shared-schemas';
 import type { z } from 'zod';
 
@@ -47,3 +59,17 @@ export type FinancialFilter = z.infer<typeof financialFilterSchema>;
 // User types
 export type UserProfile = z.infer<typeof userProfileSchema>;
 export type UpdateProfile = z.infer<typeof updateProfileSchema>;
+
+// Market data types
+export type AssetClass = z.infer<typeof assetClassSchema>;
+export type Timespan = z.infer<typeof timespanSchema>;
+export type TickerDetail = z.infer<typeof tickerDetailSchema>;
+export type AggregateBar = z.infer<typeof aggregateBarSchema>;
+export type RealtimeQuote = z.infer<typeof realtimeQuoteSchema>;
+export type RealtimeTrade = z.infer<typeof realtimeTradeSchema>;
+export type TickerSnapshot = z.infer<typeof tickerSnapshotSchema>;
+export type TickerSearchInput = z.infer<typeof tickerSearchInputSchema>;
+export type AggregateInput = z.infer<typeof aggregateInputSchema>;
+export type SubscribeInput = z.infer<typeof subscribeInputSchema>;
+export type WsServerMessage = z.infer<typeof wsServerMessageSchema>;
+export type WsClientMessage = z.infer<typeof wsClientMessageSchema>;
