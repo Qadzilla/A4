@@ -33,6 +33,7 @@ export default function TrashPage() {
   const permanentDeleteMutation = useMutation(
     trpc.workspace.permanentDelete.mutationOptions({
       onSuccess: async () => {
+        if (confirmDeleteId) localStorage.removeItem(`a4-canvas-${confirmDeleteId}`);
         setConfirmDeleteId(null);
         await queryClient.refetchQueries({ queryKey: trpc.workspace.list.queryKey(), type: 'all' });
         await queryClient.refetchQueries({ queryKey: trpc.workspace.listTrashed.queryKey(), type: 'all' });

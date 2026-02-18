@@ -4,3 +4,4 @@ export * from './chat';
 export * from './financial';
 export * from './user';
 export * from './market-data';
+export * from './canvas';

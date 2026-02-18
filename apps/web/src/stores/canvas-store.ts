@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import type { AlignmentGuide, AnchorPosition, CanvasConnection, SpacingGuide } from '../lib/canvas-utils';
+
+export type { CanvasConnection, AlignmentGuide, SpacingGuide };
 
 export interface CanvasItem {
   id: string;
@@ -14,10 +17,15 @@ export interface CanvasItem {
 
 const defaultNames: Record<string, string> = {
   'a4-page': 'Untitled Page',
+  'secret-card': 'Untitled Credential',
+  'note': 'Untitled Note',
 };
 
 interface CanvasState {
   items: CanvasItem[];
+  connections: CanvasConnection[];
+  alignmentGuides: AlignmentGuide[];
+  spacingGuides: SpacingGuide[];
   selectedItemId: string | null;
   pendingRenameId: string | null;
   nextZIndex: number;
@@ -27,7 +35,9 @@ interface CanvasState {
   removeItem: (id: string) => void;
   selectItem: (id: string | null) => void;
   moveItem: (id: string, x: number, y: number) => void;
+  moveItemWithGuides: (id: string, x: number, y: number, alignmentGuides: AlignmentGuide[], spacingGuides: SpacingGuide[]) => void;
   resizeItem: (id: string, x: number, y: number, width: number, height: number) => void;
+  resizeItemWithGuides: (id: string, x: number, y: number, width: number, height: number, alignmentGuides: AlignmentGuide[], spacingGuides: SpacingGuide[]) => void;
   renameItem: (id: string, name: string) => void;
   duplicateItem: (id: string) => void;
   bringToFront: (id: string) => void;
@@ -35,9 +45,16 @@ interface CanvasState {
   clearPendingRename: () => void;
   updateItemData: (id: string, data: Record<string, unknown>) => void;
   clearItems: () => void;
+  loadItems: (items: CanvasItem[], connections?: CanvasConnection[]) => void;
+  addConnection: (conn: Omit<CanvasConnection, 'id'>) => void;
+  removeConnection: (id: string) => void;
   openItem: (id: string) => void;
   closeItem: (id: string) => void;
   setActiveItem: (id: string | null) => void;
+  setAlignmentGuides: (guides: AlignmentGuide[]) => void;
+  clearAlignmentGuides: () => void;
+  setSpacingGuides: (guides: SpacingGuide[]) => void;
+  clearSpacingGuides: () => void;
 }
 
 function getAdjacentTab(openItemIds: string[], closedId: string): string | null {
@@ -51,6 +68,9 @@ function getAdjacentTab(openItemIds: string[], closedId: string): string | null 
 
 export const useCanvasStore = create<CanvasState>()((set) => ({
   items: [],
+  connections: [],
+  alignmentGuides: [],
+  spacingGuides: [],
   selectedItemId: null,
   pendingRenameId: null,
   nextZIndex: 1,
@@ -73,6 +93,7 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
       const nextActive = s.activeItemId === id ? getAdjacentTab(s.openItemIds, id) : s.activeItemId;
       return {
         items: s.items.filter((i) => i.id !== id),
+        connections: s.connections.filter((c) => c.fromItemId !== id && c.toItemId !== id),
         selectedItemId: s.selectedItemId === id ? nextActive : s.selectedItemId,
         openItemIds: s.openItemIds.filter((i) => i !== id),
         activeItemId: nextActive,
@@ -83,9 +104,21 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
     set((s) => ({
       items: s.items.map((i) => (i.id === id ? { ...i, x, y } : i)),
     })),
+  moveItemWithGuides: (id, x, y, alignmentGuides, spacingGuides) =>
+    set((s) => ({
+      items: s.items.map((i) => (i.id === id ? { ...i, x, y } : i)),
+      alignmentGuides,
+      spacingGuides,
+    })),
   resizeItem: (id, x, y, width, height) =>
     set((s) => ({
       items: s.items.map((i) => (i.id === id ? { ...i, x, y, width, height } : i)),
+    })),
+  resizeItemWithGuides: (id, x, y, width, height, alignmentGuides, spacingGuides) =>
+    set((s) => ({
+      items: s.items.map((i) => (i.id === id ? { ...i, x, y, width, height } : i)),
+      alignmentGuides,
+      spacingGuides,
     })),
   renameItem: (id, name) =>
     set((s) => ({
@@ -127,7 +160,34 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
       ),
     })),
   clearPendingRename: () => set({ pendingRenameId: null }),
-  clearItems: () => set({ items: [], selectedItemId: null, pendingRenameId: null, nextZIndex: 1, openItemIds: [], activeItemId: null }),
+  clearItems: () => set({ items: [], connections: [], alignmentGuides: [], spacingGuides: [], selectedItemId: null, pendingRenameId: null, nextZIndex: 1, openItemIds: [], activeItemId: null }),
+  loadItems: (items, connections) => set({
+    items,
+    connections: connections ?? [],
+    selectedItemId: null,
+    pendingRenameId: null,
+    nextZIndex: items.length > 0 ? Math.max(...items.map((i) => i.zIndex)) + 1 : 1,
+    openItemIds: [],
+    activeItemId: null,
+  }),
+  addConnection: (conn) =>
+    set((s) => {
+      const duplicate = s.connections.some(
+        (c) =>
+          c.fromItemId === conn.fromItemId &&
+          c.fromAnchor === conn.fromAnchor &&
+          c.toItemId === conn.toItemId &&
+          c.toAnchor === conn.toAnchor,
+      );
+      if (duplicate) return s;
+      return {
+        connections: [...s.connections, { ...conn, id: crypto.randomUUID() }],
+      };
+    }),
+  removeConnection: (id) =>
+    set((s) => ({
+      connections: s.connections.filter((c) => c.id !== id),
+    })),
   openItem: (id) =>
     set((s) => ({
       openItemIds: s.openItemIds.includes(id) ? s.openItemIds : [...s.openItemIds, id],
@@ -145,4 +205,8 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
     }),
   setActiveItem: (id) =>
     set({ activeItemId: id, selectedItemId: id ?? null }),
+  setAlignmentGuides: (guides) => set({ alignmentGuides: guides }),
+  clearAlignmentGuides: () => set((s) => s.alignmentGuides.length === 0 ? s : { alignmentGuides: [] }),
+  setSpacingGuides: (guides) => set({ spacingGuides: guides }),
+  clearSpacingGuides: () => set((s) => s.spacingGuides.length === 0 ? s : { spacingGuides: [] }),
 }));

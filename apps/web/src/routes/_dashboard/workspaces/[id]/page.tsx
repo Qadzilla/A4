@@ -15,11 +15,17 @@ import { useCanvasDrop } from '../../../../hooks/useCanvasDrop';
 import { useCanvasStore } from '../../../../stores/canvas-store';
 import { CanvasItemRenderer } from '../../../../components/canvas/canvas-item-renderer';
 import { GeneralToolPanel } from '../../../../components/canvas/general-tool-panel';
+import { SecretToolPanel } from '../../../../components/canvas/secret-tool-panel';
 import { TabBar } from '../../../../components/canvas/tab-bar';
 import { DocumentView } from '../../../../components/canvas/document-view';
+import { SecretCardView } from '../../../../components/canvas/secret-card-view';
+import { VaultSetupModal } from '../../../../components/vault/vault-setup-modal';
+import { VaultUnlockModal } from '../../../../components/vault/vault-unlock-modal';
 import { useTRPC } from '../../../../lib/trpc';
+import { getCachedKey } from '../../../../lib/vault-crypto';
+import { getAnchorScreenPos } from '../../../../lib/canvas-utils';
+import type { AnchorPosition, CanvasConnection } from '../../../../lib/canvas-utils';
 
-const BASE_DOT = 1;
 const BASE_GRID = 24;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
@@ -34,6 +40,16 @@ const tools = [
         <rect width="7" height="7" x="14" y="3" rx="1" />
         <rect width="7" height="7" x="3" y="14" rx="1" />
         <rect width="7" height="7" x="14" y="14" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    id: 'secret',
+    label: 'Secret',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
       </svg>
     ),
   },
@@ -111,7 +127,10 @@ export default function WorkspaceDetailPage() {
   // Canvas zoom & pan
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const zoomRef = useRef(1);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const gridCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasSize, setCanvasSize] = useState(0); // counter to trigger grid redraws on resize
   const isPanning = useRef(false);
   const lastPoint = useRef({ x: 0, y: 0 });
 
@@ -120,9 +139,157 @@ export default function WorkspaceDetailPage() {
   const [highlight, setHighlight] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [drawingRect, setDrawingRect] = useState<{ startX: number; startY: number; currentX: number; currentY: number } | null>(null);
 
-  // Canvas items
-  const { items, selectedItemId, selectItem, openItemIds, openItem, setActiveItem, activeItemId } = useCanvasStore();
-  const { dragState, startDrag, handleCanvasDrop } = useCanvasDrop();
+  // Canvas items — individual selectors to avoid re-rendering on unrelated state changes
+  const items = useCanvasStore((s) => s.items);
+  const connections = useCanvasStore((s) => s.connections);
+  const alignmentGuides = useCanvasStore((s) => s.alignmentGuides);
+  const spacingGuides = useCanvasStore((s) => s.spacingGuides);
+  const selectedItemId = useCanvasStore((s) => s.selectedItemId);
+  const selectItem = useCanvasStore((s) => s.selectItem);
+  const openItemIds = useCanvasStore((s) => s.openItemIds);
+  const openItem = useCanvasStore((s) => s.openItem);
+  const setActiveItem = useCanvasStore((s) => s.setActiveItem);
+  const activeItemId = useCanvasStore((s) => s.activeItemId);
+  const loadItems = useCanvasStore((s) => s.loadItems);
+  const addConnection = useCanvasStore((s) => s.addConnection);
+  const removeConnection = useCanvasStore((s) => s.removeConnection);
+
+  // Vault modal state — modals are conditionally rendered (not always mounted)
+  // to avoid extra useSyncExternalStore subscriptions from their internal hooks
+  // (useQuery/useMutation) which cause tearing cascades with React 19.
+  const [showVaultSetup, setShowVaultSetup] = useState(false);
+  const [showVaultUnlock, setShowVaultUnlock] = useState(false);
+  const pendingSecretCardRef = useRef<string | null>(null);
+
+  // Check vault config lazily via queryClient (no useQuery subscription).
+  // Adding useQuery(vault.getConfig) here added a useSyncExternalStore subscription
+  // whose state transitions (loading→success) during commit caused tearing cascades
+  // across 16+ existing subscriptions → infinite loop on any openItem call.
+  const requestVaultUnlock = useCallback(async () => {
+    if (getCachedKey()) return;
+    try {
+      const config = await queryClient.fetchQuery(trpc.vault.getConfig.queryOptions());
+      if (config) {
+        setShowVaultUnlock(true);
+      } else {
+        setShowVaultSetup(true);
+      }
+    } catch {
+      setShowVaultSetup(true);
+    }
+  }, [queryClient, trpc]);
+
+  const handleOpenItem = useCallback((id: string) => {
+    const item = useCanvasStore.getState().items.find((i) => i.id === id);
+    if (item?.type === 'secret-card') {
+      if (!getCachedKey()) {
+        pendingSecretCardRef.current = id;
+        requestVaultUnlock();
+        return;
+      }
+    }
+    openItem(id);
+  }, [openItem, requestVaultUnlock]);
+
+  // Connection drawing state
+  const [drawingConnection, setDrawingConnection] = useState<{
+    fromItemId: string;
+    fromAnchor: AnchorPosition;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+
+  // Load canvas from server, auto-save via subscribe, save + clear on leave
+  const { data: canvasData } = useQuery(trpc.canvas.load.queryOptions({ workspaceId: id! }));
+  const saveMutation = useMutation(trpc.canvas.save.mutationOptions());
+
+  // Center the viewport on a set of items
+  const fitViewToItems = useCallback((itemsList: { x: number; y: number; width: number; height: number }[]) => {
+    if (itemsList.length === 0 || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const minX = Math.min(...itemsList.map((i) => i.x));
+    const minY = Math.min(...itemsList.map((i) => i.y));
+    const maxX = Math.max(...itemsList.map((i) => i.x + i.width));
+    const maxY = Math.max(...itemsList.map((i) => i.y + i.height));
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    const centerX = minX + contentW / 2;
+    const centerY = minY + contentH / 2;
+
+    // Fit with padding (80% of viewport), but clamp zoom to [MIN_ZOOM, 1] — don't zoom in past 1x
+    const padded = 0.8;
+    const fitZoom = Math.min(1, Math.min((rect.width * padded) / contentW, (rect.height * padded) / contentH));
+    const clampedZoom = Math.max(MIN_ZOOM, fitZoom);
+
+    zoomRef.current = clampedZoom;
+    setZoom(clampedZoom);
+    setPan({
+      x: rect.width / 2 - centerX * clampedZoom,
+      y: rect.height / 2 - centerY * clampedZoom,
+    });
+  }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scoped to workspace id + server data
+  useEffect(() => {
+    if (!canvasData) return;
+
+    // One-time migration: if server is empty but localStorage has data, migrate it
+    const key = `a4-canvas-${id}`;
+    if (canvasData.items.length === 0) {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          const legacyItems = Array.isArray(parsed) ? parsed : (parsed.items ?? []);
+          const legacyConnections = Array.isArray(parsed) ? [] : (parsed.connections ?? []);
+          if (legacyItems.length > 0) {
+            loadItems(legacyItems, legacyConnections);
+            saveMutation.mutate({ workspaceId: id!, items: legacyItems, connections: legacyConnections });
+            localStorage.removeItem(key);
+            fitViewToItems(legacyItems);
+            return;
+          }
+        } catch {
+          // ignore corrupt localStorage
+        }
+        localStorage.removeItem(key);
+      }
+      loadItems([]);
+    } else {
+      // Clean up any stale localStorage
+      localStorage.removeItem(key);
+      loadItems(canvasData.items, canvasData.connections);
+      fitViewToItems(canvasData.items);
+    }
+  }, [canvasData, id]);
+
+  // Debounced auto-save to server via subscribe
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scoped to workspace id
+  useEffect(() => {
+    if (!id) return;
+
+    let saveTimer: ReturnType<typeof setTimeout>;
+    const unsubscribe = useCanvasStore.subscribe((state, prev) => {
+      if ((state.items !== prev.items || state.connections !== prev.connections) && id) {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          saveMutation.mutate({ workspaceId: id, items: state.items, connections: state.connections });
+        }, 500);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      clearTimeout(saveTimer);
+      // Flush final state on cleanup
+      const s = useCanvasStore.getState();
+      if (s.items.length > 0) {
+        saveMutation.mutate({ workspaceId: id, items: s.items, connections: s.connections });
+      }
+      loadItems([]);
+    };
+  }, [id]);
+  const { isDragging, dragRef, ghostRef, startDrag, handleCanvasDrop } = useCanvasDrop();
 
   useWorkspaceThumbnail(canvasRef, id);
 
@@ -196,18 +363,29 @@ export default function WorkspaceDetailPage() {
     const el = canvasRef.current;
     if (!el) return;
 
-    const zoomAtCursorDy = (e: WheelEvent, dy: number, sensitivity: number) => {
+    const zoomWithAnchor = (e: WheelEvent, dy: number, sensitivity: number) => {
       const rect = el.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const factor = 1 - dy * sensitivity;
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
 
-      setZoom((prev) => {
-        const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * factor));
-        const s = next / prev;
-        setPan((p) => ({ x: mx - s * (mx - p.x), y: my - s * (my - p.y) }));
-        return next;
-      });
+      const factor = 1 - dy * sensitivity;
+      const prev = zoomRef.current;
+      const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * factor));
+      if (next === prev) return;
+
+      const zoomingIn = next > prev;
+      const ax = zoomingIn ? mouseX : centerX;
+      const ay = zoomingIn ? mouseY : centerY;
+      const s = next / prev;
+
+      zoomRef.current = next;
+      setZoom(next);
+      setPan((p) => ({
+        x: ax - s * (ax - p.x),
+        y: ay - s * (ay - p.y),
+      }));
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -220,11 +398,13 @@ export default function WorkspaceDetailPage() {
       const dx = e.deltaX * lineMultiplier;
 
       if (e.ctrlKey || e.metaKey) {
-        zoomAtCursorDy(e, dy, 0.01);
+        // Pinch gesture: zoom in toward cursor, zoom out toward viewport center
+        zoomWithAnchor(e, dy, 0.01);
       } else if (dx !== 0) {
         setPan((p) => ({ x: p.x - dx, y: p.y - dy }));
       } else {
-        zoomAtCursorDy(e, dy, 0.003);
+        // Mouse wheel: zoom in toward cursor, zoom out toward viewport center
+        zoomWithAnchor(e, dy, 0.003);
       }
     };
 
@@ -265,7 +445,7 @@ export default function WorkspaceDetailPage() {
   }, [activeTool, drawingRect, pan, zoom]);
 
   const onCanvasMouseUp = useCallback((e: React.MouseEvent) => {
-    if (dragState) {
+    if (dragRef.current) {
       const rect = e.currentTarget.getBoundingClientRect();
       handleCanvasDrop(rect, pan, zoom);
       return;
@@ -284,7 +464,7 @@ export default function WorkspaceDetailPage() {
       }
       setDrawingRect(null);
     }
-  }, [activeTool, drawingRect, dragState, handleCanvasDrop, pan, zoom]);
+  }, [activeTool, drawingRect, dragRef, handleCanvasDrop, pan, zoom]);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -292,31 +472,135 @@ export default function WorkspaceDetailPage() {
     }
   }, [activeTool]);
 
+  // ResizeObserver — trigger grid redraw when container resizes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: canvasRef is stable
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setCanvasSize((c) => c + 1));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Draw dot grid on <canvas> — coalesced via rAF to avoid blocking
+  // biome-ignore lint/correctness/useExhaustiveDependencies: canvasSize triggers redraw on resize
+  useEffect(() => {
+    const rafId = requestAnimationFrame(() => {
+      const canvas = gridCanvasRef.current;
+      const container = canvasRef.current;
+      if (!canvas || !container) return;
+
+      const rect = container.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = rect.width;
+      const h = rect.height;
+
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
+
+      // Adaptive grid spacing — double when too dense
+      let spacing = BASE_GRID * zoom;
+      while (spacing < 12) spacing *= 2;
+
+      // Dark mode detection
+      const isDark = document.documentElement.classList.contains('dark');
+      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.45)';
+
+      // Draw 2px dots at integer positions
+      const dotSize = 2;
+      const startX = ((pan.x % spacing) + spacing) % spacing;
+      const startY = ((pan.y % spacing) + spacing) % spacing;
+
+      for (let x = startX; x < w; x += spacing) {
+        for (let y = startY; y < h; y += spacing) {
+          ctx.fillRect(Math.round(x), Math.round(y), dotSize, dotSize);
+        }
+      }
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [zoom, pan, canvasSize]);
+
   const onCanvasDoubleClick = useCallback(() => {
+    zoomRef.current = 1;
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, []);
 
   const handleResetView = useCallback(() => {
+    zoomRef.current = 1;
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, []);
 
   const focusItem = useCallback((id: string) => {
     setActiveItem(id);
-    const item = items.find((i) => i.id === id);
+    // Read items imperatively to avoid `items` dep that would invalidate this callback every frame
+    const item = useCanvasStore.getState().items.find((i) => i.id === id);
     if (!item || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const targetX = rect.width / 2 - (item.x + item.width / 2) * zoom;
     const targetY = rect.height / 2 - (item.y + item.height / 2) * zoom;
     setPan({ x: targetX, y: targetY });
-  }, [items, zoom, setActiveItem]);
+  }, [zoom, setActiveItem]);
 
+  const onCloseWorkspace = useCallback(() => {
+    const parentId = workspace?.parentId;
+    navigate(parentId ? `/workspaces/${parentId}/folder` : '/workspaces');
+  }, [workspace?.parentId, navigate]);
+
+  // Connection drawing — anchor mousedown starts a draw
+  const onAnchorMouseDown = useCallback((itemId: string, anchor: AnchorPosition, e: React.MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDrawingConnection({
+      fromItemId: itemId,
+      fromAnchor: anchor,
+      currentX: e.clientX - rect.left,
+      currentY: e.clientY - rect.top,
+    });
+  }, []);
+
+  // Connection drawing — anchor mouseup completes a connection
+  const onAnchorMouseUp = useCallback((itemId: string, anchor: AnchorPosition) => {
+    if (!drawingConnection) return;
+    if (drawingConnection.fromItemId !== itemId) {
+      addConnection({
+        fromItemId: drawingConnection.fromItemId,
+        fromAnchor: drawingConnection.fromAnchor,
+        toItemId: itemId,
+        toAnchor: anchor,
+      });
+    }
+    setDrawingConnection(null);
+  }, [drawingConnection, addConnection]);
+
+  // Connection drawing — window mousemove/mouseup while drawing
+  useEffect(() => {
+    if (!drawingConnection) return;
+    const onMove = (e: MouseEvent) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setDrawingConnection((prev) =>
+        prev ? { ...prev, currentX: e.clientX - rect.left, currentY: e.clientY - rect.top } : null,
+      );
+    };
+    const onUp = () => setDrawingConnection(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [drawingConnection]);
 
   const activeItem = activeItemId ? items.find((i) => i.id === activeItemId) ?? null : null;
-
-  const dotSize = BASE_DOT * zoom;
-  const gridSize = BASE_GRID * zoom;
 
   const onFileSelect = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -371,15 +655,16 @@ export default function WorkspaceDetailPage() {
       {/* Tab bar — always visible on canvas */}
       <TabBar
         workspaceName={workspace?.name ?? 'Workspace'}
-        onCloseWorkspace={() => {
-          const parentId = workspace?.parentId;
-          navigate(parentId ? `/workspaces/${parentId}/folder` : '/workspaces');
-        }}
+        onCloseWorkspace={onCloseWorkspace}
         onFocusItem={focusItem}
       />
 
       {activeItem && (
-        <DocumentView item={activeItem} />
+        activeItem.type === 'secret-card' ? (
+          <SecretCardView item={activeItem} onRequestUnlock={requestVaultUnlock} />
+        ) : (
+          <DocumentView item={activeItem} />
+        )
       )}
       <div className={cn('relative flex flex-1 min-h-0', activeItem && 'hidden')}>
       {/* Main area — workspace canvas */}
@@ -391,14 +676,14 @@ export default function WorkspaceDetailPage() {
         onMouseUp={onCanvasMouseUp}
         onMouseLeave={onCanvasMouseUp}
         onDoubleClick={onCanvasDoubleClick}
-        style={{
-          backgroundImage: `radial-gradient(circle, color-mix(in srgb, var(--color-muted-foreground) 30%, transparent) ${dotSize}px, transparent ${dotSize}px)`,
-          backgroundSize: `${gridSize}px ${gridSize}px`,
-          backgroundPosition: `${pan.x}px ${pan.y}px`,
-        }}
       >
+        {/* Pixel-perfect dot grid */}
+        <canvas
+          ref={gridCanvasRef}
+          className="pointer-events-none absolute inset-0"
+        />
         {/* Floating pill toolbar */}
-        <div className="absolute top-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-border/50 bg-background/80 backdrop-blur-md px-1.5 py-1 shadow-xl">
+        <div className="absolute top-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-border/50 bg-background/80 backdrop-blur-md px-1.5 py-1 shadow-xl">
           <button
             type="button"
             onClick={() => setActiveTool('cursor')}
@@ -455,17 +740,95 @@ export default function WorkspaceDetailPage() {
           <button
             type="button"
             onClick={() => setIsPanelCollapsed(false)}
-            className="absolute top-4 right-4 z-50 bg-background border border-border p-2 rounded-lg shadow-lg hover:bg-muted transition-colors"
-            title="Open panel"
+            className="absolute top-4 right-4 z-50 flex items-center gap-1.5 bg-card/90 backdrop-blur-md border border-border/60 px-3 py-2 rounded-xl shadow-lg hover:bg-muted transition-colors"
+            title="Open tools panel"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
-              <polyline points="15 3 21 3 21 9" />
-              <polyline points="9 21 3 21 3 15" />
-              <line x1="21" y1="3" x2="14" y2="10" />
-              <line x1="3" y1="21" x2="10" y2="14" />
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
             </svg>
+            <span className="text-[12px] font-medium">Tools</span>
           </button>
         )}
+
+        {/* Canvas content layer — isolated stacking context so items never overlap UI chrome */}
+        <div className="absolute inset-0 z-0" style={{ isolation: 'isolate' }}>
+        <svg className="pointer-events-none absolute inset-0" style={{ width: '100%', height: '100%' }}>
+          {/* Persisted connections */}
+          {connections.map((conn) => {
+            const fromItem = items.find((i) => i.id === conn.fromItemId);
+            const toItem = items.find((i) => i.id === conn.toItemId);
+            if (!fromItem || !toItem) return null;
+            const from = getAnchorScreenPos(fromItem, conn.fromAnchor, zoom, pan);
+            const to = getAnchorScreenPos(toItem, conn.toAnchor, zoom, pan);
+            return (
+              <g key={conn.id}>
+                {/* Invisible wide hit area for click-to-delete */}
+                <line
+                  x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                  stroke="transparent" strokeWidth={12}
+                  style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                  onClick={() => removeConnection(conn.id)}
+                />
+                {/* Visible green line */}
+                <line
+                  x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                  stroke="#22c55e" strokeWidth={2}
+                />
+              </g>
+            );
+          })}
+          {/* In-progress drawing line */}
+          {drawingConnection && (() => {
+            const fromItem = items.find((i) => i.id === drawingConnection.fromItemId);
+            if (!fromItem) return null;
+            const from = getAnchorScreenPos(fromItem, drawingConnection.fromAnchor, zoom, pan);
+            return (
+              <line
+                x1={from.x} y1={from.y}
+                x2={drawingConnection.currentX} y2={drawingConnection.currentY}
+                stroke="#22c55e" strokeWidth={2} strokeDasharray="6 4"
+              />
+            );
+          })()}
+          {/* Alignment snap guides */}
+          {alignmentGuides.map((guide, i) => {
+            if (guide.type === 'vertical') {
+              const x = guide.position * zoom + pan.x;
+              return <line key={`ag-v-${i}`} x1={x} y1={0} x2={x} y2="100%" stroke="#ec4899" strokeWidth={1} strokeDasharray="4 4" />;
+            }
+            const y = guide.position * zoom + pan.y;
+            return <line key={`ag-h-${i}`} x1={0} y1={y} x2="100%" y2={y} stroke="#ec4899" strokeWidth={1} strokeDasharray="4 4" />;
+          })}
+          {/* Equal spacing guides */}
+          {spacingGuides.map((sg, i) => {
+            if (sg.axis === 'horizontal') {
+              const x1 = sg.from * zoom + pan.x;
+              const x2 = sg.to * zoom + pan.x;
+              const cy = sg.cross * zoom + pan.y;
+              const gap = Math.round(sg.to - sg.from);
+              return (
+                <g key={`sg-h-${i}`}>
+                  <line x1={x1} y1={cy} x2={x2} y2={cy} stroke="#ec4899" strokeWidth={1} />
+                  <line x1={x1} y1={cy - 4} x2={x1} y2={cy + 4} stroke="#ec4899" strokeWidth={1} />
+                  <line x1={x2} y1={cy - 4} x2={x2} y2={cy + 4} stroke="#ec4899" strokeWidth={1} />
+                  <text x={(x1 + x2) / 2} y={cy - 6} textAnchor="middle" fill="#ec4899" fontSize={10} fontFamily="system-ui">{gap}</text>
+                </g>
+              );
+            }
+            const y1 = sg.from * zoom + pan.y;
+            const y2 = sg.to * zoom + pan.y;
+            const cx = sg.cross * zoom + pan.x;
+            const gap = Math.round(sg.to - sg.from);
+            return (
+              <g key={`sg-v-${i}`}>
+                <line x1={cx} y1={y1} x2={cx} y2={y2} stroke="#ec4899" strokeWidth={1} />
+                <line x1={cx - 4} y1={y1} x2={cx + 4} y2={y1} stroke="#ec4899" strokeWidth={1} />
+                <line x1={cx - 4} y1={y2} x2={cx + 4} y2={y2} stroke="#ec4899" strokeWidth={1} />
+                <text x={cx + 8} y={(y1 + y2) / 2 + 3} fill="#ec4899" fontSize={10} fontFamily="system-ui">{gap}</text>
+              </g>
+            );
+          })}
+        </svg>
 
         {/* Canvas items */}
         {items.map((item) => (
@@ -477,7 +840,11 @@ export default function WorkspaceDetailPage() {
             isSelected={selectedItemId === item.id}
             activeTool={activeTool}
             onSelect={selectItem}
-            onOpen={openItem}
+            onOpen={handleOpenItem}
+            onAnchorMouseDown={onAnchorMouseDown}
+            onAnchorMouseUp={onAnchorMouseUp}
+            isDrawingConnection={!!drawingConnection}
+            onRequestUnlock={requestVaultUnlock}
           />
         ))}
 
@@ -506,12 +873,13 @@ export default function WorkspaceDetailPage() {
             />
           )}
         </div>
+        </div>
       </div>
 
       {/* Right panel — Floating Chat Card */}
       <aside
         className={cn(
-          'relative z-10 flex flex-col rounded-2xl border border-border/60 bg-card/90 backdrop-blur-xl shadow-2xl animate-slide-in transition-all duration-300 ease-in-out',
+          'absolute right-0 top-0 bottom-0 z-40 flex flex-col animate-slide-in transition-all duration-300 ease-in-out',
           isPanelCollapsed
             ? 'w-0 pr-0 opacity-0 overflow-hidden'
             : 'w-[360px] py-4 pr-4',
@@ -663,6 +1031,19 @@ export default function WorkspaceDetailPage() {
               </div>
               <GeneralToolPanel onDragStart={startDrag} />
             </>
+          ) : topic === 'secret' ? (
+            <>
+              <div className="border-b border-border/60 px-4 py-3">
+                <h2 className="font-bold text-sm truncate flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-primary">
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  Secret
+                </h2>
+              </div>
+              <SecretToolPanel onDragStart={startDrag} />
+            </>
           ) : (
             <>
               {/* Chat header */}
@@ -749,19 +1130,52 @@ export default function WorkspaceDetailPage() {
       </aside>
       </div>
 
-      {/* Drag ghost */}
-      {dragState && (
+      {/* Drag ghost — positioned via direct DOM manipulation in useCanvasDrop */}
+      {isDragging && (
         <div
+          ref={ghostRef}
           className="pointer-events-none fixed z-[9999]"
           style={{
-            left: dragState.ghostX - 42,
-            top: dragState.ghostY - 60,
+            left: dragRef.current ? dragRef.current.ghostX - 42 : 0,
+            top: dragRef.current ? dragRef.current.ghostY - 60 : 0,
             width: 85,
             height: 120,
           }}
         >
           <div className="h-full w-full rounded-sm border border-primary/40 bg-white shadow-xl dark:bg-zinc-50" />
         </div>
+      )}
+
+      {/* Vault modals — conditionally rendered to avoid extra useSyncExternalStore
+          subscriptions from their internal useQuery/useMutation hooks */}
+      {showVaultSetup && (
+        <VaultSetupModal
+          open={showVaultSetup}
+          onOpenChange={setShowVaultSetup}
+          onSetupComplete={() => {
+            setShowVaultSetup(false);
+            queryClient.invalidateQueries({ queryKey: trpc.vault.getConfig.queryKey() });
+            if (pendingSecretCardRef.current) {
+              const pendingId = pendingSecretCardRef.current;
+              pendingSecretCardRef.current = null;
+              openItem(pendingId);
+            }
+          }}
+        />
+      )}
+      {showVaultUnlock && (
+        <VaultUnlockModal
+          open={showVaultUnlock}
+          onOpenChange={setShowVaultUnlock}
+          onUnlockComplete={() => {
+            setShowVaultUnlock(false);
+            if (pendingSecretCardRef.current) {
+              const pendingId = pendingSecretCardRef.current;
+              pendingSecretCardRef.current = null;
+              openItem(pendingId);
+            }
+          }}
+        />
       )}
     </div>
   );

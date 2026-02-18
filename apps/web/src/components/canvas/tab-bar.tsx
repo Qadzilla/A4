@@ -1,5 +1,7 @@
+import { memo } from 'react';
 import { cn } from '@a4/ui';
-import { useCanvasStore } from '../../stores/canvas-store';
+import { useShallow } from 'zustand/react/shallow';
+import { useCanvasStore, type CanvasItem } from '../../stores/canvas-store';
 
 interface TabBarProps {
   workspaceName: string;
@@ -7,10 +9,15 @@ interface TabBarProps {
   onFocusItem: (id: string) => void;
 }
 
-export function TabBar({ workspaceName, onCloseWorkspace, onFocusItem }: TabBarProps) {
-  const openItemIds = useCanvasStore((s) => s.openItemIds);
+export const TabBar = memo(function TabBar({ workspaceName, onCloseWorkspace, onFocusItem }: TabBarProps) {
+  const openTabs = useCanvasStore(
+    useShallow((s) =>
+      s.openItemIds
+        .map((id) => s.items.find((i) => i.id === id))
+        .filter((item): item is CanvasItem => item != null)
+    ),
+  );
   const activeItemId = useCanvasStore((s) => s.activeItemId);
-  const items = useCanvasStore((s) => s.items);
   const setActiveItem = useCanvasStore((s) => s.setActiveItem);
   const closeItem = useCanvasStore((s) => s.closeItem);
   const renameItem = useCanvasStore((s) => s.renameItem);
@@ -60,14 +67,12 @@ export function TabBar({ workspaceName, onCloseWorkspace, onFocusItem }: TabBarP
       </button>
 
       {/* Open document tabs */}
-      {openItemIds.map((id) => {
-        const item = items.find((i) => i.id === id);
-        if (!item) return null;
-        const isActive = activeItemId === id;
+      {openTabs.map((tab) => {
+        const isActive = activeItemId === tab.id;
 
         return (
           <button
-            key={id}
+            key={tab.id}
             type="button"
             className={cn(
               'group/tab relative flex items-center gap-1.5 h-full px-3 text-[12px] shrink-0 max-w-[160px] border-r border-border/40 transition-colors',
@@ -76,20 +81,20 @@ export function TabBar({ workspaceName, onCloseWorkspace, onFocusItem }: TabBarP
                 : 'text-muted-foreground hover:bg-muted/40',
             )}
             onClick={() => {
-              setActiveItem(id);
-              onFocusItem(id);
+              setActiveItem(tab.id);
+              onFocusItem(tab.id);
             }}
             onMouseDown={(e) => {
               if (e.button === 1) {
                 e.preventDefault();
-                closeItem(id);
+                closeItem(tab.id);
               }
             }}
             onDoubleClick={(e) => {
               e.stopPropagation();
-              const newName = window.prompt('Rename', item.name);
+              const newName = window.prompt('Rename', tab.name);
               if (newName?.trim()) {
-                renameItem(id, newName.trim());
+                renameItem(tab.id, newName.trim());
               }
             }}
           >
@@ -99,7 +104,7 @@ export function TabBar({ workspaceName, onCloseWorkspace, onFocusItem }: TabBarP
               <polyline points="14 2 14 8 20 8" />
             </svg>
 
-            <span className="truncate">{item.name}</span>
+            <span className="truncate">{tab.name}</span>
 
             {/* Close button */}
             <span
@@ -111,7 +116,7 @@ export function TabBar({ workspaceName, onCloseWorkspace, onFocusItem }: TabBarP
               )}
               onClick={(e) => {
                 e.stopPropagation();
-                closeItem(id);
+                closeItem(tab.id);
               }}
               onMouseDown={(e) => e.stopPropagation()}
             >
@@ -125,4 +130,4 @@ export function TabBar({ workspaceName, onCloseWorkspace, onFocusItem }: TabBarP
       })}
     </div>
   );
-}
+});

@@ -3,6 +3,8 @@ import { useCanvasStore } from '../stores/canvas-store';
 
 export const ITEM_DEFAULTS: Record<string, { width: number; height: number }> = {
   'a4-page': { width: 565, height: 800 },
+  'secret-card': { width: 320, height: 240 },
+  'note': { width: 260, height: 180 },
 };
 
 interface DragState {
@@ -12,15 +14,15 @@ interface DragState {
 }
 
 export function useCanvasDrop() {
-  const [dragState, setDragState] = useState<DragState | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<DragState | null>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
   const addItem = useCanvasStore((s) => s.addItem);
 
   const startDrag = useCallback((type: string, e: React.MouseEvent) => {
     e.preventDefault();
-    const state: DragState = { type, ghostX: e.clientX, ghostY: e.clientY };
-    dragRef.current = state;
-    setDragState(state);
+    dragRef.current = { type, ghostX: e.clientX, ghostY: e.clientY };
+    setIsDragging(true);
   }, []);
 
   const handleCanvasDrop = useCallback(
@@ -41,25 +43,28 @@ export function useCanvasDrop() {
       });
 
       dragRef.current = null;
-      setDragState(null);
+      setIsDragging(false);
     },
     [addItem],
   );
 
-  // Window-level listeners for drag tracking
+  // Window-level listeners for drag tracking — direct DOM manipulation for ghost
   useEffect(() => {
-    if (!dragState) return;
+    if (!isDragging) return;
 
     const onMouseMove = (e: MouseEvent) => {
-      const next: DragState = { type: dragState.type, ghostX: e.clientX, ghostY: e.clientY };
-      dragRef.current = next;
-      setDragState(next);
+      if (!dragRef.current) return;
+      dragRef.current = { ...dragRef.current, ghostX: e.clientX, ghostY: e.clientY };
+      // Direct DOM manipulation — bypass React re-renders
+      if (ghostRef.current) {
+        ghostRef.current.style.left = `${e.clientX - 42}px`;
+        ghostRef.current.style.top = `${e.clientY - 60}px`;
+      }
     };
 
     const onMouseUp = () => {
-      // Cancel if mouseup happens outside canvas — page.tsx handles the canvas case
       dragRef.current = null;
-      setDragState(null);
+      setIsDragging(false);
     };
 
     window.addEventListener('mousemove', onMouseMove);
@@ -68,7 +73,7 @@ export function useCanvasDrop() {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [dragState]);
+  }, [isDragging]);
 
-  return { dragState, startDrag, handleCanvasDrop };
+  return { isDragging, dragRef, ghostRef, startDrag, handleCanvasDrop };
 }

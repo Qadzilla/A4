@@ -6,7 +6,7 @@ import {
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, isNull, isNotNull } from 'drizzle-orm';
 import { z } from 'zod';
-import { workspaces } from '../../db/schema';
+import { canvasConnections, canvasItems, workspaces } from '../../db/schema';
 import { protectedProcedure, router } from '../trpc';
 
 export const workspaceRouter = router({
@@ -184,6 +184,23 @@ export const workspaceRouter = router({
           code: 'BAD_REQUEST',
           message: 'Workspace must be in trash before permanent deletion',
         });
+      }
+
+      // Collect child workspace IDs for cascade
+      const children = await ctx.db
+        .select({ id: workspaces.id })
+        .from(workspaces)
+        .where(and(eq(workspaces.parentId, input.id), eq(workspaces.userId, ctx.userId)));
+      const allIds = [input.id, ...children.map((c) => c.id)];
+
+      // Cascade-delete canvas data for all affected workspaces
+      for (const wsId of allIds) {
+        await ctx.db
+          .delete(canvasConnections)
+          .where(and(eq(canvasConnections.workspaceId, wsId), eq(canvasConnections.userId, ctx.userId)));
+        await ctx.db
+          .delete(canvasItems)
+          .where(and(eq(canvasItems.workspaceId, wsId), eq(canvasItems.userId, ctx.userId)));
       }
 
       // Hard-delete children first, then the item itself

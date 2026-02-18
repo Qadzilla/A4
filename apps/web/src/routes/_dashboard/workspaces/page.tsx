@@ -62,7 +62,8 @@ export default function WorkspacesListPage() {
 
   const deleteMutation = useMutation(
     trpc.workspace.delete.mutationOptions({
-      onSuccess: async () => {
+      onSuccess: async (_data, variables) => {
+        localStorage.removeItem(`a4-canvas-${variables.id}`);
         await queryClient.refetchQueries({ queryKey: trpc.workspace.list.queryKey(), type: 'all' });
         await queryClient.invalidateQueries({ queryKey: trpc.workspace.listTrashed.queryKey() });
       },

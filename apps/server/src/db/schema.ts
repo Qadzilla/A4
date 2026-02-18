@@ -45,6 +45,40 @@ export const marketBars = sqliteTable(
   ],
 );
 
+// Canvas items persisted per workspace
+export const canvasItems = sqliteTable('canvas_items', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  type: text('type').notNull(),
+  name: text('name').notNull(),
+  x: real('x').notNull(),
+  y: real('y').notNull(),
+  width: real('width').notNull(),
+  height: real('height').notNull(),
+  zIndex: integer('z_index').notNull(),
+  data: text('data'), // JSON string
+});
+
+// Canvas connections between items
+export const canvasConnections = sqliteTable('canvas_connections', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  fromItemId: text('from_item_id').notNull(),
+  fromAnchor: text('from_anchor').notNull(),
+  toItemId: text('to_item_id').notNull(),
+  toAnchor: text('to_anchor').notNull(),
+});
+
+// Per-user vault config (salt + encrypted verification token)
+export const vaultConfig = sqliteTable('vault_config', {
+  userId: text('user_id').primaryKey(),
+  salt: text('salt').notNull(),
+  verificationCiphertext: text('verification_ciphertext').notNull(),
+  verificationIV: text('verification_iv').notNull(),
+});
+
 // Cached ticker metadata from Polygon.io
 export const tickerDetails = sqliteTable('ticker_details', {
   symbol: text('symbol').primaryKey(),

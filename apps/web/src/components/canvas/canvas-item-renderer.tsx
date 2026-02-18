@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   cn,
   DropdownMenu,
@@ -7,8 +7,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@a4/ui';
+import { useCreateBlockNote } from '@blocknote/react';
+import { BlockNoteView } from '@blocknote/mantine';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
+import { computeAlignment, computeSpacing } from '../../lib/canvas-utils';
+import { useTheme } from '../../hooks/useTheme';
+import { SecretCardContent } from './secret-card-content';
+import { NoteCardContent } from './note-card-content';
 
 const MIN_SIZE = 50;
 const HANDLE_SIZE = 8;
@@ -22,6 +28,20 @@ const handleCursors: Record<HandleDir, string> = {
   se: 'nwse-resize',
 };
 
+const handles: { dir: HandleDir; style: React.CSSProperties }[] = [
+  { dir: 'nw', style: { top: -HANDLE_SIZE / 2, left: -HANDLE_SIZE / 2 } },
+  { dir: 'ne', style: { top: -HANDLE_SIZE / 2, right: -HANDLE_SIZE / 2 } },
+  { dir: 'sw', style: { bottom: -HANDLE_SIZE / 2, left: -HANDLE_SIZE / 2 } },
+  { dir: 'se', style: { bottom: -HANDLE_SIZE / 2, right: -HANDLE_SIZE / 2 } },
+];
+
+const anchorConfigs = [
+  { anchor: 'top' as const, style: { top: -5, left: '50%', marginLeft: -5 } },
+  { anchor: 'bottom' as const, style: { bottom: -5, left: '50%', marginLeft: -5 } },
+  { anchor: 'left' as const, style: { left: -5, top: '50%', marginTop: -5 } },
+  { anchor: 'right' as const, style: { right: -5, top: '50%', marginTop: -5 } },
+];
+
 interface CanvasItemRendererProps {
   item: CanvasItem;
   zoom: number;
@@ -30,78 +50,31 @@ interface CanvasItemRendererProps {
   activeTool: 'cursor' | 'grab';
   onSelect: (id: string) => void;
   onOpen: (id: string) => void;
+  onAnchorMouseDown?: (itemId: string, anchor: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
+  onAnchorMouseUp?: (itemId: string, anchor: 'top' | 'bottom' | 'left' | 'right') => void;
+  isDrawingConnection?: boolean;
+  onRequestUnlock?: () => void;
 }
 
 /** The document editor renders at 816px wide with p-16 (64px) padding. */
 const DOC_WIDTH = 816;
 
-function getBlockText(block: any): string {
-  if (!block?.content) return '';
-  if (Array.isArray(block.content)) {
-    return block.content
-      .map((c: any) => (c.type === 'text' ? c.text : ''))
-      .join('');
-  }
-  return '';
-}
-
-function BlockPreview({ blocks }: { blocks: any[] }) {
-  return (
-    <div className="p-16 space-y-[3px]">
-      {blocks.map((block, i) => {
-        const text = getBlockText(block);
-        if (!text && block.type !== 'checkListItem') return null;
-        const type = block.type as string;
-        const level = block.props?.level;
-
-        if (type === 'heading') {
-          const cls =
-            level === 1
-              ? 'text-[42px] font-bold leading-tight'
-              : level === 2
-                ? 'text-[28px] font-semibold leading-tight'
-                : 'text-[18px] font-semibold leading-tight';
-          return <p key={i} className={cn(cls, 'text-zinc-900')}>{text}</p>;
-        }
-
-        if (type === 'bulletListItem') {
-          return (
-            <div key={i} className="flex items-baseline gap-[6px] pl-[24px]">
-              <span className="text-[14px] text-zinc-500 leading-snug shrink-0">&#8226;</span>
-              <p className="text-[14px] text-zinc-700 leading-snug">{text}</p>
-            </div>
-          );
-        }
-
-        if (type === 'numberedListItem') {
-          return (
-            <div key={i} className="flex items-baseline gap-[6px] pl-[24px]">
-              <span className="text-[14px] text-zinc-500 leading-snug shrink-0">{(block.props?.index ?? i) + 1}.</span>
-              <p className="text-[14px] text-zinc-700 leading-snug">{text}</p>
-            </div>
-          );
-        }
-
-        if (type === 'checkListItem') {
-          return (
-            <div key={i} className="flex items-center gap-[6px] pl-[24px]">
-              <span className="text-[14px] leading-none shrink-0">{block.props?.checked ? '\u2611' : '\u2610'}</span>
-              <p className="text-[14px] text-zinc-700 leading-snug">{text}</p>
-            </div>
-          );
-        }
-
-        return (
-          <p key={i} className="text-[14px] text-zinc-700 leading-snug">{text}</p>
-        );
-      })}
-    </div>
-  );
-}
-
 function A4PageContent({ item, zoom }: { item: CanvasItem; zoom: number }) {
-  const blocks = (item.data?.content as any[] | undefined) ?? [];
-  const hasContent = blocks.some((b) => getBlockText(b).length > 0);
+  const blocks = (item.data?.content as any[] | undefined) ?? undefined;
+  const { resolvedTheme } = useTheme();
+
+  const initialContent = useMemo(() => blocks, [item.id]);
+  const editor = useCreateBlockNote({ initialContent }, [item.id]);
+
+  const hasContent = blocks && blocks.some((b: any) => {
+    if (['divider', 'image', 'video', 'audio', 'table'].includes(b.type)) return true;
+    if (!b.content) return false;
+    if (Array.isArray(b.content))
+      return b.content.some((c: any) => (c.type === 'text' && c.text) || (c.type === 'link'));
+    if (b.content?.type === 'tableContent') return true;
+    return false;
+  });
+
   const scale = (item.width * zoom) / DOC_WIDTH;
 
   return (
@@ -111,16 +84,22 @@ function A4PageContent({ item, zoom }: { item: CanvasItem; zoom: number }) {
           className="pointer-events-none select-none origin-top-left"
           style={{ width: DOC_WIDTH, transform: `scale(${scale})` }}
         >
-          <BlockPreview blocks={blocks} />
+          <div className="p-16">
+            <BlockNoteView
+              editor={editor}
+              editable={false}
+              theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+            />
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-export function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, onSelect, onOpen }: CanvasItemRendererProps) {
-  const moveItem = useCanvasStore((s) => s.moveItem);
-  const resizeItem = useCanvasStore((s) => s.resizeItem);
+export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, onSelect, onOpen, onAnchorMouseDown, onAnchorMouseUp, isDrawingConnection, onRequestUnlock }: CanvasItemRendererProps) {
+  const moveItemWithGuides = useCanvasStore((s) => s.moveItemWithGuides);
+  const resizeItemWithGuides = useCanvasStore((s) => s.resizeItemWithGuides);
   const renameItem = useCanvasStore((s) => s.renameItem);
   const removeItem = useCanvasStore((s) => s.removeItem);
   const duplicateItem = useCanvasStore((s) => s.duplicateItem);
@@ -128,9 +107,12 @@ export function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, on
   const sendToBack = useCanvasStore((s) => s.sendToBack);
   const pendingRenameId = useCanvasStore((s) => s.pendingRenameId);
   const clearPendingRename = useCanvasStore((s) => s.clearPendingRename);
+  const clearAlignmentGuides = useCanvasStore((s) => s.clearAlignmentGuides);
+  const clearSpacingGuides = useCanvasStore((s) => s.clearSpacingGuides);
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(item.name);
+  const [isEditingNote, setIsEditingNote] = useState(false);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-enter rename mode when this item was just created
@@ -177,20 +159,57 @@ export function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, on
     setIsRenaming(false);
   };
 
-  const onWindowMouseMove = useCallback(
-    (e: MouseEvent) => {
-      const d = dragRef.current;
-      if (!d) return;
+  // Ref-based listener pattern: update handler every render (cheap), mount listeners once
+  const mouseMoveRef = useRef<((e: MouseEvent) => void) | undefined>(undefined);
+  mouseMoveRef.current = (e: MouseEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
 
-      const dx = (e.clientX - d.startMouseX) / zoom;
-      const dy = (e.clientY - d.startMouseY) / zoom;
+    const dx = (e.clientX - d.startMouseX) / zoom;
+    const dy = (e.clientY - d.startMouseY) / zoom;
 
-      if (d.mode === 'move') {
-        moveItem(item.id, d.startX + dx, d.startY + dy);
-      } else if (d.mode === 'resize' && d.handle) {
+    if (d.mode === 'move') {
+      const tentative: CanvasItem = { ...item, x: d.startX + dx, y: d.startY + dy };
+      // Read allItems imperatively to avoid O(N) subscription per item
+      const allItems = useCanvasStore.getState().items;
+      const alignment = computeAlignment(tentative, allItems);
+      const spacing = computeSpacing(tentative, allItems);
+
+      let finalSnapX = alignment.snapDeltaX;
+      if (spacing.snapDeltaX !== 0) {
+        if (alignment.snapDeltaX === 0 || Math.abs(spacing.snapDeltaX) <= Math.abs(alignment.snapDeltaX)) {
+          finalSnapX = spacing.snapDeltaX;
+        }
+      }
+      let finalSnapY = alignment.snapDeltaY;
+      if (spacing.snapDeltaY !== 0) {
+        if (alignment.snapDeltaY === 0 || Math.abs(spacing.snapDeltaY) <= Math.abs(alignment.snapDeltaY)) {
+          finalSnapY = spacing.snapDeltaY;
+        }
+      }
+
+      const guides = [
+        ...(finalSnapX === alignment.snapDeltaX && alignment.snapDeltaX !== 0
+          ? alignment.guides.filter(g => g.type === 'vertical') : []),
+        ...(finalSnapY === alignment.snapDeltaY && alignment.snapDeltaY !== 0
+          ? alignment.guides.filter(g => g.type === 'horizontal') : []),
+      ];
+      // Single batched store update instead of 3 separate set() calls
+      moveItemWithGuides(item.id, tentative.x + finalSnapX, tentative.y + finalSnapY, guides, spacing.spacingGuides);
+    } else if (d.mode === 'resize' && d.handle) {
+      const freeResize = item.type === 'note';
+
+      let newW: number;
+      let newH: number;
+
+      if (freeResize) {
+        const dxSign = d.handle === 'nw' || d.handle === 'sw' ? -1 : 1;
+        const dySign = d.handle === 'nw' || d.handle === 'ne' ? -1 : 1;
+        newW = Math.max(MIN_SIZE, d.startW + dx * dxSign);
+        newH = Math.max(MIN_SIZE, d.startH + dy * dySign);
+      } else {
         const aspect = d.startW / d.startH;
 
-        // Use the dominant axis to drive proportional resize
         let delta: number;
         if (d.handle === 'se') {
           delta = Math.abs(dx) > Math.abs(dy) ? dx : dy * aspect;
@@ -199,53 +218,78 @@ export function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, on
         } else if (d.handle === 'ne') {
           delta = Math.abs(dx) > Math.abs(-dy) ? dx : -dy * aspect;
         } else {
-          // nw
           delta = Math.abs(-dx) > Math.abs(-dy) ? -dx : -dy * aspect;
         }
 
-        let newW = d.startW + delta;
-        let newH = newW / aspect;
+        newW = d.startW + delta;
+        newH = newW / aspect;
 
-        // Enforce minimum size
         if (newW < MIN_SIZE) {
           newW = MIN_SIZE;
           newH = newW / aspect;
         }
-
-        // Compute position based on anchor corner (opposite to handle)
-        let newX = d.startX;
-        let newY = d.startY;
-        if (d.handle === 'nw') {
-          newX = d.startX + d.startW - newW;
-          newY = d.startY + d.startH - newH;
-        } else if (d.handle === 'ne') {
-          newY = d.startY + d.startH - newH;
-        } else if (d.handle === 'sw') {
-          newX = d.startX + d.startW - newW;
-        }
-        // se: position stays at top-left, no adjustment needed
-
-        resizeItem(item.id, newX, newY, newW, newH);
       }
-    },
-    [item.id, zoom, moveItem, resizeItem],
-  );
 
-  const onWindowMouseUp = useCallback(() => {
+      let newX = d.startX;
+      let newY = d.startY;
+      if (d.handle === 'nw') {
+        newX = d.startX + d.startW - newW;
+        newY = d.startY + d.startH - newH;
+      } else if (d.handle === 'ne') {
+        newY = d.startY + d.startH - newH;
+      } else if (d.handle === 'sw') {
+        newX = d.startX + d.startW - newW;
+      }
+
+      const tentative: CanvasItem = { ...item, x: newX, y: newY, width: newW, height: newH };
+      const allItems = useCanvasStore.getState().items;
+      const alignment = computeAlignment(tentative, allItems);
+      const spacing = computeSpacing(tentative, allItems);
+
+      let finalSnapX = alignment.snapDeltaX;
+      if (spacing.snapDeltaX !== 0) {
+        if (alignment.snapDeltaX === 0 || Math.abs(spacing.snapDeltaX) <= Math.abs(alignment.snapDeltaX)) {
+          finalSnapX = spacing.snapDeltaX;
+        }
+      }
+      let finalSnapY = alignment.snapDeltaY;
+      if (spacing.snapDeltaY !== 0) {
+        if (alignment.snapDeltaY === 0 || Math.abs(spacing.snapDeltaY) <= Math.abs(alignment.snapDeltaY)) {
+          finalSnapY = spacing.snapDeltaY;
+        }
+      }
+
+      const guides = [
+        ...(finalSnapX === alignment.snapDeltaX && alignment.snapDeltaX !== 0
+          ? alignment.guides.filter(g => g.type === 'vertical') : []),
+        ...(finalSnapY === alignment.snapDeltaY && alignment.snapDeltaY !== 0
+          ? alignment.guides.filter(g => g.type === 'horizontal') : []),
+      ];
+      // Single batched store update
+      resizeItemWithGuides(item.id, newX + finalSnapX, newY + finalSnapY, newW, newH, guides, spacing.spacingGuides);
+    }
+  };
+
+  const mouseUpRef = useRef<(() => void) | undefined>(undefined);
+  mouseUpRef.current = () => {
     dragRef.current = null;
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
-  }, []);
+    clearAlignmentGuides();
+    clearSpacingGuides();
+  };
 
-  // Attach/detach window listeners
+  // Mount window listeners once — never re-added
   useEffect(() => {
-    window.addEventListener('mousemove', onWindowMouseMove);
-    window.addEventListener('mouseup', onWindowMouseUp);
+    const onMove = (e: MouseEvent) => mouseMoveRef.current?.(e);
+    const onUp = () => mouseUpRef.current?.();
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
     return () => {
-      window.removeEventListener('mousemove', onWindowMouseMove);
-      window.removeEventListener('mouseup', onWindowMouseUp);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
     };
-  }, [onWindowMouseMove, onWindowMouseUp]);
+  }, []);
 
   const handleBodyMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -283,13 +327,6 @@ export function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, on
     document.body.style.userSelect = 'none';
   };
 
-  const handles: { dir: HandleDir; style: React.CSSProperties }[] = [
-    { dir: 'nw', style: { top: -HANDLE_SIZE / 2, left: -HANDLE_SIZE / 2 } },
-    { dir: 'ne', style: { top: -HANDLE_SIZE / 2, right: -HANDLE_SIZE / 2 } },
-    { dir: 'sw', style: { bottom: -HANDLE_SIZE / 2, left: -HANDLE_SIZE / 2 } },
-    { dir: 'se', style: { bottom: -HANDLE_SIZE / 2, right: -HANDLE_SIZE / 2 } },
-  ];
-
   return (
     <div
       className={cn(
@@ -307,11 +344,24 @@ export function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, on
         onMouseDown={handleBodyMouseDown}
         onDoubleClick={(e) => {
           e.stopPropagation();
-          onOpen(item.id);
+          if (item.type === 'note') {
+            setIsEditingNote(true);
+          } else {
+            onOpen(item.id);
+          }
         }}
       >
         {item.type === 'a4-page' ? (
           <A4PageContent item={item} zoom={zoom} />
+        ) : item.type === 'secret-card' ? (
+          <SecretCardContent item={item} onRequestUnlock={onRequestUnlock ?? (() => {})} />
+        ) : item.type === 'note' ? (
+          <NoteCardContent
+            item={item}
+            isEditing={isEditingNote}
+            onStartEdit={() => setIsEditingNote(true)}
+            onStopEdit={() => setIsEditingNote(false)}
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center rounded-sm border border-border/40 bg-muted/20 text-xs text-muted-foreground">
             {item.type}
@@ -451,6 +501,44 @@ export function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, on
             onMouseDown={(e) => startResize(h.dir, e)}
           />
         ))}
+
+      {/* Connection anchor dots — cursor mode only */}
+      {activeTool === 'cursor' && (
+        <>
+          {anchorConfigs.map((a) => (
+            <div
+              key={a.anchor}
+              className={cn(
+                'absolute rounded-full bg-green-500 border-2 border-white dark:border-zinc-900 shadow-sm transition-opacity duration-150 z-[2]',
+                isDrawingConnection || isSelected
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100',
+              )}
+              style={{ ...a.style, width: 10, height: 10, cursor: 'crosshair' }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onAnchorMouseDown?.(item.id, a.anchor, e);
+              }}
+              onMouseUp={(e) => {
+                e.stopPropagation();
+                onAnchorMouseUp?.(item.id, a.anchor);
+              }}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
-}
+}, (prev, next) => {
+  return prev.item === next.item
+    && prev.zoom === next.zoom
+    && prev.pan.x === next.pan.x && prev.pan.y === next.pan.y
+    && prev.isSelected === next.isSelected
+    && prev.activeTool === next.activeTool
+    && prev.isDrawingConnection === next.isDrawingConnection
+    && prev.onSelect === next.onSelect
+    && prev.onOpen === next.onOpen
+    && prev.onAnchorMouseDown === next.onAnchorMouseDown
+    && prev.onAnchorMouseUp === next.onAnchorMouseUp
+    && prev.onRequestUnlock === next.onRequestUnlock;
+});
