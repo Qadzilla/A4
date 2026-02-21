@@ -12,6 +12,7 @@ import { DEV_AUTH_BYPASS, env } from './env';
 import { PolygonService } from './services/polygon';
 import { createContext, setPolygonService } from './trpc/context';
 import { appRouter } from './trpc/router';
+import { filesRouter } from './routes/files';
 
 const app = express();
 
@@ -53,6 +54,9 @@ app.use(
     createContext,
   }),
 );
+
+// File upload/download/delete routes (Express, not tRPC — multipart)
+app.use('/api/files', filesRouter);
 
 // Health check endpoint (non-tRPC)
 app.get('/health', (_req, res) => {

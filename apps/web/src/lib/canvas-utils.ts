@@ -316,3 +316,36 @@ export function getAnchorScreenPos(
     y: cy * zoom + pan.y,
   };
 }
+
+/** Direction unit vectors for each anchor. */
+const anchorDir: Record<AnchorPosition, { x: number; y: number }> = {
+  top: { x: 0, y: -1 },
+  bottom: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+  right: { x: 1, y: 0 },
+};
+
+/**
+ * Build an SVG cubic-bezier `d` attribute for a connection between two screen-space points.
+ * Control points extend outward from each anchor's natural direction, producing smooth
+ * S-curves / C-curves that always exit and enter at the correct angle.
+ */
+export function bezierPath(
+  from: { x: number; y: number },
+  fromAnchor: AnchorPosition,
+  to: { x: number; y: number },
+  toAnchor: AnchorPosition,
+): string {
+  const dist = Math.hypot(to.x - from.x, to.y - from.y);
+  const offset = Math.max(40, Math.min(dist * 0.4, 200));
+
+  const fd = anchorDir[fromAnchor];
+  const td = anchorDir[toAnchor];
+
+  const cx1 = from.x + fd.x * offset;
+  const cy1 = from.y + fd.y * offset;
+  const cx2 = to.x + td.x * offset;
+  const cy2 = to.y + td.y * offset;
+
+  return `M ${from.x},${from.y} C ${cx1},${cy1} ${cx2},${cy2} ${to.x},${to.y}`;
+}

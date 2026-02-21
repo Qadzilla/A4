@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import type { AlignmentGuide, AnchorPosition, CanvasConnection, SpacingGuide } from '../lib/canvas-utils';
+import { createDefaultTableData } from '../lib/table-utils';
+import { createDefaultKpiData } from '../lib/kpi-utils';
+import { createDefaultChartData } from '../lib/chart-utils';
 
 export type { CanvasConnection, AlignmentGuide, SpacingGuide };
 
@@ -19,6 +22,10 @@ const defaultNames: Record<string, string> = {
   'a4-page': 'Untitled Page',
   'secret-card': 'Untitled Credential',
   'note': 'Untitled Note',
+  'table-card': 'Untitled Table',
+  'kpi-card': 'Untitled KPI',
+  'chart-card': 'Untitled Chart',
+  'file-card': 'Untitled File',
 };
 
 interface CanvasState {
@@ -31,6 +38,7 @@ interface CanvasState {
   nextZIndex: number;
   openItemIds: string[];
   activeItemId: string | null;
+  highlightedItemIds: Set<string>;
   addItem: (item: Omit<CanvasItem, 'id' | 'zIndex' | 'name'> & { name?: string }) => void;
   removeItem: (id: string) => void;
   selectItem: (id: string | null) => void;
@@ -55,6 +63,11 @@ interface CanvasState {
   clearAlignmentGuides: () => void;
   setSpacingGuides: (guides: SpacingGuide[]) => void;
   clearSpacingGuides: () => void;
+  highlightItem: (id: string) => void;
+  unhighlightItem: (id: string) => void;
+  clearHighlights: () => void;
+  toggleHighlight: (id: string) => void;
+  setHighlightedItemIds: (ids: string[]) => void;
 }
 
 function getAdjacentTab(openItemIds: string[], closedId: string): string | null {
@@ -76,12 +89,20 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   nextZIndex: 1,
   openItemIds: [],
   activeItemId: null,
+  highlightedItemIds: new Set<string>(),
   addItem: (item) =>
     set((s) => {
       const id = crypto.randomUUID();
       const name = item.name ?? defaultNames[item.type] ?? 'Untitled';
+      const data = item.type === 'table-card' && !item.data
+        ? (createDefaultTableData() as unknown as Record<string, unknown>)
+        : item.type === 'kpi-card' && !item.data
+          ? (createDefaultKpiData() as unknown as Record<string, unknown>)
+          : item.type === 'chart-card' && !item.data
+            ? (createDefaultChartData() as unknown as Record<string, unknown>)
+            : item.data;
       return {
-        items: [...s.items, { ...item, id, name, zIndex: s.nextZIndex }],
+        items: [...s.items, { ...item, id, name, data, zIndex: s.nextZIndex }],
         nextZIndex: s.nextZIndex + 1,
         selectedItemId: id,
         pendingRenameId: id,
@@ -91,12 +112,16 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   removeItem: (id) =>
     set((s) => {
       const nextActive = s.activeItemId === id ? getAdjacentTab(s.openItemIds, id) : s.activeItemId;
+      const nextHighlighted = s.highlightedItemIds.has(id)
+        ? (() => { const n = new Set(s.highlightedItemIds); n.delete(id); return n; })()
+        : s.highlightedItemIds;
       return {
         items: s.items.filter((i) => i.id !== id),
         connections: s.connections.filter((c) => c.fromItemId !== id && c.toItemId !== id),
         selectedItemId: s.selectedItemId === id ? nextActive : s.selectedItemId,
         openItemIds: s.openItemIds.filter((i) => i !== id),
         activeItemId: nextActive,
+        highlightedItemIds: nextHighlighted,
       };
     }),
   selectItem: (id) => set({ selectedItemId: id }),
@@ -160,7 +185,7 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
       ),
     })),
   clearPendingRename: () => set({ pendingRenameId: null }),
-  clearItems: () => set({ items: [], connections: [], alignmentGuides: [], spacingGuides: [], selectedItemId: null, pendingRenameId: null, nextZIndex: 1, openItemIds: [], activeItemId: null }),
+  clearItems: () => set({ items: [], connections: [], alignmentGuides: [], spacingGuides: [], selectedItemId: null, pendingRenameId: null, nextZIndex: 1, openItemIds: [], activeItemId: null, highlightedItemIds: new Set<string>() }),
   loadItems: (items, connections) => set({
     items,
     connections: connections ?? [],
@@ -169,6 +194,7 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
     nextZIndex: items.length > 0 ? Math.max(...items.map((i) => i.zIndex)) + 1 : 1,
     openItemIds: [],
     activeItemId: null,
+    highlightedItemIds: new Set<string>(),
   }),
   addConnection: (conn) =>
     set((s) => {
@@ -209,4 +235,29 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   clearAlignmentGuides: () => set((s) => s.alignmentGuides.length === 0 ? s : { alignmentGuides: [] }),
   setSpacingGuides: (guides) => set({ spacingGuides: guides }),
   clearSpacingGuides: () => set((s) => s.spacingGuides.length === 0 ? s : { spacingGuides: [] }),
+  highlightItem: (id) =>
+    set((s) => {
+      if (s.highlightedItemIds.has(id)) return s;
+      const next = new Set(s.highlightedItemIds);
+      next.add(id);
+      return { highlightedItemIds: next };
+    }),
+  unhighlightItem: (id) =>
+    set((s) => {
+      if (!s.highlightedItemIds.has(id)) return s;
+      const next = new Set(s.highlightedItemIds);
+      next.delete(id);
+      return { highlightedItemIds: next };
+    }),
+  clearHighlights: () =>
+    set((s) => s.highlightedItemIds.size === 0 ? s : { highlightedItemIds: new Set<string>() }),
+  toggleHighlight: (id) =>
+    set((s) => {
+      const next = new Set(s.highlightedItemIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { highlightedItemIds: next };
+    }),
+  setHighlightedItemIds: (ids) =>
+    set({ highlightedItemIds: new Set(ids) }),
 }));

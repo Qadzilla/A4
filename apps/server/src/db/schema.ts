@@ -79,6 +79,21 @@ export const vaultConfig = sqliteTable('vault_config', {
   verificationIV: text('verification_iv').notNull(),
 });
 
+// Uploaded files metadata
+export const files = sqliteTable('files', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  fileName: text('file_name').notNull(),
+  fileSize: integer('file_size').notNull(),
+  mimeType: text('mime_type').notNull(),
+  extension: text('extension').notNull(),
+  storagePath: text('storage_path').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // Cached ticker metadata from Polygon.io
 export const tickerDetails = sqliteTable('ticker_details', {
   symbol: text('symbol').primaryKey(),

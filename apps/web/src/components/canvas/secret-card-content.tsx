@@ -52,7 +52,7 @@ export const SecretCardContent = memo(function SecretCardContent({
   }, [revealed, fields, onRequestUnlock]);
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-background overflow-hidden shadow-md">
+    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-border/40 bg-muted/30 px-3 py-2">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -69,7 +69,7 @@ export const SecretCardContent = memo(function SecretCardContent({
             <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <span className="text-[11px] font-medium text-black dark:text-zinc-100 truncate">
+          <span className="text-[11px] font-medium text-foreground truncate">
             {item.name}
           </span>
         </div>
@@ -104,16 +104,16 @@ export const SecretCardContent = memo(function SecretCardContent({
       {/* Fields */}
       <div className="flex-1 overflow-hidden px-3 py-2 space-y-1.5">
         {fields.length === 0 ? (
-          <p className="text-[11px] text-black dark:text-zinc-100 italic pt-1">
+          <p className="text-[11px] text-foreground italic pt-1">
             No fields yet. Double-click to edit.
           </p>
         ) : (
           fields.map((field, i) => (
             <div key={i} className="flex items-center justify-between gap-2">
-              <span className="text-[11px] text-black dark:text-zinc-100 truncate shrink-0 max-w-[40%]">
+              <span className="text-[11px] text-foreground truncate shrink-0 max-w-[40%]">
                 {field.label || 'Untitled'}
               </span>
-              <span className="text-[11px] font-mono text-black dark:text-zinc-100 truncate text-right">
+              <span className="text-[11px] font-mono text-foreground truncate text-right">
                 {field.sensitive
                   ? (revealed && decryptedValues[i] != null ? decryptedValues[i] : '••••••••')
                   : field.value}

@@ -15,6 +15,10 @@ import { computeAlignment, computeSpacing } from '../../lib/canvas-utils';
 import { useTheme } from '../../hooks/useTheme';
 import { SecretCardContent } from './secret-card-content';
 import { NoteCardContent } from './note-card-content';
+import { TableCardContent } from './table-card-content';
+import { KpiCardContent } from './kpi-card-content';
+import { ChartCardContent } from './chart-card-content';
+import { FileCardContent } from './file-card-content';
 
 const MIN_SIZE = 50;
 const HANDLE_SIZE = 8;
@@ -47,6 +51,7 @@ interface CanvasItemRendererProps {
   zoom: number;
   pan: { x: number; y: number };
   isSelected: boolean;
+  isHighlighted?: boolean;
   activeTool: 'cursor' | 'grab';
   onSelect: (id: string) => void;
   onOpen: (id: string) => void;
@@ -59,7 +64,7 @@ interface CanvasItemRendererProps {
 /** The document editor renders at 816px wide with p-16 (64px) padding. */
 const DOC_WIDTH = 816;
 
-function A4PageContent({ item, zoom }: { item: CanvasItem; zoom: number }) {
+function A4PageContent({ item }: { item: CanvasItem }) {
   const blocks = (item.data?.content as any[] | undefined) ?? undefined;
   const { resolvedTheme } = useTheme();
 
@@ -75,10 +80,12 @@ function A4PageContent({ item, zoom }: { item: CanvasItem; zoom: number }) {
     return false;
   });
 
-  const scale = (item.width * zoom) / DOC_WIDTH;
+  // Scale from the editor's native width (816px) down to the item's logical canvas width.
+  // Zoom is handled by the universal scale wrapper in CanvasItemRenderer.
+  const scale = item.width / DOC_WIDTH;
 
   return (
-    <div className="h-full w-full bg-white dark:bg-zinc-50 border border-black/80 dark:border-border/40 shadow-md overflow-hidden">
+    <div className="h-full w-full bg-white dark:bg-zinc-50 border border-border/60 shadow-md overflow-hidden">
       {hasContent && (
         <div
           className="pointer-events-none select-none origin-top-left"
@@ -97,7 +104,7 @@ function A4PageContent({ item, zoom }: { item: CanvasItem; zoom: number }) {
   );
 }
 
-export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom, pan, isSelected, activeTool, onSelect, onOpen, onAnchorMouseDown, onAnchorMouseUp, isDrawingConnection, onRequestUnlock }: CanvasItemRendererProps) {
+export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom, pan, isSelected, isHighlighted, activeTool, onSelect, onOpen, onAnchorMouseDown, onAnchorMouseUp, isDrawingConnection, onRequestUnlock }: CanvasItemRendererProps) {
   const moveItemWithGuides = useCanvasStore((s) => s.moveItemWithGuides);
   const resizeItemWithGuides = useCanvasStore((s) => s.resizeItemWithGuides);
   const renameItem = useCanvasStore((s) => s.renameItem);
@@ -197,7 +204,7 @@ export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom,
       // Single batched store update instead of 3 separate set() calls
       moveItemWithGuides(item.id, tentative.x + finalSnapX, tentative.y + finalSnapY, guides, spacing.spacingGuides);
     } else if (d.mode === 'resize' && d.handle) {
-      const freeResize = item.type === 'note';
+      const freeResize = item.type === 'note' || item.type === 'table-card' || item.type === 'kpi-card' || item.type === 'chart-card' || item.type === 'file-card';
 
       let newW: number;
       let newH: number;
@@ -331,14 +338,15 @@ export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom,
     <div
       className={cn(
         'absolute group',
-        isSelected && 'ring-2 ring-primary ring-offset-1',
+        isSelected && !isHighlighted && 'ring-2 ring-primary ring-offset-1',
+        isHighlighted && 'ring-2 ring-primary rounded-sm',
       )}
       style={{ left, top, width, height, zIndex: item.zIndex }}
     >
       {/* Item body — draggable in grab mode, selectable in cursor mode */}
       <div
         className={cn(
-          'h-full w-full',
+          'h-full w-full overflow-hidden',
           activeTool === 'grab' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
         )}
         onMouseDown={handleBodyMouseDown}
@@ -351,22 +359,37 @@ export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom,
           }
         }}
       >
-        {item.type === 'a4-page' ? (
-          <A4PageContent item={item} zoom={zoom} />
-        ) : item.type === 'secret-card' ? (
-          <SecretCardContent item={item} onRequestUnlock={onRequestUnlock ?? (() => {})} />
-        ) : item.type === 'note' ? (
-          <NoteCardContent
-            item={item}
-            isEditing={isEditingNote}
-            onStartEdit={() => setIsEditingNote(true)}
-            onStopEdit={() => setIsEditingNote(false)}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center rounded-sm border border-border/40 bg-muted/20 text-xs text-muted-foreground">
-            {item.type}
-          </div>
-        )}
+        {/* Universal scale wrapper — content renders at logical canvas size,
+            CSS transform handles zoom. GPU-composited, no reflow on zoom. */}
+        <div
+          className="origin-top-left"
+          style={{ width: item.width, height: item.height, transform: `scale(${zoom})` }}
+        >
+          {item.type === 'a4-page' ? (
+            <A4PageContent item={item} />
+          ) : item.type === 'secret-card' ? (
+            <SecretCardContent item={item} onRequestUnlock={onRequestUnlock ?? (() => {})} />
+          ) : item.type === 'note' ? (
+            <NoteCardContent
+              item={item}
+              isEditing={isEditingNote}
+              onStartEdit={() => setIsEditingNote(true)}
+              onStopEdit={() => setIsEditingNote(false)}
+            />
+          ) : item.type === 'table-card' ? (
+            <TableCardContent item={item} />
+          ) : item.type === 'kpi-card' ? (
+            <KpiCardContent item={item} />
+          ) : item.type === 'chart-card' ? (
+            <ChartCardContent item={item} />
+          ) : item.type === 'file-card' ? (
+            <FileCardContent item={item} />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center rounded-sm border border-border/40 bg-muted/20 text-xs text-muted-foreground">
+              {item.type}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 3-dot context menu — visible on hover or when selected */}
@@ -479,7 +502,7 @@ export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom,
             className="pointer-events-auto w-44 rounded-md border border-border bg-background px-2 py-1 text-[12px] text-primary font-medium shadow-md outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
           />
         ) : (
-          <span className="text-[12px] font-medium text-black dark:text-primary truncate max-w-[200px] block">
+          <span className="text-[12px] font-medium text-foreground truncate max-w-[200px] block">
             {item.name}
           </span>
         )}
@@ -534,6 +557,7 @@ export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom,
     && prev.zoom === next.zoom
     && prev.pan.x === next.pan.x && prev.pan.y === next.pan.y
     && prev.isSelected === next.isSelected
+    && prev.isHighlighted === next.isHighlighted
     && prev.activeTool === next.activeTool
     && prev.isDrawingConnection === next.isDrawingConnection
     && prev.onSelect === next.onSelect

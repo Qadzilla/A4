@@ -5,12 +5,18 @@ export const ITEM_DEFAULTS: Record<string, { width: number; height: number }> = 
   'a4-page': { width: 565, height: 800 },
   'secret-card': { width: 320, height: 240 },
   'note': { width: 260, height: 180 },
+  'table-card': { width: 400, height: 300 },
+  'kpi-card': { width: 240, height: 140 },
+  'chart-card': { width: 480, height: 320 },
+  'file-card': { width: 280, height: 200 },
 };
 
 interface DragState {
   type: string;
   ghostX: number;
   ghostY: number;
+  data?: Record<string, unknown>;
+  name?: string;
 }
 
 export function useCanvasDrop() {
@@ -19,11 +25,13 @@ export function useCanvasDrop() {
   const ghostRef = useRef<HTMLDivElement>(null);
   const addItem = useCanvasStore((s) => s.addItem);
 
-  const startDrag = useCallback((type: string, e: React.MouseEvent) => {
+  const startDrag = useCallback((type: string, e: React.MouseEvent, opts?: { data?: Record<string, unknown>; name?: string }) => {
     e.preventDefault();
-    dragRef.current = { type, ghostX: e.clientX, ghostY: e.clientY };
+    dragRef.current = { type, ghostX: e.clientX, ghostY: e.clientY, data: opts?.data, name: opts?.name };
     setIsDragging(true);
   }, []);
+
+  const onDropRef = useRef<((drag: DragState) => void) | undefined>(undefined);
 
   const handleCanvasDrop = useCallback(
     (canvasRect: DOMRect, pan: { x: number; y: number }, zoom: number) => {
@@ -40,7 +48,11 @@ export function useCanvasDrop() {
         y: canvasY,
         width: defaults.width,
         height: defaults.height,
+        ...(drag.data ? { data: drag.data } : {}),
+        ...(drag.name ? { name: drag.name } : {}),
       });
+
+      onDropRef.current?.(drag);
 
       dragRef.current = null;
       setIsDragging(false);
@@ -75,5 +87,5 @@ export function useCanvasDrop() {
     };
   }, [isDragging]);
 
-  return { isDragging, dragRef, ghostRef, startDrag, handleCanvasDrop };
+  return { isDragging, dragRef, ghostRef, startDrag, handleCanvasDrop, onDropRef };
 }

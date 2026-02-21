@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type ChangeEvent } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Button,
   Modal,
@@ -16,15 +16,24 @@ import { useCanvasStore } from '../../../../stores/canvas-store';
 import { CanvasItemRenderer } from '../../../../components/canvas/canvas-item-renderer';
 import { GeneralToolPanel } from '../../../../components/canvas/general-tool-panel';
 import { SecretToolPanel } from '../../../../components/canvas/secret-tool-panel';
+import { DataToolPanel } from '../../../../components/canvas/data-tool-panel';
 import { TabBar } from '../../../../components/canvas/tab-bar';
 import { DocumentView } from '../../../../components/canvas/document-view';
 import { SecretCardView } from '../../../../components/canvas/secret-card-view';
+import { TableCardView } from '../../../../components/canvas/table-card-view';
+import { KpiCardView } from '../../../../components/canvas/kpi-card-view';
+import { ChartCardView } from '../../../../components/canvas/chart-card-view';
+import { FileCardView } from '../../../../components/canvas/file-card-view';
+import { ChartsToolPanel } from '../../../../components/canvas/charts-tool-panel';
 import { VaultSetupModal } from '../../../../components/vault/vault-setup-modal';
 import { VaultUnlockModal } from '../../../../components/vault/vault-unlock-modal';
 import { useTRPC } from '../../../../lib/trpc';
 import { getCachedKey } from '../../../../lib/vault-crypto';
-import { getAnchorScreenPos } from '../../../../lib/canvas-utils';
+import { getAnchorScreenPos, bezierPath } from '../../../../lib/canvas-utils';
 import type { AnchorPosition, CanvasConnection } from '../../../../lib/canvas-utils';
+import { useAuthToken } from '../../../../hooks/useAuthToken';
+import { uploadFile, generatePreview, formatFileSize, getFileTypeLabel } from '../../../../lib/file-utils';
+import type { FileCardData } from '../../../../lib/file-utils';
 
 const BASE_GRID = 24;
 const MIN_ZOOM = 0.25;
@@ -121,8 +130,11 @@ export default function WorkspaceDetailPage() {
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [topic, setTopic] = useState('general');
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
-  const [importedFiles, setImportedFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<FileCardData[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+  const getToken = useAuthToken();
 
   // Canvas zoom & pan
   const [zoom, setZoom] = useState(1);
@@ -145,6 +157,9 @@ export default function WorkspaceDetailPage() {
   const alignmentGuides = useCanvasStore((s) => s.alignmentGuides);
   const spacingGuides = useCanvasStore((s) => s.spacingGuides);
   const selectedItemId = useCanvasStore((s) => s.selectedItemId);
+  const highlightedItemIds = useCanvasStore((s) => s.highlightedItemIds);
+  const setHighlightedItemIds = useCanvasStore((s) => s.setHighlightedItemIds);
+  const clearHighlights = useCanvasStore((s) => s.clearHighlights);
   const selectItem = useCanvasStore((s) => s.selectItem);
   const openItemIds = useCanvasStore((s) => s.openItemIds);
   const openItem = useCanvasStore((s) => s.openItem);
@@ -289,7 +304,15 @@ export default function WorkspaceDetailPage() {
       loadItems([]);
     };
   }, [id]);
-  const { isDragging, dragRef, ghostRef, startDrag, handleCanvasDrop } = useCanvasDrop();
+  const { isDragging, dragRef, ghostRef, startDrag, handleCanvasDrop, onDropRef } = useCanvasDrop();
+
+  // Remove uploaded file from import panel after it's dropped on canvas
+  onDropRef.current = (drag) => {
+    const fileId = (drag.data as Record<string, unknown> | undefined)?.fileId as string | undefined;
+    if (fileId) {
+      setUploadedFiles((prev) => prev.filter((f) => f.fileId !== fileId));
+    }
+  };
 
   useWorkspaceThumbnail(canvasRef, id);
 
@@ -424,9 +447,10 @@ export default function WorkspaceDetailPage() {
       const canvasX = (e.clientX - rect.left - pan.x) / zoom;
       const canvasY = (e.clientY - rect.top - pan.y) / zoom;
       setHighlight(null);
+      clearHighlights();
       setDrawingRect({ startX: canvasX, startY: canvasY, currentX: canvasX, currentY: canvasY });
     }
-  }, [activeTool, pan, zoom, selectItem]);
+  }, [activeTool, pan, zoom, selectItem, clearHighlights]);
 
   const onCanvasMouseMove = useCallback((e: React.MouseEvent) => {
     if (activeTool === 'grab') {
@@ -460,11 +484,21 @@ export default function WorkspaceDetailPage() {
       const width = Math.abs(drawingRect.currentX - drawingRect.startX);
       const height = Math.abs(drawingRect.currentY - drawingRect.startY);
       if (width > 2 || height > 2) {
-        setHighlight({ x, y, width, height });
+        const hitIds = useCanvasStore.getState().items
+          .filter((item) =>
+            !(item.x + item.width < x || item.x > x + width ||
+              item.y + item.height < y || item.y > y + height))
+          .map((item) => item.id);
+        if (hitIds.length > 0) {
+          setHighlight({ x, y, width, height });
+          setHighlightedItemIds(hitIds);
+        } else {
+          setHighlight(null);
+        }
       }
       setDrawingRect(null);
     }
-  }, [activeTool, drawingRect, dragRef, handleCanvasDrop, pan, zoom]);
+  }, [activeTool, drawingRect, dragRef, handleCanvasDrop, pan, zoom, setHighlightedItemIds]);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -511,7 +545,7 @@ export default function WorkspaceDetailPage() {
 
       // Dark mode detection
       const isDark = document.documentElement.classList.contains('dark');
-      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.45)';
+      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.18)';
 
       // Draw 2px dots at integer positions
       const dotSize = 2;
@@ -602,40 +636,30 @@ export default function WorkspaceDetailPage() {
 
   const activeItem = activeItemId ? items.find((i) => i.id === activeItemId) ?? null : null;
 
-  const onFileSelect = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    setImportedFiles((prev) => [...prev, ...Array.from(files)]);
-    e.target.value = '';
+  const handleImportUpload = useCallback(async (file: File) => {
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const result = await uploadFile(file, id!, getToken);
+      const preview = await generatePreview(file);
+      const fileCardData: FileCardData = {
+        fileId: result.fileId,
+        fileName: result.fileName,
+        fileSize: result.fileSize,
+        mimeType: result.mimeType,
+        ...preview,
+      };
+      setUploadedFiles((prev) => [...prev, fileCardData]);
+    } catch (err: any) {
+      setUploadError(err.message ?? 'Upload failed');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [id, getToken]);
+
+  const removeUploadedFile = useCallback((index: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
-
-  const removeFile = useCallback((index: number) => {
-    setImportedFiles((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  const getFileIcon = (name: string) => {
-    const ext = name.split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-red-400 shrink-0">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-      </svg>
-    );
-    return (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-green-400 shrink-0">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
-      </svg>
-    );
-  };
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -662,6 +686,14 @@ export default function WorkspaceDetailPage() {
       {activeItem && (
         activeItem.type === 'secret-card' ? (
           <SecretCardView item={activeItem} onRequestUnlock={requestVaultUnlock} />
+        ) : activeItem.type === 'table-card' ? (
+          <TableCardView item={activeItem} />
+        ) : activeItem.type === 'kpi-card' ? (
+          <KpiCardView item={activeItem} />
+        ) : activeItem.type === 'chart-card' ? (
+          <ChartCardView item={activeItem} />
+        ) : activeItem.type === 'file-card' ? (
+          <FileCardView item={activeItem} workspaceId={id!} />
         ) : (
           <DocumentView item={activeItem} />
         )
@@ -670,7 +702,7 @@ export default function WorkspaceDetailPage() {
       {/* Main area — workspace canvas */}
       <div
         ref={canvasRef}
-        className={cn('relative flex-1 select-none overflow-hidden', activeTool === 'grab' ? 'cursor-grab' : '')}
+        className={cn('relative flex-1 select-none overflow-hidden bg-canvas', activeTool === 'grab' ? 'cursor-grab' : '')}
         onMouseDown={onCanvasMouseDown}
         onMouseMove={onCanvasMouseMove}
         onMouseUp={onCanvasMouseUp}
@@ -760,33 +792,44 @@ export default function WorkspaceDetailPage() {
             if (!fromItem || !toItem) return null;
             const from = getAnchorScreenPos(fromItem, conn.fromAnchor, zoom, pan);
             const to = getAnchorScreenPos(toItem, conn.toAnchor, zoom, pan);
+            const d = bezierPath(from, conn.fromAnchor, to, conn.toAnchor);
             return (
               <g key={conn.id}>
                 {/* Invisible wide hit area for click-to-delete */}
-                <line
-                  x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                  stroke="transparent" strokeWidth={12}
+                <path
+                  d={d}
+                  fill="none" stroke="transparent" strokeWidth={12}
                   style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                   onClick={() => removeConnection(conn.id)}
                 />
-                {/* Visible green line */}
-                <line
-                  x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                  stroke="#22c55e" strokeWidth={2}
+                {/* Visible green curve */}
+                <path
+                  d={d}
+                  fill="none" stroke="#22c55e" strokeWidth={2}
                 />
               </g>
             );
           })}
-          {/* In-progress drawing line */}
+          {/* In-progress drawing curve */}
           {drawingConnection && (() => {
             const fromItem = items.find((i) => i.id === drawingConnection.fromItemId);
             if (!fromItem) return null;
             const from = getAnchorScreenPos(fromItem, drawingConnection.fromAnchor, zoom, pan);
+            const to = { x: drawingConnection.currentX, y: drawingConnection.currentY };
+            const dist = Math.hypot(to.x - from.x, to.y - from.y);
+            const offset = Math.max(40, Math.min(dist * 0.4, 200));
+            const fd = { top: { x: 0, y: -1 }, bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } }[drawingConnection.fromAnchor];
+            const cx1 = from.x + fd.x * offset;
+            const cy1 = from.y + fd.y * offset;
+            const dx = from.x - to.x;
+            const dy = from.y - to.y;
+            const cx2 = Math.abs(dx) > Math.abs(dy) ? to.x + Math.sign(dx) * offset : to.x;
+            const cy2 = Math.abs(dy) >= Math.abs(dx) ? to.y + Math.sign(dy) * offset : to.y;
+            const d = `M ${from.x},${from.y} C ${cx1},${cy1} ${cx2},${cy2} ${to.x},${to.y}`;
             return (
-              <line
-                x1={from.x} y1={from.y}
-                x2={drawingConnection.currentX} y2={drawingConnection.currentY}
-                stroke="#22c55e" strokeWidth={2} strokeDasharray="6 4"
+              <path
+                d={d}
+                fill="none" stroke="#22c55e" strokeWidth={2} strokeDasharray="6 4"
               />
             );
           })()}
@@ -838,6 +881,7 @@ export default function WorkspaceDetailPage() {
             zoom={zoom}
             pan={pan}
             isSelected={selectedItemId === item.id}
+            isHighlighted={highlightedItemIds.has(item.id)}
             activeTool={activeTool}
             onSelect={selectItem}
             onOpen={handleOpenItem}
@@ -852,7 +896,7 @@ export default function WorkspaceDetailPage() {
         <div className="pointer-events-none absolute inset-0">
           {highlight && !drawingRect && (
             <div
-              className="absolute rounded-lg border-2 border-primary bg-primary/10 shadow-sm backdrop-blur-[2px]"
+              className="absolute border-2 border-primary bg-primary/10 shadow-sm backdrop-blur-[2px]"
               style={{
                 left: highlight.x * zoom + pan.x,
                 top: highlight.y * zoom + pan.y,
@@ -863,7 +907,7 @@ export default function WorkspaceDetailPage() {
           )}
           {drawingRect && (
             <div
-              className="absolute rounded-lg border-2 border-dashed border-primary bg-primary/10"
+              className="absolute border-2 border-primary bg-primary/10"
               style={{
                 left: Math.min(drawingRect.startX, drawingRect.currentX) * zoom + pan.x,
                 top: Math.min(drawingRect.startY, drawingRect.currentY) * zoom + pan.y,
@@ -943,75 +987,95 @@ export default function WorkspaceDetailPage() {
 
               {/* Import content */}
               <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
-                {/* Dropzone */}
+                {/* Uploaded files — drag to canvas */}
+                {uploadedFiles.length > 0 && (
+                  <>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                      Drag to canvas
+                    </p>
+                    <div className="space-y-2">
+                      {uploadedFiles.map((f, i) => (
+                        <div
+                          key={f.fileId}
+                          className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/20 px-3 py-3 cursor-grab transition-colors duration-100 hover:border-primary/30 hover:bg-primary/5 active:cursor-grabbing"
+                          onMouseDown={(e) => startDrag('file-card', e, { data: f as unknown as Record<string, unknown>, name: f.fileName })}
+                        >
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground overflow-hidden">
+                            {f.previewData ? (
+                              <img src={f.previewData} alt="" className="size-9 object-cover rounded-lg" />
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-5">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-medium text-foreground truncate">{f.fileName}</p>
+                            <p className="text-[11px] text-muted-foreground">{getFileTypeLabel(f.mimeType)} · {formatFileSize(f.fileSize)}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removeUploadedFile(i); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Upload error */}
+                {uploadError && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-2.5">
+                    <p className="text-[11px] text-destructive">{uploadError}</p>
+                  </div>
+                )}
+
+                {/* Upload button */}
                 <input
-                  ref={fileInputRef}
+                  ref={importFileInputRef}
                   type="file"
-                  multiple
-                  accept=".csv,.xlsx,.xls,.pdf"
-                  onChange={onFileSelect}
+                  accept=".pdf,.csv,.xlsx,.xls,.docx,.png,.jpg,.jpeg,.webp,.txt"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImportUpload(file);
+                    e.target.value = '';
+                  }}
                   className="hidden"
                 />
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full flex-col items-center justify-center gap-3 border-2 border-dashed border-border/60 rounded-2xl p-8 transition-colors duration-200 hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+                  disabled={isUploading}
+                  onClick={() => importFileInputRef.current?.click()}
+                  className="flex w-full flex-col items-center justify-center gap-3 border-2 border-dashed border-border/60 rounded-2xl p-8 transition-colors duration-200 hover:border-primary/40 hover:bg-primary/5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div className="size-10 rounded-xl bg-muted/30 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-5 text-muted-foreground/60">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[13px] font-medium text-foreground">Click to upload files</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">CSV, Excel, PDF</p>
-                  </div>
-                </button>
-
-                {/* File list */}
-                {importedFiles.length > 0 && (
-                  <div className="space-y-1.5">
-                    {importedFiles.map((file, i) => (
-                      <div
-                        key={`${file.name}-${file.size}-${i}`}
-                        className="flex items-center gap-2 bg-muted/30 rounded-xl px-3 py-2"
-                      >
-                        {getFileIcon(file.name)}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-medium text-foreground truncate">{file.name}</p>
-                          <p className="text-[11px] text-muted-foreground">{formatFileSize(file.size)}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(i)}
-                          className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                          </svg>
-                        </button>
+                  {isUploading ? (
+                    <>
+                      <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      <p className="text-[13px] text-muted-foreground">Uploading...</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="size-10 rounded-xl bg-muted/30 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-5 text-muted-foreground/60">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Import action */}
-              <div className="border-t border-border/60 p-3">
-                <button
-                  type="button"
-                  disabled={importedFiles.length === 0}
-                  className={cn(
-                    'w-full py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150',
-                    importedFiles.length > 0
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]'
-                      : 'bg-muted/40 text-muted-foreground cursor-not-allowed',
+                      <div className="text-center">
+                        <p className="text-[13px] font-medium text-foreground">Click to upload</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">PDF, CSV, Excel, Word, images, text</p>
+                      </div>
+                    </>
                   )}
-                >
-                  Import{importedFiles.length > 0 ? ` (${importedFiles.length})` : ''}
                 </button>
               </div>
             </>
@@ -1043,6 +1107,36 @@ export default function WorkspaceDetailPage() {
                 </h2>
               </div>
               <SecretToolPanel onDragStart={startDrag} />
+            </>
+          ) : topic === 'data' ? (
+            <>
+              <div className="border-b border-border/60 px-4 py-3">
+                <h2 className="font-bold text-sm truncate flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-primary">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="3" y1="15" x2="21" y2="15" />
+                    <line x1="9" y1="3" x2="9" y2="21" />
+                  </svg>
+                  Data
+                </h2>
+              </div>
+              <DataToolPanel onDragStart={startDrag} />
+            </>
+          ) : topic === 'charts' ? (
+            <>
+              <div className="border-b border-border/60 px-4 py-3">
+                <h2 className="font-bold text-sm truncate flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-primary">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="9" y1="17" x2="9" y2="11" />
+                    <line x1="12" y1="17" x2="12" y2="8" />
+                    <line x1="15" y1="17" x2="15" y2="13" />
+                  </svg>
+                  Charts
+                </h2>
+              </div>
+              <ChartsToolPanel onDragStart={startDrag} />
             </>
           ) : (
             <>

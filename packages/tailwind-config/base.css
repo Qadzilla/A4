@@ -1,16 +1,19 @@
 @theme {
-  /* Colors — Light mode defaults */
+  /* Colors — Light mode defaults
+     Two-tier system (VS Code Light Modern approach):
+     Content (#ffffff) vs Chrome (#f8f8f8), borders define regions */
   --color-background: #ffffff;
+  --color-canvas: #f5f5f4;
   --color-foreground: #1a1a1a;
-  --color-muted: #f4f4f5;
+  --color-muted: #f0f0f2;
   --color-muted-foreground: #71717a;
-  --color-border: #e4e4e7;
-  --color-input: #e4e4e7;
+  --color-border: #e5e5e5;
+  --color-input: #e5e5e5;
   --color-ring: #4ade80;
 
   --color-primary: #4ade80;
   --color-primary-foreground: #052e16;
-  --color-secondary: #f4f4f5;
+  --color-secondary: #f0f0f2;
   --color-secondary-foreground: #18181b;
   --color-accent: #f0fdf4;
   --color-accent-foreground: #4ade80;
@@ -22,9 +25,9 @@
   --color-popover: #ffffff;
   --color-popover-foreground: #1a1a1a;
 
-  --color-sidebar: #fafafa;
+  --color-sidebar: #f8f8f8;
   --color-sidebar-foreground: #1a1a1a;
-  --color-sidebar-border: #e4e4e7;
+  --color-sidebar-border: #e5e5e5;
   --color-sidebar-accent: #f0fdf4;
   --color-sidebar-accent-foreground: #4ade80;
 
@@ -53,6 +56,7 @@
   --animate-slide-in: slide-in 0.3s ease-out;
   --animate-slide-up: slide-up 0.3s ease-out;
   --animate-scale-in: scale-in 0.2s ease-out;
+  --animate-highlight-pulse: none;
 }
 
 ::selection {
@@ -69,32 +73,33 @@
 
 /* Dark mode overrides — lighter, grayer palette */
 .dark {
-  --color-background: #1a1a1a;
-  --color-foreground: #ececec;
-  --color-muted: #2a2a2a;
-  --color-muted-foreground: #9e9e9e;
-  --color-border: #3a3a3a;
-  --color-input: #3a3a3a;
+  --color-background: #1e2021;
+  --color-canvas: #252524;
+  --color-foreground: #e2e6ea;
+  --color-muted: #2f3338;
+  --color-muted-foreground: #8d9297;
+  --color-border: #42474d;
+  --color-input: #393e43;
   --color-ring: #4ade80;
 
   --color-primary: #4ade80;
   --color-primary-foreground: #052e16;
-  --color-secondary: #2a2a2a;
-  --color-secondary-foreground: #ececec;
-  --color-accent: #1a2e1e;
+  --color-secondary: #2f3338;
+  --color-secondary-foreground: #e2e6ea;
+  --color-accent: #1b3a25;
   --color-accent-foreground: #4ade80;
   --color-destructive: #dc2626;
   --color-destructive-foreground: #ffffff;
 
-  --color-card: #242424;
-  --color-card-foreground: #ececec;
-  --color-popover: #242424;
-  --color-popover-foreground: #ececec;
+  --color-card: #1a1a1a;
+  --color-card-foreground: #e2e6ea;
+  --color-popover: #2f3338;
+  --color-popover-foreground: #e2e6ea;
 
-  --color-sidebar: #212121;
-  --color-sidebar-foreground: #ececec;
-  --color-sidebar-border: #333333;
-  --color-sidebar-accent: #1a2e1e;
+  --color-sidebar: #1a1a1a;
+  --color-sidebar-foreground: #e2e6ea;
+  --color-sidebar-border: #393e43;
+  --color-sidebar-accent: #1b3a25;
   --color-sidebar-accent-foreground: #4ade80;
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
@@ -143,3 +148,4 @@
     transform: scale(1);
   }
 }
+
