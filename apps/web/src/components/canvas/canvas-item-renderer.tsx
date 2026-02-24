@@ -19,6 +19,18 @@ import { TableCardContent } from './table-card-content';
 import { KpiCardContent } from './kpi-card-content';
 import { ChartCardContent } from './chart-card-content';
 import { FileCardContent } from './file-card-content';
+import { TimerCardContent } from './timer-card-content';
+import { InvoiceCardContent } from './invoice-card-content';
+import { BudgetCardContent } from './budget-card-content';
+import { LedgerCardContent } from './ledger-card-content';
+import { ReceiptCardContent } from './receipt-card-content';
+import { SubscriptionCardContent } from './subscription-card-content';
+import { AccountCardContent } from './account-card-content';
+import { PnlCardContent } from './pnl-card-content';
+import { BalanceSheetCardContent } from './balance-sheet-card-content';
+import { CashFlowCardContent } from './cash-flow-card-content';
+import { TaxEstimatorCardContent } from './tax-estimator-card-content';
+import { LoanCalculatorCardContent } from './loan-calculator-card-content';
 
 const MIN_SIZE = 50;
 const HANDLE_SIZE = 8;
@@ -204,7 +216,7 @@ export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom,
       // Single batched store update instead of 3 separate set() calls
       moveItemWithGuides(item.id, tentative.x + finalSnapX, tentative.y + finalSnapY, guides, spacing.spacingGuides);
     } else if (d.mode === 'resize' && d.handle) {
-      const freeResize = item.type === 'note' || item.type === 'table-card' || item.type === 'kpi-card' || item.type === 'chart-card' || item.type === 'file-card';
+      const freeResize = item.type === 'note' || item.type === 'table-card' || item.type === 'kpi-card' || item.type === 'chart-card' || item.type === 'file-card' || item.type === 'timer-card' || item.type === 'invoice-card' || item.type === 'budget-card' || item.type === 'ledger-card' || item.type === 'receipt-card' || item.type === 'subscription-card' || item.type === 'account-card' || item.type === 'pnl-card' || item.type === 'balance-sheet-card' || item.type === 'cash-flow-card' || item.type === 'tax-estimator-card' || item.type === 'loan-calculator-card';
 
       let newW: number;
       let newH: number;
@@ -384,6 +396,30 @@ export const CanvasItemRenderer = memo(function CanvasItemRenderer({ item, zoom,
             <ChartCardContent item={item} />
           ) : item.type === 'file-card' ? (
             <FileCardContent item={item} />
+          ) : item.type === 'timer-card' ? (
+            <TimerCardContent item={item} />
+          ) : item.type === 'invoice-card' ? (
+            <InvoiceCardContent item={item} />
+          ) : item.type === 'budget-card' ? (
+            <BudgetCardContent item={item} />
+          ) : item.type === 'ledger-card' ? (
+            <LedgerCardContent item={item} />
+          ) : item.type === 'receipt-card' ? (
+            <ReceiptCardContent item={item} />
+          ) : item.type === 'subscription-card' ? (
+            <SubscriptionCardContent item={item} />
+          ) : item.type === 'account-card' ? (
+            <AccountCardContent item={item} />
+          ) : item.type === 'pnl-card' ? (
+            <PnlCardContent item={item} />
+          ) : item.type === 'balance-sheet-card' ? (
+            <BalanceSheetCardContent item={item} />
+          ) : item.type === 'cash-flow-card' ? (
+            <CashFlowCardContent item={item} />
+          ) : item.type === 'tax-estimator-card' ? (
+            <TaxEstimatorCardContent item={item} />
+          ) : item.type === 'loan-calculator-card' ? (
+            <LoanCalculatorCardContent item={item} />
           ) : (
             <div className="flex h-full w-full items-center justify-center rounded-sm border border-border/40 bg-muted/20 text-xs text-muted-foreground">
               {item.type}

@@ -3,6 +3,18 @@ import type { AlignmentGuide, AnchorPosition, CanvasConnection, SpacingGuide } f
 import { createDefaultTableData } from '../lib/table-utils';
 import { createDefaultKpiData } from '../lib/kpi-utils';
 import { createDefaultChartData } from '../lib/chart-utils';
+import { createDefaultTimerData } from '../lib/timer-utils';
+import { createDefaultInvoiceData } from '../lib/invoice-utils';
+import { createDefaultBudgetData } from '../lib/budget-utils';
+import { createDefaultLedgerData } from '../lib/ledger-utils';
+import { createDefaultReceiptData } from '../lib/receipt-utils';
+import { createDefaultSubscriptionData } from '../lib/subscription-utils';
+import { createDefaultAccountData } from '../lib/account-utils';
+import { createDefaultPnlData } from '../lib/pnl-utils';
+import { createDefaultBSData } from '../lib/balance-sheet-utils';
+import { createDefaultCFData } from '../lib/cash-flow-utils';
+import { createDefaultTaxEstimatorData } from '../lib/tax-estimator-utils';
+import { createDefaultLoanCalculatorData } from '../lib/loan-calculator-utils';
 
 export type { CanvasConnection, AlignmentGuide, SpacingGuide };
 
@@ -26,6 +38,18 @@ const defaultNames: Record<string, string> = {
   'kpi-card': 'Untitled KPI',
   'chart-card': 'Untitled Chart',
   'file-card': 'Untitled File',
+  'timer-card': 'Untitled Timer',
+  'invoice-card': 'Untitled Invoice',
+  'budget-card': 'Untitled Budget',
+  'ledger-card': 'Untitled Ledger',
+  'receipt-card': 'Untitled Receipts',
+  'subscription-card': 'Untitled Subscriptions',
+  'account-card': 'Untitled Accounts',
+  'pnl-card': 'Untitled P&L',
+  'balance-sheet-card': 'Untitled Balance Sheet',
+  'cash-flow-card': 'Untitled Cash Flow',
+  'tax-estimator-card': 'Untitled Tax Estimate',
+  'loan-calculator-card': 'Untitled Loan Calculator',
 };
 
 interface CanvasState {
@@ -100,7 +124,31 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
           ? (createDefaultKpiData() as unknown as Record<string, unknown>)
           : item.type === 'chart-card' && !item.data
             ? (createDefaultChartData() as unknown as Record<string, unknown>)
-            : item.data;
+            : item.type === 'timer-card' && !item.data
+              ? (createDefaultTimerData() as unknown as Record<string, unknown>)
+              : item.type === 'invoice-card' && !item.data
+                ? (createDefaultInvoiceData() as unknown as Record<string, unknown>)
+                : item.type === 'budget-card' && !item.data
+                  ? (createDefaultBudgetData() as unknown as Record<string, unknown>)
+                  : item.type === 'ledger-card' && !item.data
+                    ? (createDefaultLedgerData() as unknown as Record<string, unknown>)
+                    : item.type === 'receipt-card' && !item.data
+                      ? (createDefaultReceiptData() as unknown as Record<string, unknown>)
+                      : item.type === 'subscription-card' && !item.data
+                        ? (createDefaultSubscriptionData() as unknown as Record<string, unknown>)
+                        : item.type === 'account-card' && !item.data
+                          ? (createDefaultAccountData() as unknown as Record<string, unknown>)
+                          : item.type === 'pnl-card' && !item.data
+                            ? (createDefaultPnlData() as unknown as Record<string, unknown>)
+                            : item.type === 'balance-sheet-card' && !item.data
+                              ? (createDefaultBSData() as unknown as Record<string, unknown>)
+                              : item.type === 'cash-flow-card' && !item.data
+                                ? (createDefaultCFData() as unknown as Record<string, unknown>)
+                                : item.type === 'tax-estimator-card' && !item.data
+                                  ? (createDefaultTaxEstimatorData() as unknown as Record<string, unknown>)
+                                  : item.type === 'loan-calculator-card' && !item.data
+                                    ? (createDefaultLoanCalculatorData() as unknown as Record<string, unknown>)
+                                    : item.data;
       return {
         items: [...s.items, { ...item, id, name, data, zIndex: s.nextZIndex }],
         nextZIndex: s.nextZIndex + 1,

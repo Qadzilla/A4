@@ -9,6 +9,18 @@ export const ITEM_DEFAULTS: Record<string, { width: number; height: number }> = 
   'kpi-card': { width: 240, height: 140 },
   'chart-card': { width: 480, height: 320 },
   'file-card': { width: 280, height: 200 },
+  'timer-card': { width: 240, height: 140 },
+  'invoice-card': { width: 320, height: 400 },
+  'budget-card': { width: 320, height: 360 },
+  'ledger-card': { width: 320, height: 360 },
+  'receipt-card': { width: 320, height: 360 },
+  'subscription-card': { width: 320, height: 360 },
+  'account-card': { width: 320, height: 360 },
+  'pnl-card': { width: 360, height: 280 },
+  'balance-sheet-card': { width: 340, height: 280 },
+  'cash-flow-card': { width: 360, height: 280 },
+  'tax-estimator-card': { width: 320, height: 300 },
+  'loan-calculator-card': { width: 340, height: 300 },
 };
 
 interface DragState {

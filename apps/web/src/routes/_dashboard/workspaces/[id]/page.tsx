@@ -24,7 +24,21 @@ import { TableCardView } from '../../../../components/canvas/table-card-view';
 import { KpiCardView } from '../../../../components/canvas/kpi-card-view';
 import { ChartCardView } from '../../../../components/canvas/chart-card-view';
 import { FileCardView } from '../../../../components/canvas/file-card-view';
-import { ChartsToolPanel } from '../../../../components/canvas/charts-tool-panel';
+import { TimerCardView } from '../../../../components/canvas/timer-card-view';
+import { InvoiceCardView } from '../../../../components/canvas/invoice-card-view';
+import { BudgetCardView } from '../../../../components/canvas/budget-card-view';
+import { LedgerCardView } from '../../../../components/canvas/ledger-card-view';
+import { ReceiptCardView } from '../../../../components/canvas/receipt-card-view';
+import { SubscriptionCardView } from '../../../../components/canvas/subscription-card-view';
+import { AccountCardView } from '../../../../components/canvas/account-card-view';
+import { PnlCardView } from '../../../../components/canvas/pnl-card-view';
+import { BalanceSheetCardView } from '../../../../components/canvas/balance-sheet-card-view';
+import { CashFlowCardView } from '../../../../components/canvas/cash-flow-card-view';
+import { TaxEstimatorCardView } from '../../../../components/canvas/tax-estimator-card-view';
+import { LoanCalculatorCardView } from '../../../../components/canvas/loan-calculator-card-view';
+import { FinanceToolPanel } from '../../../../components/canvas/finance-tool-panel';
+import { ReportsToolPanel } from '../../../../components/canvas/reports-tool-panel';
+import { TaxToolPanel } from '../../../../components/canvas/tax-tool-panel';
 import { VaultSetupModal } from '../../../../components/vault/vault-setup-modal';
 import { VaultUnlockModal } from '../../../../components/vault/vault-unlock-modal';
 import { useTRPC } from '../../../../lib/trpc';
@@ -53,34 +67,12 @@ const tools = [
     ),
   },
   {
-    id: 'secret',
-    label: 'Secret',
+    id: 'vault',
+    label: 'Vault',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
         <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-      </svg>
-    ),
-  },
-  {
-    id: 'portfolio',
-    label: 'Portfolio',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
-        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-        <polyline points="16 7 22 7 22 13" />
-      </svg>
-    ),
-  },
-  {
-    id: 'tax',
-    label: 'Tax',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
       </svg>
     ),
   },
@@ -96,14 +88,37 @@ const tools = [
     ),
   },
   {
-    id: 'charts',
-    label: 'Charts',
+    id: 'finance',
+    label: 'Finance',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <line x1="9" y1="17" x2="9" y2="11" />
-        <line x1="12" y1="17" x2="12" y2="8" />
-        <line x1="15" y1="17" x2="15" y2="13" />
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+    ),
+  },
+  {
+    id: 'tax',
+    label: 'Tax',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+        <rect x="4" y="2" width="16" height="20" rx="2" />
+        <line x1="8" y1="6" x2="16" y2="6" />
+        <line x1="8" y1="10" x2="16" y2="10" />
+        <line x1="8" y1="14" x2="12" y2="14" />
+        <line x1="8" y1="18" x2="10" y2="18" />
       </svg>
     ),
   },
@@ -694,6 +709,30 @@ export default function WorkspaceDetailPage() {
           <ChartCardView item={activeItem} />
         ) : activeItem.type === 'file-card' ? (
           <FileCardView item={activeItem} workspaceId={id!} />
+        ) : activeItem.type === 'timer-card' ? (
+          <TimerCardView item={activeItem} />
+        ) : activeItem.type === 'invoice-card' ? (
+          <InvoiceCardView item={activeItem} />
+        ) : activeItem.type === 'budget-card' ? (
+          <BudgetCardView item={activeItem} />
+        ) : activeItem.type === 'ledger-card' ? (
+          <LedgerCardView item={activeItem} />
+        ) : activeItem.type === 'receipt-card' ? (
+          <ReceiptCardView item={activeItem} workspaceId={id!} />
+        ) : activeItem.type === 'subscription-card' ? (
+          <SubscriptionCardView item={activeItem} />
+        ) : activeItem.type === 'account-card' ? (
+          <AccountCardView item={activeItem} />
+        ) : activeItem.type === 'pnl-card' ? (
+          <PnlCardView item={activeItem} />
+        ) : activeItem.type === 'balance-sheet-card' ? (
+          <BalanceSheetCardView item={activeItem} />
+        ) : activeItem.type === 'cash-flow-card' ? (
+          <CashFlowCardView item={activeItem} />
+        ) : activeItem.type === 'tax-estimator-card' ? (
+          <TaxEstimatorCardView item={activeItem} />
+        ) : activeItem.type === 'loan-calculator-card' ? (
+          <LoanCalculatorCardView item={activeItem} />
         ) : (
           <DocumentView item={activeItem} />
         )
@@ -1095,7 +1134,7 @@ export default function WorkspaceDetailPage() {
               </div>
               <GeneralToolPanel onDragStart={startDrag} />
             </>
-          ) : topic === 'secret' ? (
+          ) : topic === 'vault' ? (
             <>
               <div className="border-b border-border/60 px-4 py-3">
                 <h2 className="font-bold text-sm truncate flex items-center gap-2">
@@ -1103,7 +1142,7 @@ export default function WorkspaceDetailPage() {
                     <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
-                  Secret
+                  Vault
                 </h2>
               </div>
               <SecretToolPanel onDragStart={startDrag} />
@@ -1113,30 +1152,58 @@ export default function WorkspaceDetailPage() {
               <div className="border-b border-border/60 px-4 py-3">
                 <h2 className="font-bold text-sm truncate flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-primary">
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <line x1="3" y1="9" x2="21" y2="9" />
-                    <line x1="3" y1="15" x2="21" y2="15" />
-                    <line x1="9" y1="3" x2="9" y2="21" />
+                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
                   </svg>
                   Data
                 </h2>
               </div>
               <DataToolPanel onDragStart={startDrag} />
             </>
-          ) : topic === 'charts' ? (
+          ) : topic === 'finance' ? (
             <>
               <div className="border-b border-border/60 px-4 py-3">
                 <h2 className="font-bold text-sm truncate flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-primary">
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <line x1="9" y1="17" x2="9" y2="11" />
-                    <line x1="12" y1="17" x2="12" y2="8" />
-                    <line x1="15" y1="17" x2="15" y2="13" />
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                   </svg>
-                  Charts
+                  Finance
                 </h2>
               </div>
-              <ChartsToolPanel onDragStart={startDrag} />
+              <FinanceToolPanel onDragStart={startDrag} />
+            </>
+          ) : topic === 'reports' ? (
+            <>
+              <div className="border-b border-border/60 px-4 py-3">
+                <h2 className="font-bold text-sm truncate flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-primary">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                  Reports
+                </h2>
+              </div>
+              <ReportsToolPanel onDragStart={startDrag} />
+            </>
+          ) : topic === 'tax' ? (
+            <>
+              <div className="border-b border-border/60 px-4 py-3">
+                <h2 className="font-bold text-sm truncate flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-primary">
+                    <rect x="4" y="2" width="16" height="20" rx="2" />
+                    <line x1="8" y1="6" x2="16" y2="6" />
+                    <line x1="8" y1="10" x2="16" y2="10" />
+                    <line x1="8" y1="14" x2="12" y2="14" />
+                    <line x1="8" y1="18" x2="10" y2="18" />
+                  </svg>
+                  Tax
+                </h2>
+              </div>
+              <TaxToolPanel onDragStart={startDrag} />
             </>
           ) : (
             <>
