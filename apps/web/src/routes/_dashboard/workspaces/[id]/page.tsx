@@ -39,6 +39,7 @@ import { LoanCalculatorCardView } from '../../../../components/canvas/loan-calcu
 import { FinanceToolPanel } from '../../../../components/canvas/finance-tool-panel';
 import { ReportsToolPanel } from '../../../../components/canvas/reports-tool-panel';
 import { TaxToolPanel } from '../../../../components/canvas/tax-tool-panel';
+import { CanvasMinimap } from '../../../../components/canvas/canvas-minimap';
 import { VaultSetupModal } from '../../../../components/vault/vault-setup-modal';
 import { VaultUnlockModal } from '../../../../components/vault/vault-unlock-modal';
 import { useTRPC } from '../../../../lib/trpc';
@@ -820,6 +821,9 @@ export default function WorkspaceDetailPage() {
             <span className="text-[12px] font-medium">Tools</span>
           </button>
         )}
+
+        {/* Minimap */}
+        <CanvasMinimap zoom={zoom} pan={pan} canvasRef={canvasRef} isPanelCollapsed={isPanelCollapsed} />
 
         {/* Canvas content layer — isolated stacking context so items never overlap UI chrome */}
         <div className="absolute inset-0 z-0" style={{ isolation: 'isolate' }}>
