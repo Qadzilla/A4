@@ -44,6 +44,28 @@ const dataTools = [
       </svg>
     ),
   },
+  {
+    type: 'chart-card',
+    label: 'Chart',
+    description: 'Data visualization',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <line x1="9" y1="17" x2="9" y2="11" />
+        <line x1="12" y1="17" x2="12" y2="8" />
+        <line x1="15" y1="17" x2="15" y2="13" />
+      </svg>
+    ),
+  },
 ];
 
 interface DataToolPanelProps {

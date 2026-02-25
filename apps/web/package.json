@@ -25,6 +25,7 @@
     "@trpc/client": "^11.0.0-rc.682",
     "@trpc/tanstack-react-query": "^11.0.0-rc.682",
     "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.0",
     "mammoth": "^1.11.0",
     "papaparse": "^5.5.3",
     "pdfjs-dist": "^5.4.624",

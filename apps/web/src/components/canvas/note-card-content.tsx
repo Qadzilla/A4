@@ -94,12 +94,11 @@ export const NoteCardContent = memo(function NoteCardContent({
             placeholder="Type a note..."
           />
         ) : (
-          <p ref={textRef} className="whitespace-pre-wrap text-[11px] leading-relaxed text-foreground">
-            {text || (
-              <span className="italic text-muted-foreground/50">
-                Double-click to edit
-              </span>
-            )}
+          <p
+            ref={textRef}
+            className="whitespace-pre-wrap text-[11px] leading-relaxed text-foreground"
+          >
+            {text || <span className="italic text-muted-foreground/50">Double-click to edit</span>}
           </p>
         )}
       </div>

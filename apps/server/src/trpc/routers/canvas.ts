@@ -22,13 +22,18 @@ export const canvasRouter = router({
       const items = await ctx.db
         .select()
         .from(canvasItems)
-        .where(and(eq(canvasItems.workspaceId, input.workspaceId), eq(canvasItems.userId, ctx.userId)));
+        .where(
+          and(eq(canvasItems.workspaceId, input.workspaceId), eq(canvasItems.userId, ctx.userId)),
+        );
 
       const connections = await ctx.db
         .select()
         .from(canvasConnections)
         .where(
-          and(eq(canvasConnections.workspaceId, input.workspaceId), eq(canvasConnections.userId, ctx.userId)),
+          and(
+            eq(canvasConnections.workspaceId, input.workspaceId),
+            eq(canvasConnections.userId, ctx.userId),
+          ),
         );
 
       return {
@@ -68,12 +73,17 @@ export const canvasRouter = router({
       // Clear existing data
       tx.delete(canvasConnections)
         .where(
-          and(eq(canvasConnections.workspaceId, input.workspaceId), eq(canvasConnections.userId, ctx.userId)),
+          and(
+            eq(canvasConnections.workspaceId, input.workspaceId),
+            eq(canvasConnections.userId, ctx.userId),
+          ),
         )
         .run();
 
       tx.delete(canvasItems)
-        .where(and(eq(canvasItems.workspaceId, input.workspaceId), eq(canvasItems.userId, ctx.userId)))
+        .where(
+          and(eq(canvasItems.workspaceId, input.workspaceId), eq(canvasItems.userId, ctx.userId)),
+        )
         .run();
 
       // Batch insert items

@@ -158,10 +158,7 @@ describe('workspace CRUD', () => {
     });
 
     // Soft-delete by setting deletedAt
-    await db
-      .update(workspaces)
-      .set({ deletedAt: new Date() })
-      .where(eq(workspaces.id, id));
+    await db.update(workspaces).set({ deletedAt: new Date() }).where(eq(workspaces.id, id));
 
     // Should be excluded from normal queries with isNull filter
     const active = await db
@@ -189,10 +186,7 @@ describe('workspace CRUD', () => {
     });
 
     // Soft-delete
-    await db
-      .update(workspaces)
-      .set({ deletedAt: new Date() })
-      .where(eq(workspaces.id, id));
+    await db.update(workspaces).set({ deletedAt: new Date() }).where(eq(workspaces.id, id));
 
     // Verify it's trashed
     const activeBeforeRestore = await db
@@ -202,10 +196,7 @@ describe('workspace CRUD', () => {
     expect(activeBeforeRestore).toHaveLength(0);
 
     // Restore
-    await db
-      .update(workspaces)
-      .set({ deletedAt: null })
-      .where(eq(workspaces.id, id));
+    await db.update(workspaces).set({ deletedAt: null }).where(eq(workspaces.id, id));
 
     // Should be back in active list
     const activeAfterRestore = await db

@@ -41,13 +41,35 @@ const availableTools = [
       </svg>
     ),
   },
+  {
+    type: 'timer-card',
+    label: 'Timer',
+    description: 'Countdown to deadline',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    ),
+  },
 ];
 
 interface GeneralToolPanelProps {
   onDragStart: (type: string, e: React.MouseEvent) => void;
 }
 
-export const GeneralToolPanel = memo(function GeneralToolPanel({ onDragStart }: GeneralToolPanelProps) {
+export const GeneralToolPanel = memo(function GeneralToolPanel({
+  onDragStart,
+}: GeneralToolPanelProps) {
   return (
     <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">

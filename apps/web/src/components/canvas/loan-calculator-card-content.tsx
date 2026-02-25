@@ -1,10 +1,12 @@
-import { memo } from 'react';
 import { cn } from '@a4/ui';
-import type { CanvasItem } from '../../stores/canvas-store';
+import { memo } from 'react';
 import { computeLoan, formatLoanCurrency } from '../../lib/loan-calculator-utils';
 import type { LoanCalculatorData } from '../../lib/loan-calculator-utils';
+import type { CanvasItem } from '../../stores/canvas-store';
 
-export const LoanCalculatorCardContent = memo(function LoanCalculatorCardContent({ item }: { item: CanvasItem }) {
+export const LoanCalculatorCardContent = memo(function LoanCalculatorCardContent({
+  item,
+}: { item: CanvasItem }) {
   const data = item.data as LoanCalculatorData | undefined;
 
   const homePrice = data?.homePrice ?? 400000;
@@ -66,10 +68,7 @@ export const LoanCalculatorCardContent = memo(function LoanCalculatorCardContent
             <span>Interest</span>
           </div>
           <div className="flex h-2 rounded-full overflow-hidden bg-muted/30">
-            <div
-              className="bg-primary/70 rounded-l-full"
-              style={{ width: `${principalPct}%` }}
-            />
+            <div className="bg-primary/70 rounded-l-full" style={{ width: `${principalPct}%` }} />
             <div
               className="bg-orange-400/70 rounded-r-full"
               style={{ width: `${100 - principalPct}%` }}
@@ -79,7 +78,8 @@ export const LoanCalculatorCardContent = memo(function LoanCalculatorCardContent
 
         {result.withExtra && (
           <p className={cn('text-[10px] font-medium text-green-600 dark:text-green-400')}>
-            Save {formatLoanCurrency(result.withExtra.interestSaved)} · {result.withExtra.monthsSaved}mo earlier
+            Save {formatLoanCurrency(result.withExtra.interestSaved)} ·{' '}
+            {result.withExtra.monthsSaved}mo earlier
           </p>
         )}
       </div>

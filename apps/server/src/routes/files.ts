@@ -1,12 +1,12 @@
+import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { mkdir, unlink } from 'node:fs/promises';
+import path from 'node:path';
+import { eq } from 'drizzle-orm';
 import { Router, type Router as RouterType } from 'express';
 import multer from 'multer';
-import { randomUUID } from 'crypto';
-import { mkdir, unlink } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
 import { db } from '../db';
 import { files } from '../db/schema';
-import { eq } from 'drizzle-orm';
 import { DEV_AUTH_BYPASS } from '../env';
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -79,7 +79,7 @@ filesRouter.post('/upload', (req, res, next) => {
       const storagePath = path.join(uploadDir, `${fileId}${ext}`);
 
       await mkdir(uploadDir, { recursive: true });
-      const { writeFile } = await import('fs/promises');
+      const { writeFile } = await import('node:fs/promises');
       await writeFile(storagePath, file.buffer);
 
       await db.insert(files).values({

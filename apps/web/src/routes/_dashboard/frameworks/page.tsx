@@ -27,8 +27,18 @@ export default function FrameworksPage() {
           </p>
           <p className="text-[13px] text-muted-foreground/70 mb-5">Coming soon</p>
           <div className="flex flex-wrap justify-center gap-2 mb-5">
-            {['DCF Models', 'SaaS Metrics', 'Balance Sheets', 'Q4 Reports', 'Tax Planning', 'Portfolio Tracker'].map((tag) => (
-              <span key={tag} className="rounded-lg bg-background border border-border/60 px-3 py-1.5 text-[12px] text-muted-foreground">
+            {[
+              'DCF Models',
+              'SaaS Metrics',
+              'Balance Sheets',
+              'Q4 Reports',
+              'Tax Planning',
+              'Portfolio Tracker',
+            ].map((tag) => (
+              <span
+                key={tag}
+                className="rounded-lg bg-background border border-border/60 px-3 py-1.5 text-[12px] text-muted-foreground"
+              >
                 {tag}
               </span>
             ))}

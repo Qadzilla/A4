@@ -27,7 +27,9 @@ interface SecretToolPanelProps {
   onDragStart: (type: string, e: React.MouseEvent) => void;
 }
 
-export const SecretToolPanel = memo(function SecretToolPanel({ onDragStart }: SecretToolPanelProps) {
+export const SecretToolPanel = memo(function SecretToolPanel({
+  onDragStart,
+}: SecretToolPanelProps) {
   return (
     <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">

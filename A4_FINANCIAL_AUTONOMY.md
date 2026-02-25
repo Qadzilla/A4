@@ -1,6 +1,6 @@
 # A4 — Master Checklist: Full DIY Financial Autonomy (US baseline)
 
-> **Last updated:** 2026-02-19
+> **Last updated:** 2026-02-24
 > Zero fluff. Extremely detailed. Personal + small business + freelancing. Taxes (strategy + filing). Investing (design + execution). Insurance/risk. Real estate. Equity comp. Crypto. Legal/estate. No outsourcing.
 
 Use this as your **operating checklist**. If you complete and maintain every item, you've basically built the personal + micro-business version of a CFO + controller + tax preparer + compliance + wealth manager + risk manager.
@@ -34,29 +34,49 @@ This file also tracks the **A4 platform toolkit** — what's built, what's neede
 | `a4-page` — rich-text BlockNote document | Built | All — documents, templates, notes |
 | `secret-card` — AES-256-GCM encrypted vault card | Built | 0.1 — credentials, API keys, PINs |
 | `note` — inline-editable sticky note (auto-resize) | Built | All — quick annotations |
-| `chart-card` — Recharts visualization (pie, bar, line, area) | **Not built** | 1, 4, 7 — net worth, portfolio, P&L |
+| `chart-card` — Recharts visualization (pie, bar, line, area) | Built | 1, 4, 7 — net worth, portfolio, P&L |
 | `table-card` — structured data grid / spreadsheet | Built | 1.1, 3.2, 7.2 — balance sheet, debt schedule, ledger |
-| `file-card` — uploaded document (PDF/CSV/Excel preview) | **Not built** | 0.2, 6.2 — document storage, tax folders |
-| `image-card` — image upload / screenshot | **Not built** | 13 — receipt evidence, screenshots |
-| `embed-card` — external content / iframe | **Not built** | General — third-party dashboards |
-| `kpi-card` — single-value metric with trend indicator | **Not built** | 1, 2, 7 — net worth, burn rate, revenue |
-| `timer-card` — countdown / deadline tracker | **Not built** | 0.3, 6 — tax deadlines, renewal dates |
+| `file-card` — uploaded document (PDF/CSV/Excel preview) | Built | 0.2, 6.2 — document storage, tax folders |
+| `kpi-card` — single-value metric with trend indicator | Built | 1, 2, 7 — net worth, burn rate, revenue |
+| `timer-card` — countdown / deadline tracker | Built | 0.3, 6 — tax deadlines, renewal dates |
+| `invoice-card` — invoice creator (line items, totals, client info, PDF export) | Built | 7.1 — invoicing, accounts receivable |
+| `budget-card` — budget planner (categories, groups, table-card binding, actual vs planned) | Built | 1.3 — budgeting, spending control |
+| `receipt-card` — receipt capture, categorization, evidence linking | Built | 13 — audit readiness, expense evidence |
+| `ledger-card` — income/expense tracker with categories, running balance, filters | Built | 1.2, 7.2 — cash flow, bookkeeping |
+| `account-card` — account balance overview (bank, brokerage, card summaries) | Built | 2 — treasury, cash management |
+| `subscription-card` — recurring bills / subscriptions tracker | Built | 1.3 — subscription registry, renewal alerts |
+| `pnl-card` — P&L / income statement (12-month multi-step, waterfall chart) | Built | 7.2 — monthly/quarterly P&L, business financials |
+| `balance-sheet-card` — balance sheet (assets, liabilities, equity; single-column point-in-time) | Built | 1.1 — net worth, asset/liability snapshot |
+| `cash-flow-card` — cash flow statement (12-month indirect method, 3 GAAP sections, rolling cash balance, burn rate/runway) | Built | 1.2 — cash flow, burn rate, treasury |
+| `tax-estimator-card` — US federal + state income tax estimator (2025/2026, all filing statuses, all 50 states + DC, FICA/SE, credits, withholding) | Built | 6.2 — tax projection, estimated taxes, withholding true-up |
 
 ### Financial instruments & tools
 
 | Tool | Status | Supports |
 |---|---|---|
-| File upload + document parsing (CSV/Excel → table-card, PDF text extraction) | **Not built** | 0.2, 1, 2, 7 — data ingestion, bank data, bookkeeping |
+| File upload + document parsing (CSV/Excel → table-card, PDF text extraction) | Built (local) | 0.2, 1, 2, 7 — data ingestion, bank data, bookkeeping |
 | Transaction import (CSV/Excel parsing) | **Not built** | 1, 2, 7 — bank data, bookkeeping |
 | Transaction categorization engine | **Not built** | 1.2, 7.2 — expense categories |
 | Net worth calculator (assets − liabilities) | **Not built** | 1.1 — balance sheet |
 | Cash flow summary generator | **Not built** | 1.2 — income vs spending |
-| Budget vs actual comparison | **Not built** | 1.3 — budget model |
+| Budget vs actual comparison | Built (budget-card) | 1.3 — budget model |
 | Debt amortization calculator | **Not built** | 3.2 — paydown planner |
-| Tax projection model | **Not built** | 6.2 — estimated taxes |
+| Tax projection model | Built (tax-estimator-card) | 6.2 — estimated taxes |
 | Portfolio allocation tracker | **Not built** | 4.2, 4.3 — drift, rebalancing |
 | Rent vs buy model | **Not built** | 8 — real estate analysis |
 | Depreciation schedule calculator | **Not built** | 7, 8 — business/rental assets |
+| Invoice generator (line items, tax, totals, PDF export) | Built (invoice-card) | 7.1 — billing clients, A/R |
+| P&L / income statement generator | Built (pnl-card) | 7.2 — monthly/quarterly financials |
+| Balance sheet generator | Built (balance-sheet-card) | 1.1 — assets vs liabilities snapshot |
+| Cash flow statement generator | Built (cash-flow-card) | 1.2 — cash flow, burn rate, treasury |
+| Financial projections / forecasting model | **Not built** | 4, 7 — revenue/expense forecasting |
+| Break-even analysis calculator | **Not built** | 7 — business viability |
+| Loan / mortgage calculator (amortization schedule) | **Not built** | 3.2, 8 — debt planning |
+| Tax form templates (W-2, 1099, Schedule C) | **Not built** | 6.3 — filing readiness |
+| Expense categorization engine (receipt → category) | Partial (receipt-card has manual categorization) | 1.2, 13 — audit-ready expense tracking |
+| Income/expense ledger with categorization | Built (ledger-card) | 1.2, 7.2 — cash flow, bookkeeping |
+| Recurring bills / subscription tracker | Built (subscription-card) | 1.3 — autopay registry, renewal alerts |
+| Account balances dashboard (all accounts, one view) | Built (account-card) | 2 — treasury overview |
 
 ### Document & file features
 
@@ -64,9 +84,9 @@ This file also tracks the **A4 platform toolkit** — what's built, what's neede
 |---|---|---|
 | BlockNote rich-text editor | Built | All — documents, templates |
 | Canvas preview rendering | Built | All — document cards on canvas |
-| File upload pipeline (S3/R2 storage) | **Not built** | 0.2 — document vault |
-| PDF viewer / parser | **Not built** | 6.3, 13 — tax docs, contracts |
-| CSV/Excel import + preview | **Not built** | 1, 7 — transaction data |
+| File upload pipeline (local disk storage) | Built | 0.2 — document vault |
+| PDF viewer / parser | Built (file-card preview + text extraction) | 6.3, 13 — tax docs, contracts |
+| CSV/Excel import + preview | Built (file-card preview + table extraction) | 1, 7 — transaction data |
 | Document search | **Not built** | 0.2 — find across workspaces |
 | Template library (pre-built documents) | **Not built** | 15 — all template types |
 

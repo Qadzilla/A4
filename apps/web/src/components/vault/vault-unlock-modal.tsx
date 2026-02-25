@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { Button, Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from '@a4/ui';
 import { useQuery } from '@tanstack/react-query';
-import { deriveKey, verifyKey, setCachedKey } from '../../lib/vault-crypto';
+import { useState } from 'react';
 import { useTRPC } from '../../lib/trpc';
+import { deriveKey, setCachedKey, verifyKey } from '../../lib/vault-crypto';
 
 interface VaultUnlockModalProps {
   open: boolean;
@@ -15,7 +15,9 @@ export function VaultUnlockModal({ open, onOpenChange, onUnlockComplete }: Vault
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const trpc = useTRPC();
-  const { data: vaultConfig, isLoading: isConfigLoading } = useQuery(trpc.vault.getConfig.queryOptions());
+  const { data: vaultConfig, isLoading: isConfigLoading } = useQuery(
+    trpc.vault.getConfig.queryOptions(),
+  );
 
   const handleUnlock = async () => {
     if (!vaultConfig) return;
@@ -71,12 +73,9 @@ export function VaultUnlockModal({ open, onOpenChange, onUnlockComplete }: Vault
                 }}
                 placeholder="e.g. blue fish monday"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-[14px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
-                autoFocus
               />
 
-              {error && (
-                <p className="text-[12px] text-destructive">{error}</p>
-              )}
+              {error && <p className="text-[12px] text-destructive">{error}</p>}
             </>
           )}
         </div>
@@ -85,7 +84,10 @@ export function VaultUnlockModal({ open, onOpenChange, onUnlockComplete }: Vault
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUnlocking}>
             Cancel
           </Button>
-          <Button onClick={handleUnlock} disabled={isUnlocking || isConfigLoading || !passphrase.trim()}>
+          <Button
+            onClick={handleUnlock}
+            disabled={isUnlocking || isConfigLoading || !passphrase.trim()}
+          >
             {isUnlocking ? 'Unlocking...' : 'Unlock'}
           </Button>
         </ModalFooter>

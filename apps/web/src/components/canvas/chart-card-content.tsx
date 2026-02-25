@@ -1,25 +1,25 @@
 import { memo } from 'react';
 import {
-  ResponsiveContainer,
-  LineChart,
-  BarChart,
-  AreaChart,
-  PieChart,
-  Line,
-  Bar,
   Area,
-  Pie,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
   Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
 } from 'recharts';
+import { CHART_COLORS, resolveChartData } from '../../lib/chart-utils';
+import type { ChartCardData } from '../../lib/chart-utils';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
-import { resolveChartData, CHART_COLORS } from '../../lib/chart-utils';
-import type { ChartCardData } from '../../lib/chart-utils';
 
 export const ChartCardContent = memo(function ChartCardContent({ item }: { item: CanvasItem }) {
   const items = useCanvasStore((s) => s.items);
@@ -62,9 +62,17 @@ export const ChartCardContent = memo(function ChartCardContent({ item }: { item:
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{ fontSize: 11, borderRadius: 6, border: '1px solid var(--color-border)', backgroundColor: 'var(--color-card)', color: 'var(--color-foreground)' }}
+                contentStyle={{
+                  fontSize: 11,
+                  borderRadius: 6,
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-card)',
+                  color: 'var(--color-foreground)',
+                }}
               />
-              {data.showLegend && <Legend wrapperStyle={{ fontSize: 10, color: 'var(--color-foreground)' }} />}
+              {data.showLegend && (
+                <Legend wrapperStyle={{ fontSize: 10, color: 'var(--color-foreground)' }} />
+              )}
             </PieChart>
           ) : data.chartType === 'line' ? (
             <LineChart data={points}>
@@ -72,9 +80,17 @@ export const ChartCardContent = memo(function ChartCardContent({ item }: { item:
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-foreground)' }} />
               <YAxis tick={{ fontSize: 10, fill: 'var(--color-foreground)' }} width={35} />
               <Tooltip
-                contentStyle={{ fontSize: 11, borderRadius: 6, border: '1px solid var(--color-border)', backgroundColor: 'var(--color-card)', color: 'var(--color-foreground)' }}
+                contentStyle={{
+                  fontSize: 11,
+                  borderRadius: 6,
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-card)',
+                  color: 'var(--color-foreground)',
+                }}
               />
-              {data.showLegend && <Legend wrapperStyle={{ fontSize: 10, color: 'var(--color-foreground)' }} />}
+              {data.showLegend && (
+                <Legend wrapperStyle={{ fontSize: 10, color: 'var(--color-foreground)' }} />
+              )}
               {seriesNames.map((name, i) => (
                 <Line
                   key={name}
@@ -93,9 +109,17 @@ export const ChartCardContent = memo(function ChartCardContent({ item }: { item:
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-foreground)' }} />
               <YAxis tick={{ fontSize: 10, fill: 'var(--color-foreground)' }} width={35} />
               <Tooltip
-                contentStyle={{ fontSize: 11, borderRadius: 6, border: '1px solid var(--color-border)', backgroundColor: 'var(--color-card)', color: 'var(--color-foreground)' }}
+                contentStyle={{
+                  fontSize: 11,
+                  borderRadius: 6,
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-card)',
+                  color: 'var(--color-foreground)',
+                }}
               />
-              {data.showLegend && <Legend wrapperStyle={{ fontSize: 10, color: 'var(--color-foreground)' }} />}
+              {data.showLegend && (
+                <Legend wrapperStyle={{ fontSize: 10, color: 'var(--color-foreground)' }} />
+              )}
               {seriesNames.map((name, i) => (
                 <Area
                   key={name}
@@ -114,9 +138,17 @@ export const ChartCardContent = memo(function ChartCardContent({ item }: { item:
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-foreground)' }} />
               <YAxis tick={{ fontSize: 10, fill: 'var(--color-foreground)' }} width={35} />
               <Tooltip
-                contentStyle={{ fontSize: 11, borderRadius: 6, border: '1px solid var(--color-border)', backgroundColor: 'var(--color-card)', color: 'var(--color-foreground)' }}
+                contentStyle={{
+                  fontSize: 11,
+                  borderRadius: 6,
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: 'var(--color-card)',
+                  color: 'var(--color-foreground)',
+                }}
               />
-              {data.showLegend && <Legend wrapperStyle={{ fontSize: 10, color: 'var(--color-foreground)' }} />}
+              {data.showLegend && (
+                <Legend wrapperStyle={{ fontSize: 10, color: 'var(--color-foreground)' }} />
+              )}
               {seriesNames.map((name, i) => (
                 <Bar
                   key={name}

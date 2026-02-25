@@ -1,9 +1,9 @@
-import { memo } from 'react';
 import { cn } from '@a4/ui';
-import type { CanvasItem } from '../../stores/canvas-store';
-import { useCanvasStore } from '../../stores/canvas-store';
+import { memo } from 'react';
 import { formatKpiValue, resolveKpiValue } from '../../lib/kpi-utils';
 import type { KpiCardData, KpiColor, KpiTrend } from '../../lib/kpi-utils';
+import type { CanvasItem } from '../../stores/canvas-store';
+import { useCanvasStore } from '../../stores/canvas-store';
 
 const colorBorderClasses: Record<KpiColor, string> = {
   green: 'border-l-green-500',
@@ -21,7 +21,14 @@ export const KpiCardContent = memo(function KpiCardContent({ item }: { item: Can
   const trend = data?.trend as KpiTrend | undefined;
   const color = (data?.color ?? 'default') as KpiColor;
 
-  const kpiData: KpiCardData = { label, value: data?.value ?? '0', format, trend, color, source: data?.source };
+  const kpiData: KpiCardData = {
+    label,
+    value: data?.value ?? '0',
+    format,
+    trend,
+    color,
+    source: data?.source,
+  };
   const resolved = resolveKpiValue(kpiData, items);
   const formatted = formatKpiValue(resolved, format);
 
@@ -41,24 +48,49 @@ export const KpiCardContent = memo(function KpiCardContent({ item }: { item: Can
 
       {/* Value */}
       <div className="flex-1 flex items-center justify-center px-3">
-        <span className="text-[24px] font-bold text-foreground truncate">
-          {formatted}
-        </span>
+        <span className="text-[24px] font-bold text-foreground truncate">{formatted}</span>
       </div>
 
       {/* Trend footer */}
       {trend && (
         <div className="flex items-center gap-1.5 px-3 pb-2">
           {trend.direction === 'up' ? (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-green-500">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-3 text-green-500"
+            >
               <path d="m5 12 7-7 7 7" />
             </svg>
           ) : trend.direction === 'down' ? (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-red-500">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-3 text-red-500"
+            >
               <path d="m19 12-7 7-7-7" />
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-muted-foreground">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-3 text-muted-foreground"
+            >
               <path d="M5 12h14" />
             </svg>
           )}

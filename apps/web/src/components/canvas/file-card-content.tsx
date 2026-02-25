@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import type { CanvasItem } from '../../stores/canvas-store';
 import type { FileCardData, FileTablePreview } from '../../lib/file-utils';
 import { formatFileSize, getFileTypeLabel, getFileUrl, pdfjsLib } from '../../lib/file-utils';
+import type { CanvasItem } from '../../stores/canvas-store';
 
 function MiniTable({ preview }: { preview: FileTablePreview }) {
   const maxCols = 4;
@@ -59,7 +59,10 @@ function PdfPreview({ fileId }: { fileId: string }) {
         const url = getFileUrl(fileId);
         const pdf = await pdfjsLib.getDocument(url).promise;
         const page = await pdf.getPage(1);
-        if (cancelled) { pdf.destroy(); return; }
+        if (cancelled) {
+          pdf.destroy();
+          return;
+        }
 
         const dpr = window.devicePixelRatio || 1;
         const viewport = page.getViewport({ scale: dpr * 3 });
@@ -69,14 +72,19 @@ function PdfPreview({ fileId }: { fileId: string }) {
         offscreen.width = viewport.width;
         offscreen.height = viewport.height;
         const ctx = offscreen.getContext('2d');
-        if (!ctx) { pdf.destroy(); return; }
+        if (!ctx) {
+          pdf.destroy();
+          return;
+        }
 
         await page.render({ canvasContext: ctx, viewport, canvas: offscreen } as any).promise;
         pdf.destroy();
         if (cancelled) return;
 
         // Convert to blob URL for <img> display
-        const blob = await new Promise<Blob | null>((resolve) => offscreen.toBlob(resolve, 'image/png'));
+        const blob = await new Promise<Blob | null>((resolve) =>
+          offscreen.toBlob(resolve, 'image/png'),
+        );
         if (cancelled || !blob) return;
 
         const blobUrl = URL.createObjectURL(blob);
@@ -140,7 +148,16 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
           <PdfPreview fileId={data.fileId} />
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border-t border-border/30">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-muted-foreground shrink-0">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-3 text-muted-foreground shrink-0"
+          >
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
@@ -162,7 +179,16 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
           />
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border-t border-border/30">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-muted-foreground shrink-0">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-3 text-muted-foreground shrink-0"
+          >
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
@@ -177,7 +203,16 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
     return (
       <div className="h-full w-full flex flex-col rounded-sm border border-border/40 bg-background overflow-hidden">
         <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border-b border-border/30">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-muted-foreground shrink-0">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-3 text-muted-foreground shrink-0"
+          >
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <line x1="3" y1="9" x2="21" y2="9" />
             <line x1="9" y1="3" x2="9" y2="21" />
@@ -196,7 +231,16 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
     return (
       <div className="h-full w-full flex flex-col rounded-sm border border-border/40 bg-background overflow-hidden">
         <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border-b border-border/30">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-muted-foreground shrink-0">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-3 text-muted-foreground shrink-0"
+          >
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <line x1="16" y1="13" x2="8" y2="13" />
@@ -216,11 +260,22 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
   // Fallback — file icon + name + size
   return (
     <div className="h-full w-full flex flex-col items-center justify-center rounded-sm border border-border/40 bg-background gap-1">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-8 text-muted-foreground/50">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-8 text-muted-foreground/50"
+      >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
       </svg>
-      <span className="text-[10px] font-medium text-foreground/80 truncate max-w-[90%] px-2">{data.fileName}</span>
+      <span className="text-[10px] font-medium text-foreground/80 truncate max-w-[90%] px-2">
+        {data.fileName}
+      </span>
       <span className="text-[9px] text-muted-foreground">
         {getFileTypeLabel(data.mimeType)} · {formatFileSize(data.fileSize)}
       </span>

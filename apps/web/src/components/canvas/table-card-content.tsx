@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
+import { type TableCardData, formatCellValue } from '../../lib/table-utils';
 import type { CanvasItem } from '../../stores/canvas-store';
-import { formatCellValue, type TableCardData } from '../../lib/table-utils';
 
 interface TableCardContentProps {
   item: CanvasItem;
@@ -42,9 +42,7 @@ export const TableCardContent = memo(function TableCardContent({ item }: TableCa
           <line x1="3" y1="15" x2="21" y2="15" />
           <line x1="9" y1="3" x2="9" y2="21" />
         </svg>
-        <span className="text-[11px] font-medium text-foreground truncate">
-          {item.name}
-        </span>
+        <span className="text-[11px] font-medium text-foreground truncate">{item.name}</span>
       </div>
 
       {/* Table */}

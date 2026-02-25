@@ -33,13 +33,13 @@ export function createDefaultKpiData(): KpiCardData {
 export function resolveKpiValue(data: KpiCardData, items: CanvasItem[]): string {
   if (!data.source) return data.value;
 
-  const tableItem = items.find((i) => i.id === data.source!.tableItemId);
+  const tableItem = items.find((i) => i.id === data.source?.tableItemId);
   if (!tableItem || tableItem.type !== 'table-card') return data.value;
 
   const tableData = tableItem.data as TableCardData | undefined;
   if (!tableData?.columns || !tableData.rows) return data.value;
 
-  const column = tableData.columns.find((c) => c.id === data.source!.columnId);
+  const column = tableData.columns.find((c) => c.id === data.source?.columnId);
   if (!column) return data.value;
 
   const values = tableData.rows

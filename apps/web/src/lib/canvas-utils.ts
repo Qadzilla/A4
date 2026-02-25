@@ -13,10 +13,7 @@ export interface AlignmentResult {
 
 const SNAP_THRESHOLD = 5;
 
-export function computeAlignment(
-  dragging: CanvasItem,
-  allItems: CanvasItem[],
-): AlignmentResult {
+export function computeAlignment(dragging: CanvasItem, allItems: CanvasItem[]): AlignmentResult {
   const others = allItems.filter((i) => i.id !== dragging.id);
   if (others.length === 0) return { guides: [], snapDeltaX: 0, snapDeltaY: 0 };
 
@@ -30,8 +27,8 @@ export function computeAlignment(
   const dragXPoints = [dragLeft, dragCenterX, dragRight];
   const dragYPoints = [dragTop, dragCenterY, dragBottom];
 
-  let bestDx = Infinity;
-  let bestDy = Infinity;
+  let bestDx = Number.POSITIVE_INFINITY;
+  let bestDy = Number.POSITIVE_INFINITY;
   let snapDeltaX = 0;
   let snapDeltaY = 0;
   const verticalPositions = new Set<number>();
@@ -98,9 +95,9 @@ export function computeAlignment(
 
 export interface SpacingGuide {
   axis: 'horizontal' | 'vertical';
-  from: number;   // canvas-space: right edge of left item (horizontal) or bottom edge of top item (vertical)
-  to: number;     // canvas-space: left edge of right item (horizontal) or top edge of bottom item (vertical)
-  cross: number;  // canvas-space: midpoint on perpendicular axis (for positioning the indicator)
+  from: number; // canvas-space: right edge of left item (horizontal) or bottom edge of top item (vertical)
+  to: number; // canvas-space: left edge of right item (horizontal) or top edge of bottom item (vertical)
+  cross: number; // canvas-space: midpoint on perpendicular axis (for positioning the indicator)
 }
 
 export interface SpacingResult {
@@ -112,7 +109,7 @@ export interface SpacingResult {
 interface GapInfo {
   gap: number;
   aRight: number; // right edge of left item (or bottom edge of top item)
-  bLeft: number;  // left edge of right item (or top edge of bottom item)
+  bLeft: number; // left edge of right item (or top edge of bottom item)
   aCross: number; // perpendicular center of item A
   bCross: number; // perpendicular center of item B
 }
@@ -172,8 +169,8 @@ function computeSpacingAxis(
     }
   }
 
-  let bestDelta = Infinity;
-  let bestAbsDelta = Infinity;
+  let bestDelta = Number.POSITIVE_INFINITY;
+  let bestAbsDelta = Number.POSITIVE_INFINITY;
   let matchedGapValue = 0;
   type Side = 'left' | 'right';
   let matchedSide: Side | null = null;
@@ -183,9 +180,12 @@ function computeSpacingAxis(
     const leftEnd = leftNeighbor[pos] + leftNeighbor[size];
     const gapLeft = dragStart - leftEnd;
     for (const ref of refGaps) {
-      const delta = (leftEnd + ref.gap) - dragStart; // snap so gapLeft == ref.gap
+      const delta = leftEnd + ref.gap - dragStart; // snap so gapLeft == ref.gap
       const absDelta = Math.abs(delta);
-      if (absDelta <= SNAP_THRESHOLD && (absDelta < bestAbsDelta || (absDelta === bestAbsDelta && matchedSide !== 'left'))) {
+      if (
+        absDelta <= SNAP_THRESHOLD &&
+        (absDelta < bestAbsDelta || (absDelta === bestAbsDelta && matchedSide !== 'left'))
+      ) {
         bestAbsDelta = absDelta;
         bestDelta = delta;
         matchedGapValue = ref.gap;
@@ -199,7 +199,7 @@ function computeSpacingAxis(
     const rightStart = rightNeighbor[pos];
     const gapRight = rightStart - dragEnd;
     for (const ref of refGaps) {
-      const delta = (rightStart - ref.gap - dragging[size]) - dragStart; // snap so gapRight == ref.gap
+      const delta = rightStart - ref.gap - dragging[size] - dragStart; // snap so gapRight == ref.gap
       const absDelta = Math.abs(delta);
       if (absDelta <= SNAP_THRESHOLD && absDelta < bestAbsDelta) {
         bestAbsDelta = absDelta;
@@ -256,10 +256,7 @@ function computeSpacingAxis(
   return { snapDelta: bestDelta, guides };
 }
 
-export function computeSpacing(
-  dragging: CanvasItem,
-  allItems: CanvasItem[],
-): SpacingResult {
+export function computeSpacing(dragging: CanvasItem, allItems: CanvasItem[]): SpacingResult {
   const others = allItems.filter((i) => i.id !== dragging.id);
   if (others.length < 2) return { spacingGuides: [], snapDeltaX: 0, snapDeltaY: 0 };
 

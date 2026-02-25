@@ -1,24 +1,10 @@
 import { z } from 'zod';
 
 // Asset classes supported by Polygon.io
-export const assetClassSchema = z.enum([
-  'stocks',
-  'options',
-  'crypto',
-  'forex',
-  'indices',
-]);
+export const assetClassSchema = z.enum(['stocks', 'options', 'crypto', 'forex', 'indices']);
 
 // Timespan for aggregate bars
-export const timespanSchema = z.enum([
-  'minute',
-  'hour',
-  'day',
-  'week',
-  'month',
-  'quarter',
-  'year',
-]);
+export const timespanSchema = z.enum(['minute', 'hour', 'day', 'week', 'month', 'quarter', 'year']);
 
 // Ticker detail (from Polygon /v3/reference/tickers)
 export const tickerDetailSchema = z.object({
@@ -110,9 +96,7 @@ export const aggregateInputSchema = z.object({
 
 export const subscribeInputSchema = z.object({
   symbols: z.array(z.string().min(1)).min(1),
-  channels: z
-    .array(z.enum(['T', 'Q', 'A', 'AM']))
-    .default(['T', 'Q']),
+  channels: z.array(z.enum(['T', 'Q', 'A', 'AM'])).default(['T', 'Q']),
 });
 
 // WebSocket message types (server → client)

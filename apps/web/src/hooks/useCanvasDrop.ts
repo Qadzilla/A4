@@ -1,10 +1,10 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '../stores/canvas-store';
 
 export const ITEM_DEFAULTS: Record<string, { width: number; height: number }> = {
   'a4-page': { width: 565, height: 800 },
   'secret-card': { width: 320, height: 240 },
-  'note': { width: 260, height: 180 },
+  note: { width: 260, height: 180 },
   'table-card': { width: 400, height: 300 },
   'kpi-card': { width: 240, height: 140 },
   'chart-card': { width: 480, height: 320 },
@@ -37,11 +37,24 @@ export function useCanvasDrop() {
   const ghostRef = useRef<HTMLDivElement>(null);
   const addItem = useCanvasStore((s) => s.addItem);
 
-  const startDrag = useCallback((type: string, e: React.MouseEvent, opts?: { data?: Record<string, unknown>; name?: string }) => {
-    e.preventDefault();
-    dragRef.current = { type, ghostX: e.clientX, ghostY: e.clientY, data: opts?.data, name: opts?.name };
-    setIsDragging(true);
-  }, []);
+  const startDrag = useCallback(
+    (
+      type: string,
+      e: React.MouseEvent,
+      opts?: { data?: Record<string, unknown>; name?: string },
+    ) => {
+      e.preventDefault();
+      dragRef.current = {
+        type,
+        ghostX: e.clientX,
+        ghostY: e.clientY,
+        data: opts?.data,
+        name: opts?.name,
+      };
+      setIsDragging(true);
+    },
+    [],
+  );
 
   const onDropRef = useRef<((drag: DragState) => void) | undefined>(undefined);
 

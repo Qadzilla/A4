@@ -82,7 +82,20 @@ export function createDefaultLoanCalculatorData(): LoanCalculatorData {
 
 // ─── Helpers ───────────────────────────────────────────────────────
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
 function parseStartDate(startDate: string): { year: number; month: number } {
   const [y, m] = startDate.split('-').map(Number);
@@ -102,8 +115,8 @@ function advanceMonth(year: number, month: number): { year: number; month: numbe
 
 function computeMonthlyPI(principal: number, monthlyRate: number, numPayments: number): number {
   if (monthlyRate === 0) return principal / numPayments;
-  const factor = Math.pow(1 + monthlyRate, numPayments);
-  return principal * (monthlyRate * factor) / (factor - 1);
+  const factor = (1 + monthlyRate) ** numPayments;
+  return (principal * (monthlyRate * factor)) / (factor - 1);
 }
 
 function generateSchedule(
@@ -121,7 +134,7 @@ function generateSchedule(
   let balance = loanAmount;
   let year = startYear;
   let month = startMonth;
-  const ltvThreshold = homePrice * 0.80;
+  const ltvThreshold = homePrice * 0.8;
 
   for (let i = 1; i <= numPayments && balance > 0.01; i++) {
     const interest = balance * monthlyRate;
@@ -163,7 +176,7 @@ function generateSchedule(
 }
 
 export function computeLoan(data: LoanCalculatorData): LoanCalculatorResult {
-  const loanAmount = data.homePrice - (data.homePrice * data.downPaymentPercent / 100);
+  const loanAmount = data.homePrice - (data.homePrice * data.downPaymentPercent) / 100;
   const monthlyRate = data.annualInterestRate / 100 / 12;
   const numPayments = data.loanTermYears * 12;
 
@@ -173,19 +186,25 @@ export function computeLoan(data: LoanCalculatorData): LoanCalculatorResult {
 
   // PMI: only if down payment < 20%
   const ltv = loanAmount / data.homePrice;
-  const monthlyPMI = ltv > 0.80
-    ? (loanAmount * (data.pmiRatePercent / 100)) / 12
-    : 0;
+  const monthlyPMI = ltv > 0.8 ? (loanAmount * (data.pmiRatePercent / 100)) / 12 : 0;
 
   const monthlyHOA = data.monthlyHOA;
-  const totalMonthlyPayment = monthlyPI + monthlyPropertyTax + monthlyInsurance + monthlyPMI + monthlyHOA;
+  const totalMonthlyPayment =
+    monthlyPI + monthlyPropertyTax + monthlyInsurance + monthlyPMI + monthlyHOA;
 
   const { year: startYear, month: startMonth } = parseStartDate(data.startDate);
 
   // Base schedule (no extra payments)
   const baseSchedule = generateSchedule(
-    loanAmount, monthlyPI, monthlyRate, numPayments, 0,
-    data.homePrice, monthlyPMI, startYear, startMonth,
+    loanAmount,
+    monthlyPI,
+    monthlyRate,
+    numPayments,
+    0,
+    data.homePrice,
+    monthlyPMI,
+    startYear,
+    startMonth,
   );
 
   const totalInterest = baseSchedule.reduce((sum, r) => sum + r.interest, 0);
@@ -199,8 +218,15 @@ export function computeLoan(data: LoanCalculatorData): LoanCalculatorResult {
 
   if (data.extraMonthlyPayment > 0) {
     const extraSchedule = generateSchedule(
-      loanAmount, monthlyPI, monthlyRate, numPayments, data.extraMonthlyPayment,
-      data.homePrice, monthlyPMI, startYear, startMonth,
+      loanAmount,
+      monthlyPI,
+      monthlyRate,
+      numPayments,
+      data.extraMonthlyPayment,
+      data.homePrice,
+      monthlyPMI,
+      startYear,
+      startMonth,
     );
     const extraTotalInterest = extraSchedule.reduce((sum, r) => sum + r.interest, 0);
     const extraLastRow = extraSchedule[extraSchedule.length - 1];

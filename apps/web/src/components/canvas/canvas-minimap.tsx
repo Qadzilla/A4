@@ -1,6 +1,6 @@
-import { memo, useRef, useEffect } from 'react';
-import { useCanvasStore } from '../../stores/canvas-store';
+import { memo, useEffect, useRef } from 'react';
 import { useTheme } from '../../hooks/useTheme';
+import { useCanvasStore } from '../../stores/canvas-store';
 
 const MAP_W = 160;
 const MAP_H = 120;
@@ -13,7 +13,12 @@ interface CanvasMinimapProps {
   isPanelCollapsed: boolean;
 }
 
-export const CanvasMinimap = memo(function CanvasMinimap({ zoom, pan, canvasRef, isPanelCollapsed }: CanvasMinimapProps) {
+export const CanvasMinimap = memo(function CanvasMinimap({
+  zoom,
+  pan,
+  canvasRef,
+  isPanelCollapsed,
+}: CanvasMinimapProps) {
   const items = useCanvasStore((s) => s.items);
   const ref = useRef<HTMLCanvasElement>(null);
   const { resolvedTheme } = useTheme();
@@ -38,10 +43,10 @@ export const CanvasMinimap = memo(function CanvasMinimap({ zoom, pan, canvasRef,
     if (items.length === 0) return;
 
     // 1. Compute world bounding box of all items
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
     for (const item of items) {
       if (item.x < minX) minX = item.x;
       if (item.y < minY) minY = item.y;

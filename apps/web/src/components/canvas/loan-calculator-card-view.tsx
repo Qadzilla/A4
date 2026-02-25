@@ -1,9 +1,9 @@
-import { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@a4/ui';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { computeLoan, formatLoanCurrency } from '../../lib/loan-calculator-utils';
+import type { AmortizationRow, LoanCalculatorData } from '../../lib/loan-calculator-utils';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
-import { computeLoan, formatLoanCurrency } from '../../lib/loan-calculator-utils';
-import type { LoanCalculatorData, AmortizationRow } from '../../lib/loan-calculator-utils';
 
 function makeData(d: LoanCalculatorData | undefined): LoanCalculatorData {
   const now = new Date();
@@ -24,7 +24,9 @@ function makeData(d: LoanCalculatorData | undefined): LoanCalculatorData {
   };
 }
 
-export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({ item }: { item: CanvasItem }) {
+export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
+  item,
+}: { item: CanvasItem }) {
   const updateItemData = useCanvasStore((s) => s.updateItemData);
 
   const [data, setData] = useState<LoanCalculatorData>(() =>
@@ -71,7 +73,7 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({ ite
   }, []);
 
   const result = computeLoan(data);
-  const downPaymentDollars = data.homePrice * data.downPaymentPercent / 100;
+  const downPaymentDollars = (data.homePrice * data.downPaymentPercent) / 100;
 
   // Group schedule by year for yearly view
   const yearlyGroups = groupByYear(result.schedule);
@@ -103,11 +105,15 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({ ite
           />
         </label>
 
-        <span className={cn(
-          'ml-auto text-[10px] transition-opacity',
-          saveStatus === 'idle' ? 'opacity-0' : 'opacity-100',
-          saveStatus === 'saving' ? 'text-muted-foreground' : 'text-green-600 dark:text-green-400',
-        )}>
+        <span
+          className={cn(
+            'ml-auto text-[10px] transition-opacity',
+            saveStatus === 'idle' ? 'opacity-0' : 'opacity-100',
+            saveStatus === 'saving'
+              ? 'text-muted-foreground'
+              : 'text-green-600 dark:text-green-400',
+          )}
+        >
           {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
         </span>
       </div>
@@ -115,27 +121,50 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({ ite
       {/* Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-3xl mx-auto p-4 space-y-1">
-
           {/* ── LOAN DETAILS ── */}
           <SectionHeader label="Loan Details" />
-          <FieldRow label="Home Price" value={data.homePrice} onChange={(v) => update({ homePrice: v })} />
+          <FieldRow
+            label="Home Price"
+            value={data.homePrice}
+            onChange={(v) => update({ homePrice: v })}
+          />
           <div className="flex items-center hover:bg-muted/20 py-0.5 px-3">
             <span className="flex-1 text-[12px] text-foreground">Down Payment (%)</span>
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-muted-foreground font-mono">
                 {formatLoanCurrency(downPaymentDollars)}
               </span>
-              <PercentInput value={data.downPaymentPercent} onChange={(v) => update({ downPaymentPercent: v })} />
+              <PercentInput
+                value={data.downPaymentPercent}
+                onChange={(v) => update({ downPaymentPercent: v })}
+              />
             </div>
           </div>
-          <FieldRow label="Interest Rate (%)" value={data.annualInterestRate} onChange={(v) => update({ annualInterestRate: v })} isPercent />
+          <FieldRow
+            label="Interest Rate (%)"
+            value={data.annualInterestRate}
+            onChange={(v) => update({ annualInterestRate: v })}
+            isPercent
+          />
           <ComputedRow label="Loan Amount" value={formatLoanCurrency(result.loanAmount)} />
 
           {/* ── MONTHLY COSTS ── */}
           <SectionHeader label="Monthly Costs" />
-          <FieldRow label="Property Tax ($/yr)" value={data.annualPropertyTax} onChange={(v) => update({ annualPropertyTax: v })} />
-          <FieldRow label="Insurance ($/yr)" value={data.annualInsurance} onChange={(v) => update({ annualInsurance: v })} />
-          <FieldRow label="HOA ($/mo)" value={data.monthlyHOA} onChange={(v) => update({ monthlyHOA: v })} />
+          <FieldRow
+            label="Property Tax ($/yr)"
+            value={data.annualPropertyTax}
+            onChange={(v) => update({ annualPropertyTax: v })}
+          />
+          <FieldRow
+            label="Insurance ($/yr)"
+            value={data.annualInsurance}
+            onChange={(v) => update({ annualInsurance: v })}
+          />
+          <FieldRow
+            label="HOA ($/mo)"
+            value={data.monthlyHOA}
+            onChange={(v) => update({ monthlyHOA: v })}
+          />
           <div className="flex items-center hover:bg-muted/20 py-0.5 px-3">
             <span className="flex-1 text-[12px] text-foreground">
               PMI Rate (%)
@@ -143,19 +172,37 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({ ite
                 <span className="text-[10px] text-muted-foreground ml-1">N/A</span>
               )}
             </span>
-            <PercentInput value={data.pmiRatePercent} onChange={(v) => update({ pmiRatePercent: v })} />
+            <PercentInput
+              value={data.pmiRatePercent}
+              onChange={(v) => update({ pmiRatePercent: v })}
+            />
           </div>
 
           {/* ── EXTRA PAYMENTS ── */}
           <SectionHeader label="Extra Payments" />
-          <FieldRow label="Extra Monthly Payment" value={data.extraMonthlyPayment} onChange={(v) => update({ extraMonthlyPayment: v })} />
+          <FieldRow
+            label="Extra Monthly Payment"
+            value={data.extraMonthlyPayment}
+            onChange={(v) => update({ extraMonthlyPayment: v })}
+          />
 
           {/* ── PAYMENT BREAKDOWN ── */}
           <SectionHeader label="Payment Breakdown" />
           <div className="rounded-lg bg-muted/10 border border-border/30 py-1">
-            <ComputedRow label="Principal & Interest" value={formatLoanCurrency(result.monthlyPI)} />
-            <ComputedRow label="Property Tax" value={formatLoanCurrency(result.monthlyPropertyTax)} sub />
-            <ComputedRow label="Insurance" value={formatLoanCurrency(result.monthlyInsurance)} sub />
+            <ComputedRow
+              label="Principal & Interest"
+              value={formatLoanCurrency(result.monthlyPI)}
+            />
+            <ComputedRow
+              label="Property Tax"
+              value={formatLoanCurrency(result.monthlyPropertyTax)}
+              sub
+            />
+            <ComputedRow
+              label="Insurance"
+              value={formatLoanCurrency(result.monthlyInsurance)}
+              sub
+            />
             {result.monthlyPMI > 0 && (
               <ComputedRow label="PMI" value={formatLoanCurrency(result.monthlyPMI)} sub />
             )}
@@ -184,8 +231,16 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({ ite
               <MetricBox label="Payoff Date" value={result.payoffDate} />
               {result.withExtra && (
                 <>
-                  <MetricBox label="Interest Saved" value={formatLoanCurrency(result.withExtra.interestSaved)} color="green" />
-                  <MetricBox label="Months Saved" value={String(result.withExtra.monthsSaved)} color="green" />
+                  <MetricBox
+                    label="Interest Saved"
+                    value={formatLoanCurrency(result.withExtra.interestSaved)}
+                    color="green"
+                  />
+                  <MetricBox
+                    label="Months Saved"
+                    value={String(result.withExtra.monthsSaved)}
+                    color="green"
+                  />
                   <MetricBox label="New Payoff" value={result.withExtra.payoffDate} color="green" />
                 </>
               )}
@@ -235,7 +290,8 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({ ite
 
           {/* Disclaimer */}
           <p className="text-[10px] text-muted-foreground/60 pt-4 pb-2 text-center">
-            Estimate only. Actual payments may vary based on lender terms, escrow adjustments, and other factors.
+            Estimate only. Actual payments may vary based on lender terms, escrow adjustments, and
+            other factors.
           </p>
         </div>
       </div>
@@ -255,7 +311,12 @@ function SectionHeader({ label }: { label: string }) {
   );
 }
 
-function FieldRow({ label, value, onChange, isPercent }: { label: string; value: number; onChange: (v: number) => void; isPercent?: boolean }) {
+function FieldRow({
+  label,
+  value,
+  onChange,
+  isPercent,
+}: { label: string; value: number; onChange: (v: number) => void; isPercent?: boolean }) {
   return (
     <div className="flex items-center hover:bg-muted/20 py-0.5 px-3">
       <span className="flex-1 text-[12px] text-foreground">{label}</span>
@@ -270,20 +331,21 @@ function FieldRow({ label, value, onChange, isPercent }: { label: string; value:
 
 function ComputedRow({ label, value, sub }: { label: string; value: string; sub?: boolean }) {
   return (
-    <div className={cn(
-      'flex items-center py-1 px-3',
-      !sub && 'border-t border-border/40',
-    )}>
-      <span className={cn(
-        'flex-1 text-[12px]',
-        sub ? 'text-muted-foreground' : 'font-semibold text-foreground',
-      )}>
+    <div className={cn('flex items-center py-1 px-3', !sub && 'border-t border-border/40')}>
+      <span
+        className={cn(
+          'flex-1 text-[12px]',
+          sub ? 'text-muted-foreground' : 'font-semibold text-foreground',
+        )}
+      >
         {label}
       </span>
-      <span className={cn(
-        'w-40 text-right font-mono text-[12px]',
-        sub ? 'text-muted-foreground' : 'font-semibold text-foreground',
-      )}>
+      <span
+        className={cn(
+          'w-40 text-right font-mono text-[12px]',
+          sub ? 'text-muted-foreground' : 'font-semibold text-foreground',
+        )}
+      >
         {value}
       </span>
     </div>
@@ -304,7 +366,7 @@ function AmountInput({ value, onChange }: { value: number; onChange: (v: number)
     <input
       type="text"
       inputMode="decimal"
-      value={focused ? text : (value === 0 ? '' : value.toLocaleString('en-US'))}
+      value={focused ? text : value === 0 ? '' : value.toLocaleString('en-US')}
       onChange={(e) => {
         setText(e.target.value);
         const num = Number(e.target.value.replace(/,/g, ''));
@@ -339,7 +401,7 @@ function PercentInput({ value, onChange }: { value: number; onChange: (v: number
     <input
       type="text"
       inputMode="decimal"
-      value={focused ? text : (value === 0 ? '' : `${value}`)}
+      value={focused ? text : value === 0 ? '' : `${value}`}
       onChange={(e) => {
         setText(e.target.value);
         const num = Number(e.target.value);
@@ -360,16 +422,22 @@ function PercentInput({ value, onChange }: { value: number; onChange: (v: number
   );
 }
 
-function MetricBox({ label, value, color }: { label: string; value: string; color?: 'green' | 'red' }) {
+function MetricBox({
+  label,
+  value,
+  color,
+}: { label: string; value: string; color?: 'green' | 'red' }) {
   return (
     <div className="rounded-lg border border-border/60 bg-card px-4 py-3">
       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
-      <p className={cn(
-        'text-[16px] font-bold mt-0.5',
-        color === 'green' && 'text-green-600 dark:text-green-400',
-        color === 'red' && 'text-red-600 dark:text-red-400',
-        !color && 'text-foreground',
-      )}>
+      <p
+        className={cn(
+          'text-[16px] font-bold mt-0.5',
+          color === 'green' && 'text-green-600 dark:text-green-400',
+          color === 'red' && 'text-red-600 dark:text-red-400',
+          !color && 'text-foreground',
+        )}
+      >
         {value}
       </p>
     </div>
@@ -384,8 +452,12 @@ function PaymentBar({ result }: { result: ReturnType<typeof computeLoan> }) {
     { label: 'P&I', value: result.monthlyPI, color: 'bg-primary/70' },
     { label: 'Tax', value: result.monthlyPropertyTax, color: 'bg-blue-400/70' },
     { label: 'Ins', value: result.monthlyInsurance, color: 'bg-amber-400/70' },
-    ...(result.monthlyPMI > 0 ? [{ label: 'PMI', value: result.monthlyPMI, color: 'bg-red-400/70' }] : []),
-    ...(result.monthlyHOA > 0 ? [{ label: 'HOA', value: result.monthlyHOA, color: 'bg-purple-400/70' }] : []),
+    ...(result.monthlyPMI > 0
+      ? [{ label: 'PMI', value: result.monthlyPMI, color: 'bg-red-400/70' }]
+      : []),
+    ...(result.monthlyHOA > 0
+      ? [{ label: 'HOA', value: result.monthlyHOA, color: 'bg-purple-400/70' }]
+      : []),
   ];
 
   return (
@@ -470,11 +542,19 @@ function MonthlyTable({ schedule }: { schedule: AmortizationRow[] }) {
               <td className="py-1 px-2 text-muted-foreground">{row.month}</td>
               <td className="py-1 px-2">{row.date}</td>
               <td className="py-1 px-2 text-right font-mono">{formatLoanCurrency(row.payment)}</td>
-              <td className="py-1 px-2 text-right font-mono">{formatLoanCurrency(row.principal)}</td>
+              <td className="py-1 px-2 text-right font-mono">
+                {formatLoanCurrency(row.principal)}
+              </td>
               <td className="py-1 px-2 text-right font-mono">{formatLoanCurrency(row.interest)}</td>
-              <td className="py-1 px-2 text-right font-mono">{row.extraPayment > 0 ? formatLoanCurrency(row.extraPayment) : ''}</td>
-              <td className="py-1 px-2 text-right font-mono">{row.pmi > 0 ? formatLoanCurrency(row.pmi) : ''}</td>
-              <td className="py-1 px-2 text-right font-mono font-medium">{formatLoanCurrency(row.balance)}</td>
+              <td className="py-1 px-2 text-right font-mono">
+                {row.extraPayment > 0 ? formatLoanCurrency(row.extraPayment) : ''}
+              </td>
+              <td className="py-1 px-2 text-right font-mono">
+                {row.pmi > 0 ? formatLoanCurrency(row.pmi) : ''}
+              </td>
+              <td className="py-1 px-2 text-right font-mono font-medium">
+                {formatLoanCurrency(row.balance)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -512,7 +592,12 @@ function YearlyTable({ groups }: { groups: YearGroup[] }) {
           {groups.map((g) => {
             const isExpanded = expandedYears.has(g.year);
             return (
-              <YearRow key={g.year} group={g} isExpanded={isExpanded} onToggle={() => toggleYear(g.year)} />
+              <YearRow
+                key={g.year}
+                group={g}
+                isExpanded={isExpanded}
+                onToggle={() => toggleYear(g.year)}
+              />
             );
           })}
         </tbody>
@@ -521,7 +606,11 @@ function YearlyTable({ groups }: { groups: YearGroup[] }) {
   );
 }
 
-function YearRow({ group, isExpanded, onToggle }: { group: YearGroup; isExpanded: boolean; onToggle: () => void }) {
+function YearRow({
+  group,
+  isExpanded,
+  onToggle,
+}: { group: YearGroup; isExpanded: boolean; onToggle: () => void }) {
   return (
     <>
       <tr
@@ -534,29 +623,52 @@ function YearRow({ group, isExpanded, onToggle }: { group: YearGroup; isExpanded
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               fill="currentColor"
-              className={cn('size-3 text-muted-foreground transition-transform', isExpanded && 'rotate-90')}
+              className={cn(
+                'size-3 text-muted-foreground transition-transform',
+                isExpanded && 'rotate-90',
+              )}
             >
               <path d="M8 5v14l11-7z" />
             </svg>
             {group.year}
           </span>
         </td>
-        <td className="py-1.5 px-2 text-right font-mono">{formatLoanCurrency(group.totalPrincipal)}</td>
-        <td className="py-1.5 px-2 text-right font-mono">{formatLoanCurrency(group.totalInterest)}</td>
-        <td className="py-1.5 px-2 text-right font-mono">{group.totalExtra > 0 ? formatLoanCurrency(group.totalExtra) : ''}</td>
-        <td className="py-1.5 px-2 text-right font-mono">{group.totalPMI > 0 ? formatLoanCurrency(group.totalPMI) : ''}</td>
-        <td className="py-1.5 px-2 text-right font-mono font-bold">{formatLoanCurrency(group.endBalance)}</td>
+        <td className="py-1.5 px-2 text-right font-mono">
+          {formatLoanCurrency(group.totalPrincipal)}
+        </td>
+        <td className="py-1.5 px-2 text-right font-mono">
+          {formatLoanCurrency(group.totalInterest)}
+        </td>
+        <td className="py-1.5 px-2 text-right font-mono">
+          {group.totalExtra > 0 ? formatLoanCurrency(group.totalExtra) : ''}
+        </td>
+        <td className="py-1.5 px-2 text-right font-mono">
+          {group.totalPMI > 0 ? formatLoanCurrency(group.totalPMI) : ''}
+        </td>
+        <td className="py-1.5 px-2 text-right font-mono font-bold">
+          {formatLoanCurrency(group.endBalance)}
+        </td>
       </tr>
-      {isExpanded && group.rows.map((row) => (
-        <tr key={row.month} className="border-t border-border/10 bg-muted/5 text-muted-foreground">
-          <td className="py-0.5 px-2 pl-6">{row.date}</td>
-          <td className="py-0.5 px-2 text-right font-mono">{formatLoanCurrency(row.principal)}</td>
-          <td className="py-0.5 px-2 text-right font-mono">{formatLoanCurrency(row.interest)}</td>
-          <td className="py-0.5 px-2 text-right font-mono">{row.extraPayment > 0 ? formatLoanCurrency(row.extraPayment) : ''}</td>
-          <td className="py-0.5 px-2 text-right font-mono">{row.pmi > 0 ? formatLoanCurrency(row.pmi) : ''}</td>
-          <td className="py-0.5 px-2 text-right font-mono">{formatLoanCurrency(row.balance)}</td>
-        </tr>
-      ))}
+      {isExpanded &&
+        group.rows.map((row) => (
+          <tr
+            key={row.month}
+            className="border-t border-border/10 bg-muted/5 text-muted-foreground"
+          >
+            <td className="py-0.5 px-2 pl-6">{row.date}</td>
+            <td className="py-0.5 px-2 text-right font-mono">
+              {formatLoanCurrency(row.principal)}
+            </td>
+            <td className="py-0.5 px-2 text-right font-mono">{formatLoanCurrency(row.interest)}</td>
+            <td className="py-0.5 px-2 text-right font-mono">
+              {row.extraPayment > 0 ? formatLoanCurrency(row.extraPayment) : ''}
+            </td>
+            <td className="py-0.5 px-2 text-right font-mono">
+              {row.pmi > 0 ? formatLoanCurrency(row.pmi) : ''}
+            </td>
+            <td className="py-0.5 px-2 text-right font-mono">{formatLoanCurrency(row.balance)}</td>
+          </tr>
+        ))}
     </>
   );
 }

@@ -57,16 +57,20 @@ export default function HomePage() {
       </div>
 
       {/* Modern Chat Input - Omnibar Style */}
-      <div className={cn(
-        'w-full max-w-3xl transition-all duration-300 relative z-10',
-        isFocused ? 'scale-[1.02]' : 'scale-100',
-      )}>
-        <div className={cn(
-          'bg-background border rounded-3xl overflow-hidden transition-all duration-300 shadow-sm',
-          isFocused
-            ? 'border-primary/50 ring-4 ring-primary/10 shadow-xl shadow-primary/5'
-            : 'border-border shadow-md hover:border-primary/30 hover:shadow-lg',
-        )}>
+      <div
+        className={cn(
+          'w-full max-w-3xl transition-all duration-300 relative z-10',
+          isFocused ? 'scale-[1.02]' : 'scale-100',
+        )}
+      >
+        <div
+          className={cn(
+            'bg-background border rounded-3xl overflow-hidden transition-all duration-300 shadow-sm',
+            isFocused
+              ? 'border-primary/50 ring-4 ring-primary/10 shadow-xl shadow-primary/5'
+              : 'border-border shadow-md hover:border-primary/30 hover:shadow-lg',
+          )}
+        >
           {/* Text Area */}
           <textarea
             value={message}
@@ -74,7 +78,9 @@ export default function HomePage() {
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder={mode === 'project' ? 'Describe a new project...' : 'Ask for quick info or analysis...'}
+            placeholder={
+              mode === 'project' ? 'Describe a new project...' : 'Ask for quick info or analysis...'
+            }
             className="w-full bg-transparent px-6 pt-6 pb-2 min-h-[80px] resize-none outline-none text-lg placeholder:text-muted-foreground/50 font-medium"
           />
 
@@ -85,7 +91,9 @@ export default function HomePage() {
               {/* Sliding indicator */}
               <div
                 className="absolute top-1 bottom-1 w-[calc(50%-2px)] rounded-full bg-primary/5 shadow-[0_0_6px_var(--color-primary)] ring-1 ring-primary/20 transition-transform duration-300 ease-out"
-                style={{ transform: mode === 'quick' ? 'translateX(calc(100% + 4px))' : 'translateX(0)' }}
+                style={{
+                  transform: mode === 'quick' ? 'translateX(calc(100% + 4px))' : 'translateX(0)',
+                }}
               />
               <button
                 type="button"
@@ -97,7 +105,16 @@ export default function HomePage() {
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-3"
+                >
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                 </svg>
                 Project
@@ -112,7 +129,16 @@ export default function HomePage() {
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-3"
+                >
                   <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
                 </svg>
                 Analysis
@@ -153,8 +179,15 @@ export default function HomePage() {
       {recentWorkspaces.length > 0 && (
         <div className="w-full max-w-4xl mt-16 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
           <div className="flex items-center justify-between mb-6 px-1">
-            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Recent Workspaces</h2>
-            <Link to="/workspaces" className="text-sm font-medium text-primary hover:underline underline-offset-4">View all</Link>
+            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
+              Recent Workspaces
+            </h2>
+            <Link
+              to="/workspaces"
+              className="text-sm font-medium text-primary hover:underline underline-offset-4"
+            >
+              View all
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -168,7 +201,16 @@ export default function HomePage() {
                 <div className="h-32 bg-muted/20 relative overflow-hidden group-hover:bg-primary/5 transition-colors">
                   <div className="absolute inset-0 flex items-center justify-center">
                     {ws.type === 'folder' ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="size-10 text-muted-foreground/30 group-hover:text-primary/60 group-hover:scale-110 transition-all duration-300">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-10 text-muted-foreground/30 group-hover:text-primary/60 group-hover:scale-110 transition-all duration-300"
+                      >
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                       </svg>
                     ) : ws.thumbnail ? (
@@ -178,7 +220,16 @@ export default function HomePage() {
                         className="h-full w-full object-cover object-top absolute inset-0"
                       />
                     ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="size-10 text-muted-foreground/30 group-hover:text-primary/60 group-hover:scale-110 transition-all duration-300">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-10 text-muted-foreground/30 group-hover:text-primary/60 group-hover:scale-110 transition-all duration-300"
+                      >
                         <rect width="7" height="7" x="3" y="3" rx="1" />
                         <rect width="7" height="7" x="14" y="3" rx="1" />
                         <rect width="7" height="7" x="3" y="14" rx="1" />
@@ -198,11 +249,29 @@ export default function HomePage() {
                   <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
                     <span className="flex items-center gap-1.5">
                       {ws.type === 'folder' ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="size-3"
+                        >
                           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                         </svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="size-3"
+                        >
                           <rect width="7" height="7" x="3" y="3" rx="1" />
                           <rect width="7" height="7" x="14" y="3" rx="1" />
                           <rect width="7" height="7" x="3" y="14" rx="1" />

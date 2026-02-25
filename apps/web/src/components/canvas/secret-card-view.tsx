@@ -1,8 +1,8 @@
-import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { Button, cn } from '@a4/ui';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { decrypt, encrypt, getCachedKey } from '../../lib/vault-crypto';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
-import { getCachedKey, encrypt, decrypt } from '../../lib/vault-crypto';
 
 interface SecretField {
   label: string;
@@ -35,8 +35,7 @@ export const SecretCardView = memo(function SecretCardView({
   const dirtyRef = useRef(false);
 
   // Check if vault is locked and there are existing encrypted fields
-  const storedFields: SecretField[] =
-    (item.data?.fields as SecretField[] | undefined) ?? [];
+  const storedFields: SecretField[] = (item.data?.fields as SecretField[] | undefined) ?? [];
   const vaultLocked = !getCachedKey();
   const hasEncryptedFields = storedFields.some((f) => f.sensitive && f.iv);
 
@@ -50,8 +49,7 @@ export const SecretCardView = memo(function SecretCardView({
     dirtyRef.current = false;
 
     async function load() {
-      const stored: SecretField[] =
-        (item.data?.fields as SecretField[] | undefined) ?? [];
+      const stored: SecretField[] = (item.data?.fields as SecretField[] | undefined) ?? [];
 
       const key = getCachedKey();
       const editable: EditableField[] = [];
@@ -78,7 +76,9 @@ export const SecretCardView = memo(function SecretCardView({
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [item.id]);
 
   // Auto-save: encrypt and persist on user changes (debounced 800ms)
@@ -129,9 +129,7 @@ export const SecretCardView = memo(function SecretCardView({
   const updateField = useCallback(
     (index: number, key: keyof EditableField, value: string | boolean) => {
       dirtyRef.current = true;
-      setFields((prev) =>
-        prev.map((f, i) => (i === index ? { ...f, [key]: value } : f)),
-      );
+      setFields((prev) => prev.map((f, i) => (i === index ? { ...f, [key]: value } : f)));
     },
     [],
   );
@@ -212,10 +210,7 @@ export const SecretCardView = memo(function SecretCardView({
         {/* Fields */}
         <div className="space-y-3">
           {fields.map((field, i) => (
-            <div
-              key={i}
-              className="rounded-lg border border-border/60 bg-background p-3 space-y-2"
-            >
+            <div key={i} className="rounded-lg border border-border/60 bg-background p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -230,7 +225,16 @@ export const SecretCardView = memo(function SecretCardView({
                   className="p-1.5 rounded-md text-black/50 dark:text-zinc-400 hover:bg-destructive/10 hover:text-destructive transition-colors"
                   title="Remove field"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="size-3.5"
+                  >
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
@@ -257,7 +261,16 @@ export const SecretCardView = memo(function SecretCardView({
                   )}
                 >
                   {field.sensitive && (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="size-2.5">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="size-2.5"
+                    >
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   )}
@@ -277,7 +290,16 @@ export const SecretCardView = memo(function SecretCardView({
             onClick={addField}
             className="flex items-center gap-1.5 text-[13px] text-primary hover:underline"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-3.5"
+            >
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>

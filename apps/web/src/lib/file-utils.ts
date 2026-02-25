@@ -1,5 +1,5 @@
-import * as pdfjsLib from 'pdfjs-dist';
 import Papa from 'papaparse';
+import * as pdfjsLib from 'pdfjs-dist';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -35,7 +35,7 @@ export async function uploadFile(
   const token = await getToken();
   const headers: Record<string, string> = {};
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
 
   const res = await fetch('/api/files/upload', {
@@ -88,9 +88,9 @@ function generateCsvPreview(file: File): Promise<FileTablePreview | undefined> {
           return;
         }
         const columns = results.meta.fields;
-        const rows = (results.data as Record<string, string>[]).slice(0, 5).map((row) =>
-          columns.map((col) => row[col] ?? ''),
-        );
+        const rows = (results.data as Record<string, string>[])
+          .slice(0, 5)
+          .map((row) => columns.map((col) => row[col] ?? ''));
         resolve({ columns, rows });
       },
       error: () => resolve(undefined),
@@ -110,9 +110,7 @@ async function generateExcelPreview(file: File): Promise<FileTablePreview | unde
     const raw = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 });
     if (raw.length < 1) return undefined;
     const columns = (raw[0] ?? []).map(String);
-    const rows = raw.slice(1, 6).map((row) =>
-      columns.map((_, i) => String(row[i] ?? '')),
-    );
+    const rows = raw.slice(1, 6).map((row) => columns.map((_, i) => String(row[i] ?? '')));
     return { columns, rows };
   } catch {
     return undefined;

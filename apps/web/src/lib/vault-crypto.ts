@@ -71,11 +71,7 @@ export async function encrypt(
 }
 
 /** Decrypt base64 ciphertext with AES-256-GCM. Throws on wrong key / tampered data. */
-export async function decrypt(
-  ciphertext: string,
-  iv: string,
-  key: CryptoKey,
-): Promise<string> {
+export async function decrypt(ciphertext: string, iv: string, key: CryptoKey): Promise<string> {
   const dec = new TextDecoder();
   const decrypted = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: base64ToUint8(iv) },

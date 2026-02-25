@@ -1,18 +1,21 @@
+import type { AggregateBar, TickerDetail, TickerSnapshot } from '@a4/shared-types';
 import { restClient } from '@polygon.io/client-js';
+import { and, eq, gte, lte } from 'drizzle-orm';
+import WebSocket from 'ws';
 import type { DB } from '../db';
 import { marketBars, tickerDetails } from '../db/schema';
-import { and, eq, gte, lte } from 'drizzle-orm';
-import type {
-  AggregateBar,
-  TickerDetail,
-  TickerSnapshot,
-} from '@a4/shared-types';
-import WebSocket from 'ws';
 
 // Map Polygon's abbreviated bar fields to our schema
-function mapBar(
-  bar: { o: number; h: number; l: number; c: number; v: number; vw?: number; t: number; n?: number },
-): AggregateBar {
+function mapBar(bar: {
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+  vw?: number;
+  t: number;
+  n?: number;
+}): AggregateBar {
   return {
     open: bar.o,
     high: bar.h,
@@ -46,27 +49,23 @@ export class PolygonService {
 
   // --- REST methods ---
 
-  async searchTickers(
-    query: string,
-    market?: string,
-    limit = 10,
-  ): Promise<TickerDetail[]> {
+  async searchTickers(query: string, market?: string, limit = 10): Promise<TickerDetail[]> {
     const response = await this.rest.listTickers(
-      undefined,    // ticker
-      undefined,    // type
+      undefined, // ticker
+      undefined, // type
       market as never, // market
-      undefined,    // exchange
-      undefined,    // cusip
-      undefined,    // cik
-      undefined,    // date
-      query,        // search
-      true,         // active
-      undefined,    // tickerGte
-      undefined,    // tickerGt
-      undefined,    // tickerLte
-      undefined,    // tickerLt
-      undefined,    // order
-      limit,        // limit
+      undefined, // exchange
+      undefined, // cusip
+      undefined, // cik
+      undefined, // date
+      query, // search
+      true, // active
+      undefined, // tickerGte
+      undefined, // tickerGt
+      undefined, // tickerLte
+      undefined, // tickerLt
+      undefined, // order
+      limit, // limit
     );
 
     return (response.results ?? []).map((t) => ({
@@ -109,7 +108,7 @@ export class PolygonService {
       timespan as never,
       from,
       to,
-      true,         // adjusted
+      true, // adjusted
       sort as never,
       limit,
     );
@@ -402,7 +401,7 @@ export class PolygonService {
       const sym = p.split('.').slice(1).join('.');
       const market = this.guessMarket(sym);
       if (!byMarket.has(market)) byMarket.set(market, []);
-      byMarket.get(market)!.push(p);
+      byMarket.get(market)?.push(p);
     }
 
     for (const [market, marketParams] of byMarket) {
@@ -426,7 +425,7 @@ export class PolygonService {
       const sym = p.split('.').slice(1).join('.');
       const market = this.guessMarket(sym);
       if (!byMarket.has(market)) byMarket.set(market, []);
-      byMarket.get(market)!.push(p);
+      byMarket.get(market)?.push(p);
     }
 
     for (const [market, marketParams] of byMarket) {

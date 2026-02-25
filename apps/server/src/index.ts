@@ -1,18 +1,18 @@
-import { clerkMiddleware, verifyToken } from '@clerk/express';
+import { createServer } from 'node:http';
+import type { IncomingMessage } from 'node:http';
 import { wsClientMessageSchema } from '@a4/shared-schemas';
+import { clerkMiddleware, verifyToken } from '@clerk/express';
 import * as trpcExpress from '@trpc/server/adapters/express';
 import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import { createServer } from 'http';
-import { WebSocketServer, type WebSocket } from 'ws';
-import type { IncomingMessage } from 'http';
+import { type WebSocket, WebSocketServer } from 'ws';
 import { DEV_AUTH_BYPASS, env } from './env';
+import { filesRouter } from './routes/files';
 import { PolygonService } from './services/polygon';
 import { createContext, setPolygonService } from './trpc/context';
 import { appRouter } from './trpc/router';
-import { filesRouter } from './routes/files';
 
 const app = express();
 
@@ -84,9 +84,7 @@ const clients = new Map<WebSocket, ClientState>();
 
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-async function authenticateWs(
-  req: IncomingMessage,
-): Promise<{ userId: string } | null> {
+async function authenticateWs(req: IncomingMessage): Promise<{ userId: string } | null> {
   if (DEV_AUTH_BYPASS) {
     return { userId: 'dev-user-001' };
   }

@@ -1,6 +1,6 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
+import { decrypt, getCachedKey } from '../../lib/vault-crypto';
 import type { CanvasItem } from '../../stores/canvas-store';
-import { getCachedKey, decrypt } from '../../lib/vault-crypto';
 
 interface SecretField {
   label: string;
@@ -69,9 +69,7 @@ export const SecretCardContent = memo(function SecretCardContent({
             <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <span className="text-[11px] font-medium text-foreground truncate">
-            {item.name}
-          </span>
+          <span className="text-[11px] font-medium text-foreground truncate">{item.name}</span>
         </div>
         {fields.some((f) => f.sensitive) && (
           <button
@@ -86,13 +84,31 @@ export const SecretCardContent = memo(function SecretCardContent({
             title={revealed ? 'Hide values' : 'Reveal values'}
           >
             {revealed ? (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5"
+              >
                 <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
                 <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
                 <line x1="1" y1="1" x2="23" y2="23" />
               </svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5"
+              >
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
@@ -115,7 +131,9 @@ export const SecretCardContent = memo(function SecretCardContent({
               </span>
               <span className="text-[11px] font-mono text-foreground truncate text-right">
                 {field.sensitive
-                  ? (revealed && decryptedValues[i] != null ? decryptedValues[i] : '••••••••')
+                  ? revealed && decryptedValues[i] != null
+                    ? decryptedValues[i]
+                    : '••••••••'
                   : field.value}
               </span>
             </div>

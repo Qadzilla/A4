@@ -1,11 +1,11 @@
+import { useMarketStore } from '@/stores/market-store';
 import type { WsServerMessage } from '@a4/shared-types';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useMarketStore } from '@/stores/market-store';
 
 type WsStatus = 'connecting' | 'connected' | 'disconnected';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-const WS_URL = API_URL.replace(/^http/, 'ws') + '/ws';
+const WS_URL = `${API_URL.replace(/^http/, 'ws')}/ws`;
 
 const MAX_RECONNECT_DELAY = 30_000;
 const BASE_RECONNECT_DELAY = 1_000;

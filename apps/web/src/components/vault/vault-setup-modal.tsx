@@ -1,14 +1,14 @@
-import { useState } from 'react';
 import { Button, Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle } from '@a4/ui';
 import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useTRPC } from '../../lib/trpc';
 import {
-  generatePassphrase,
-  generateSalt,
   deriveKey,
   encryptVerification,
+  generatePassphrase,
+  generateSalt,
   setCachedKey,
 } from '../../lib/vault-crypto';
-import { useTRPC } from '../../lib/trpc';
 
 interface VaultSetupModalProps {
   open: boolean;
@@ -60,8 +60,8 @@ export function VaultSetupModal({ open, onOpenChange, onSetupComplete }: VaultSe
 
         <div className="space-y-4 py-2">
           <p className="text-[13px] text-muted-foreground">
-            Your vault passphrase encrypts sensitive data on this device before it reaches the server.
-            The server never sees your passphrase or encryption key.
+            Your vault passphrase encrypts sensitive data on this device before it reaches the
+            server. The server never sees your passphrase or encryption key.
           </p>
 
           <div className="rounded-lg border border-border bg-muted/30 p-4">
@@ -87,9 +87,7 @@ export function VaultSetupModal({ open, onOpenChange, onSetupComplete }: VaultSe
             </p>
           </div>
 
-          {error && (
-            <p className="text-[12px] text-destructive">{error}</p>
-          )}
+          {error && <p className="text-[12px] text-destructive">{error}</p>}
         </div>
 
         <ModalFooter>

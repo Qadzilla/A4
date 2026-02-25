@@ -1,8 +1,8 @@
 import { ROUTES } from '@/constants';
 import { DEV_AUTH_BYPASS } from '@/lib/clerk';
 import { useTRPC } from '@/lib/trpc';
-import { useUIStore } from '@/stores/ui-store';
 import { useCanvasStore } from '@/stores/canvas-store';
+import { useUIStore } from '@/stores/ui-store';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,6 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-
 
 const navItems = [
   {
@@ -288,31 +287,42 @@ export function Sidebar() {
           </div>
           {isWsExpanded && (
             <div className="ml-4 pl-3 border-l border-border/40 space-y-0.5 py-1">
-              {[...canvasItems].sort((a, b) => a.zIndex - b.zIndex).map((ci) => (
-                <button
-                  key={ci.id}
-                  type="button"
-                  onClick={() => {
-                    navigate(wsPath);
-                    selectItem(ci.id);
-                  }}
-                  onDoubleClick={() => {
-                    openItem(ci.id);
-                  }}
-                  className={cn(
-                    'flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] transition-all duration-150 truncate',
-                    selectedItemId === ci.id
-                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-sidebar-foreground',
-                  )}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 shrink-0">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                  <span className="truncate">{ci.name}</span>
-                </button>
-              ))}
+              {[...canvasItems]
+                .sort((a, b) => a.zIndex - b.zIndex)
+                .map((ci) => (
+                  <button
+                    key={ci.id}
+                    type="button"
+                    onClick={() => {
+                      navigate(wsPath);
+                      selectItem(ci.id);
+                    }}
+                    onDoubleClick={() => {
+                      openItem(ci.id);
+                    }}
+                    className={cn(
+                      'flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] transition-all duration-150 truncate',
+                      selectedItemId === ci.id
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium'
+                        : 'text-muted-foreground hover:bg-muted/60 hover:text-sidebar-foreground',
+                    )}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-3 w-3 shrink-0"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <span className="truncate">{ci.name}</span>
+                  </button>
+                ))}
             </div>
           )}
         </div>
@@ -363,14 +373,25 @@ export function Sidebar() {
                 {!sidebarCollapsed && (
                   <div className="flex flex-col items-start text-left truncate">
                     <span className="font-semibold text-sm leading-none truncate w-full">Zaid</span>
-                    <span className="text-xs text-muted-foreground leading-none mt-1 truncate w-full">dev@a4.ai</span>
+                    <span className="text-xs text-muted-foreground leading-none mt-1 truncate w-full">
+                      dev@a4.ai
+                    </span>
                   </div>
                 )}
               </div>
 
               {/* Chevron (Hidden when collapsed) */}
               {!sidebarCollapsed && (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-muted-foreground/50 group-hover:text-muted-foreground shrink-0">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-4 text-muted-foreground/50 group-hover:text-muted-foreground shrink-0"
+                >
                   <path d="m7 15 5 5 5-5" />
                   <path d="m7 9 5-5 5 5" />
                 </svg>
@@ -395,12 +416,23 @@ export function Sidebar() {
             <DropdownMenuSeparator className="bg-border/50 my-1" />
 
             <div className="px-2 py-1.5">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Account</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                Account
+              </p>
             </div>
 
             <Link to="/settings">
               <DropdownMenuItem className="rounded-lg cursor-pointer py-2 focus:bg-primary/10 focus:text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 size-4 opacity-70">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-2 size-4 opacity-70"
+                >
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
@@ -409,7 +441,16 @@ export function Sidebar() {
             </Link>
             <Link to="/settings">
               <DropdownMenuItem className="rounded-lg cursor-pointer py-2 focus:bg-primary/10 focus:text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 size-4 opacity-70">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-2 size-4 opacity-70"
+                >
                   <circle cx="12" cy="12" r="3" />
                   <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
                 </svg>
@@ -419,7 +460,16 @@ export function Sidebar() {
 
             <DropdownMenuSub>
               <DropdownMenuSubTrigger className="rounded-lg cursor-pointer py-2 focus:bg-primary/10 focus:text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 size-4 opacity-70">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-2 size-4 opacity-70"
+                >
                   <circle cx="12" cy="12" r="5" />
                   <line x1="12" y1="1" x2="12" y2="3" />
                   <line x1="12" y1="21" x2="12" y2="23" />
@@ -434,8 +484,20 @@ export function Sidebar() {
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent className="rounded-xl border-border/60 shadow-xl bg-background/95 backdrop-blur-md p-1">
-                  <DropdownMenuItem className="rounded-lg cursor-pointer py-2" onClick={() => setTheme('light')}>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 size-4 opacity-70">
+                  <DropdownMenuItem
+                    className="rounded-lg cursor-pointer py-2"
+                    onClick={() => setTheme('light')}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-2 size-4 opacity-70"
+                    >
                       <circle cx="12" cy="12" r="5" />
                       <line x1="12" y1="1" x2="12" y2="3" />
                       <line x1="12" y1="21" x2="12" y2="23" />
@@ -448,14 +510,38 @@ export function Sidebar() {
                     </svg>
                     Light
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="rounded-lg cursor-pointer py-2" onClick={() => setTheme('dark')}>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 size-4 opacity-70">
+                  <DropdownMenuItem
+                    className="rounded-lg cursor-pointer py-2"
+                    onClick={() => setTheme('dark')}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-2 size-4 opacity-70"
+                    >
                       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                     </svg>
                     Dark
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="rounded-lg cursor-pointer py-2" onClick={() => setTheme('system')}>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 size-4 opacity-70">
+                  <DropdownMenuItem
+                    className="rounded-lg cursor-pointer py-2"
+                    onClick={() => setTheme('system')}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-2 size-4 opacity-70"
+                    >
                       <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
                       <line x1="8" y1="21" x2="16" y2="21" />
                       <line x1="12" y1="17" x2="12" y2="21" />
@@ -472,7 +558,16 @@ export function Sidebar() {
               className="rounded-lg cursor-pointer py-2 focus:bg-primary/10 focus:text-primary"
               onClick={() => alert('Help & Support coming soon')}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 size-4 opacity-70">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 size-4 opacity-70"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -492,7 +587,16 @@ export function Sidebar() {
                 }
               }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 size-4 opacity-70">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 size-4 opacity-70"
+              >
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
@@ -596,16 +700,52 @@ export function Sidebar() {
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {sidebarCollapsed ? (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <line x1="12" y1="3" x2="12" y2="21" />
-              <rect x="12" y="3" width="9" height="18" rx="0" fill="currentColor" opacity="0.15" stroke="none" />
+              <rect
+                x="12"
+                y="3"
+                width="9"
+                height="18"
+                rx="0"
+                fill="currentColor"
+                opacity="0.15"
+                stroke="none"
+              />
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+            >
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <line x1="10" y1="3" x2="10" y2="21" />
-              <rect x="10" y="3" width="11" height="18" rx="0" fill="currentColor" opacity="0.15" stroke="none" />
+              <rect
+                x="10"
+                y="3"
+                width="11"
+                height="18"
+                rx="0"
+                fill="currentColor"
+                opacity="0.15"
+                stroke="none"
+              />
             </svg>
           )}
         </button>

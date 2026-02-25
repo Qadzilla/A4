@@ -4,7 +4,7 @@ import {
   updateWorkspaceSchema,
 } from '@a4/shared-schemas';
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, isNull, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { canvasConnections, canvasItems, workspaces } from '../../db/schema';
 import { protectedProcedure, router } from '../trpc';
@@ -126,10 +126,7 @@ export const workspaceRouter = router({
         .update(workspaces)
         .set({ deletedAt: now })
         .where(and(eq(workspaces.parentId, input.id), eq(workspaces.userId, ctx.userId)));
-      await ctx.db
-        .update(workspaces)
-        .set({ deletedAt: now })
-        .where(eq(workspaces.id, input.id));
+      await ctx.db.update(workspaces).set({ deletedAt: now }).where(eq(workspaces.id, input.id));
 
       return { success: true };
     }),
@@ -159,10 +156,7 @@ export const workspaceRouter = router({
         .update(workspaces)
         .set({ deletedAt: null })
         .where(and(eq(workspaces.parentId, input.id), eq(workspaces.userId, ctx.userId)));
-      await ctx.db
-        .update(workspaces)
-        .set({ deletedAt: null })
-        .where(eq(workspaces.id, input.id));
+      await ctx.db.update(workspaces).set({ deletedAt: null }).where(eq(workspaces.id, input.id));
 
       return { success: true };
     }),
@@ -197,7 +191,9 @@ export const workspaceRouter = router({
       for (const wsId of allIds) {
         await ctx.db
           .delete(canvasConnections)
-          .where(and(eq(canvasConnections.workspaceId, wsId), eq(canvasConnections.userId, ctx.userId)));
+          .where(
+            and(eq(canvasConnections.workspaceId, wsId), eq(canvasConnections.userId, ctx.userId)),
+          );
         await ctx.db
           .delete(canvasItems)
           .where(and(eq(canvasItems.workspaceId, wsId), eq(canvasItems.userId, ctx.userId)));

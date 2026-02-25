@@ -1,10 +1,10 @@
 import { memo } from 'react';
 
-const chartTools = [
+const taxTools = [
   {
-    type: 'chart-card',
-    label: 'Chart',
-    description: 'Data visualization',
+    type: 'tax-estimator-card',
+    label: 'Tax Estimator',
+    description: 'US federal & state tax estimate',
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -16,27 +16,28 @@ const chartTools = [
         strokeLinejoin="round"
         className="size-5"
       >
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <line x1="9" y1="17" x2="9" y2="11" />
-        <line x1="12" y1="17" x2="12" y2="8" />
-        <line x1="15" y1="17" x2="15" y2="13" />
+        <rect x="4" y="2" width="16" height="20" rx="2" />
+        <line x1="8" y1="6" x2="16" y2="6" />
+        <line x1="8" y1="10" x2="16" y2="10" />
+        <line x1="8" y1="14" x2="12" y2="14" />
+        <line x1="8" y1="18" x2="10" y2="18" />
       </svg>
     ),
   },
 ];
 
-interface ChartsToolPanelProps {
+interface TaxToolPanelProps {
   onDragStart: (type: string, e: React.MouseEvent) => void;
 }
 
-export const ChartsToolPanel = memo(function ChartsToolPanel({ onDragStart }: ChartsToolPanelProps) {
+export const TaxToolPanel = memo(function TaxToolPanel({ onDragStart }: TaxToolPanelProps) {
   return (
     <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
         Drag to canvas
       </p>
       <div className="space-y-2">
-        {chartTools.map((tool) => (
+        {taxTools.map((tool) => (
           <div
             key={tool.type}
             className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/20 px-3 py-3 cursor-grab transition-colors duration-100 hover:border-primary/30 hover:bg-primary/5 active:cursor-grabbing"

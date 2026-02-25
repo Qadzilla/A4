@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useCallback,
-  type ReactNode,
-} from 'react';
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
 
@@ -37,11 +30,7 @@ interface ModalProps {
 }
 
 function Modal({ open, onOpenChange, children }: ModalProps) {
-  return (
-    <ModalContext.Provider value={{ open, onOpenChange }}>
-      {children}
-    </ModalContext.Provider>
-  );
+  return <ModalContext.Provider value={{ open, onOpenChange }}>{children}</ModalContext.Provider>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -93,7 +82,7 @@ function ModalContent({ children, className }: ModalContentProps) {
       const focusable = panel.querySelectorAll<HTMLElement>(
         'input, button, select, textarea, a[href], [tabindex]:not([tabindex="-1"])',
       );
-      if (focusable.length > 0) focusable[0]!.focus();
+      if (focusable.length > 0) focusable[0]?.focus();
     });
 
     return () => {
@@ -194,7 +183,10 @@ function ModalContent({ children, className }: ModalContentProps) {
 
 function ModalHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('flex flex-col space-y-1.5 text-center sm:text-left', className)} {...props} />
+    <div
+      className={cn('flex flex-col space-y-1.5 text-center sm:text-left', className)}
+      {...props}
+    />
   );
 }
 
@@ -209,22 +201,14 @@ function ModalFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 
 function ModalTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h2
-      className={cn('text-lg font-semibold leading-none tracking-tight', className)}
-      {...props}
-    />
+    <h2 className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />
   );
 }
 
 function ModalClose({ className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const { onOpenChange } = useModalContext();
   return (
-    <button
-      type="button"
-      onClick={() => onOpenChange(false)}
-      className={className}
-      {...props}
-    />
+    <button type="button" onClick={() => onOpenChange(false)} className={className} {...props} />
   );
 }
 

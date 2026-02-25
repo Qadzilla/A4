@@ -15,7 +15,8 @@
 
 /* BlockNote — match app fonts, sizing, and colors */
 .bn-container .bn-default-styles {
-  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
   font-size: 14px;
 }
 
@@ -45,7 +46,8 @@
 /* Slash menu — match app font */
 .bn-container [class*="suggestionMenu"],
 .bn-container [class*="toolbar"] {
-  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
   font-size: 13px;
 }
 

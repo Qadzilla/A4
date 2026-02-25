@@ -47,13 +47,13 @@ export function resolveChartData(
   const empty = { points: [], seriesNames: [] };
   if (!data.source) return empty;
 
-  const tableItem = items.find((i) => i.id === data.source!.tableItemId);
+  const tableItem = items.find((i) => i.id === data.source?.tableItemId);
   if (!tableItem || tableItem.type !== 'table-card') return empty;
 
   const tableData = tableItem.data as TableCardData | undefined;
   if (!tableData?.columns || !tableData.rows) return empty;
 
-  const xColumn = tableData.columns.find((c) => c.id === data.source!.xColumnId);
+  const xColumn = tableData.columns.find((c) => c.id === data.source?.xColumnId);
   if (!xColumn) return empty;
 
   const yColumns = data.source.yColumnIds

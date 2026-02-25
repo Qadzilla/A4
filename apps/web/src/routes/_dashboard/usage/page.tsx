@@ -13,13 +13,25 @@ const resourceCategories = [
     category: 'AI',
     items: [
       { name: 'AI Messages', used: '0', limit: '100', unitPrice: '$0.05 / message', cost: '$0.00' },
-      { name: 'Document Analysis', used: '0', limit: '50', unitPrice: '$0.10 / doc', cost: '$0.00' },
+      {
+        name: 'Document Analysis',
+        used: '0',
+        limit: '50',
+        unitPrice: '$0.10 / doc',
+        cost: '$0.00',
+      },
     ],
   },
   {
     category: 'Storage',
     items: [
-      { name: 'Document Storage', used: '0 MB', limit: '1 GB', unitPrice: '$0.50 / GB', cost: '$0.00' },
+      {
+        name: 'Document Storage',
+        used: '0 MB',
+        limit: '1 GB',
+        unitPrice: '$0.50 / GB',
+        cost: '$0.00',
+      },
     ],
   },
   {
@@ -69,11 +81,14 @@ export default function UsagePage() {
 
   const [activePoint, setActivePoint] = useState<{ date: string; messages: number } | null>(null);
 
-  const handleMouseMove = useCallback((state: { activePayload?: { payload: { date: string; messages: number } }[] }) => {
-    if (state.activePayload?.[0]) {
-      setActivePoint(state.activePayload[0].payload);
-    }
-  }, []);
+  const handleMouseMove = useCallback(
+    (state: { activePayload?: { payload: { date: string; messages: number } }[] }) => {
+      if (state.activePayload?.[0]) {
+        setActivePoint(state.activePayload[0].payload);
+      }
+    },
+    [],
+  );
 
   const handleMouseLeave = useCallback(() => {
     setActivePoint(null);
@@ -115,7 +130,8 @@ export default function UsagePage() {
             <div key={stat.label} className="rounded-2xl border border-border/60 bg-card p-5">
               <div className="text-[13px] text-muted-foreground mb-2">{stat.label}</div>
               <div className="text-[18px] font-bold text-foreground mb-3">
-                {formatNumber(stat.used)}{stat.unit ? ` ${stat.unit}` : ''}{' '}
+                {formatNumber(stat.used)}
+                {stat.unit ? ` ${stat.unit}` : ''}{' '}
                 <span className="text-[13px] font-normal text-muted-foreground">
                   / {stat.limitDisplay ?? formatNumber(stat.limit)}
                 </span>
@@ -186,10 +202,16 @@ export default function UsagePage() {
             <table className="w-full text-[14px]">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/30">
-                  <th className="px-5 py-3 text-left font-semibold text-muted-foreground">Resource</th>
+                  <th className="px-5 py-3 text-left font-semibold text-muted-foreground">
+                    Resource
+                  </th>
                   <th className="px-5 py-3 text-right font-semibold text-muted-foreground">Used</th>
-                  <th className="px-5 py-3 text-right font-semibold text-muted-foreground">Limit</th>
-                  <th className="px-5 py-3 text-right font-semibold text-muted-foreground">Unit Price</th>
+                  <th className="px-5 py-3 text-right font-semibold text-muted-foreground">
+                    Limit
+                  </th>
+                  <th className="px-5 py-3 text-right font-semibold text-muted-foreground">
+                    Unit Price
+                  </th>
                   <th className="px-5 py-3 text-right font-semibold text-muted-foreground">Cost</th>
                 </tr>
               </thead>
@@ -197,17 +219,28 @@ export default function UsagePage() {
                 {resourceCategories.map((cat) => (
                   <>
                     <tr key={cat.category} className="bg-muted/20">
-                      <td colSpan={5} className="px-5 py-2.5 text-[13px] font-semibold text-foreground">
+                      <td
+                        colSpan={5}
+                        className="px-5 py-2.5 text-[13px] font-semibold text-foreground"
+                      >
                         {cat.category}
                       </td>
                     </tr>
                     {cat.items.map((item) => (
                       <tr key={item.name} className="border-b border-border/30 last:border-0">
                         <td className="px-5 py-2.5 text-foreground">{item.name}</td>
-                        <td className="px-5 py-2.5 text-right text-muted-foreground">{item.used}</td>
-                        <td className="px-5 py-2.5 text-right text-muted-foreground">{item.limit}</td>
-                        <td className="px-5 py-2.5 text-right text-muted-foreground">{item.unitPrice}</td>
-                        <td className="px-5 py-2.5 text-right text-muted-foreground">{item.cost}</td>
+                        <td className="px-5 py-2.5 text-right text-muted-foreground">
+                          {item.used}
+                        </td>
+                        <td className="px-5 py-2.5 text-right text-muted-foreground">
+                          {item.limit}
+                        </td>
+                        <td className="px-5 py-2.5 text-right text-muted-foreground">
+                          {item.unitPrice}
+                        </td>
+                        <td className="px-5 py-2.5 text-right text-muted-foreground">
+                          {item.cost}
+                        </td>
                       </tr>
                     ))}
                   </>
