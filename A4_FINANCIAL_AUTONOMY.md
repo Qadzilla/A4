@@ -1,6 +1,6 @@
 # A4 — Master Checklist: Full DIY Financial Autonomy (US baseline)
 
-> **Last updated:** 2026-02-24
+> **Last updated:** 2026-02-25
 > Zero fluff. Extremely detailed. Personal + small business + freelancing. Taxes (strategy + filing). Investing (design + execution). Insurance/risk. Real estate. Equity comp. Crypto. Legal/estate. No outsourcing.
 
 Use this as your **operating checklist**. If you complete and maintain every item, you've basically built the personal + micro-business version of a CFO + controller + tax preparer + compliance + wealth manager + risk manager.
@@ -49,6 +49,15 @@ This file also tracks the **A4 platform toolkit** — what's built, what's neede
 | `balance-sheet-card` — balance sheet (assets, liabilities, equity; single-column point-in-time) | Built | 1.1 — net worth, asset/liability snapshot |
 | `cash-flow-card` — cash flow statement (12-month indirect method, 3 GAAP sections, rolling cash balance, burn rate/runway) | Built | 1.2 — cash flow, burn rate, treasury |
 | `tax-estimator-card` — US federal + state income tax estimator (2025/2026, all filing statuses, all 50 states + DC, FICA/SE, credits, withholding) | Built | 6.2 — tax projection, estimated taxes, withholding true-up |
+| `loan-calculator-card` — amortization schedule, PITI+PMI+HOA, extra payments, PMI auto-drop | Built | 3.2, 8 — mortgage, loan planning |
+| `projection-card` — compound growth with contributions, inflation adjustment, year-by-year | Built | 4, 7 — investment/revenue forecasting |
+| `breakeven-card` — contribution margin, break-even units/revenue, profit/loss schedule | Built | 7 — business viability |
+| `depreciation-card` — 4 methods (SL/DB/DDB/SYD), year-by-year schedule, book value | Built | 7, 8 — asset depreciation |
+| `embed-card` — external content / iframe embeds | Built | All — external dashboards, web content |
+| `networth-card` — net worth tracker (assets vs liabilities, health indicator) | Built | 1.1 — balance sheet, net worth |
+| `debt-planner-card` — multi-debt paydown strategy (avalanche/snowball, timeline) | Built | 3.2 — debt payoff planning |
+| `rent-vs-buy-card` — home ownership comparison model | Built | 8 — real estate analysis |
+| `portfolio-card` — portfolio allocation tracker (holdings, drift detection, rebalance trades) | Built | 4.2, 4.3 — drift, rebalancing |
 
 ### Financial instruments & tools
 
@@ -57,21 +66,21 @@ This file also tracks the **A4 platform toolkit** — what's built, what's neede
 | File upload + document parsing (CSV/Excel → table-card, PDF text extraction) | Built (local) | 0.2, 1, 2, 7 — data ingestion, bank data, bookkeeping |
 | Transaction import (CSV/Excel parsing) | **Not built** | 1, 2, 7 — bank data, bookkeeping |
 | Transaction categorization engine | **Not built** | 1.2, 7.2 — expense categories |
-| Net worth calculator (assets − liabilities) | **Not built** | 1.1 — balance sheet |
+| Net worth calculator (assets − liabilities) | Built (networth-card) | 1.1 — balance sheet |
 | Cash flow summary generator | **Not built** | 1.2 — income vs spending |
 | Budget vs actual comparison | Built (budget-card) | 1.3 — budget model |
-| Debt amortization calculator | **Not built** | 3.2 — paydown planner |
+| Debt amortization calculator | Built (debt-planner-card) | 3.2 — paydown planner |
 | Tax projection model | Built (tax-estimator-card) | 6.2 — estimated taxes |
-| Portfolio allocation tracker | **Not built** | 4.2, 4.3 — drift, rebalancing |
-| Rent vs buy model | **Not built** | 8 — real estate analysis |
-| Depreciation schedule calculator | **Not built** | 7, 8 — business/rental assets |
+| Portfolio allocation tracker | Built (portfolio-card) | 4.2, 4.3 — drift, rebalancing |
+| Rent vs buy model | Built (rent-vs-buy-card) | 8 — real estate analysis |
+| Depreciation schedule calculator | Built (depreciation-card) | 7, 8 — business/rental assets |
 | Invoice generator (line items, tax, totals, PDF export) | Built (invoice-card) | 7.1 — billing clients, A/R |
 | P&L / income statement generator | Built (pnl-card) | 7.2 — monthly/quarterly financials |
 | Balance sheet generator | Built (balance-sheet-card) | 1.1 — assets vs liabilities snapshot |
 | Cash flow statement generator | Built (cash-flow-card) | 1.2 — cash flow, burn rate, treasury |
-| Financial projections / forecasting model | **Not built** | 4, 7 — revenue/expense forecasting |
-| Break-even analysis calculator | **Not built** | 7 — business viability |
-| Loan / mortgage calculator (amortization schedule) | **Not built** | 3.2, 8 — debt planning |
+| Financial projections / forecasting model | Built (projection-card) | 4, 7 — revenue/expense forecasting |
+| Break-even analysis calculator | Built (breakeven-card) | 7 — business viability |
+| Loan / mortgage calculator (amortization schedule) | Built (loan-calculator-card) | 3.2, 8 — debt planning |
 | Tax form templates (W-2, 1099, Schedule C) | **Not built** | 6.3 — filing readiness |
 | Expense categorization engine (receipt → category) | Partial (receipt-card has manual categorization) | 1.2, 13 — audit-ready expense tracking |
 | Income/expense ledger with categorization | Built (ledger-card) | 1.2, 7.2 — cash flow, bookkeeping |

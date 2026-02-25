@@ -1,6 +1,6 @@
 # A4 — Systems Reference
 
-> **Last updated:** 2026-02-19
+> **Last updated:** 2026-02-25
 > Deep technical reference for each system. For the high-level overview, see [Architecture](./A4_ARCHITECTURE.md).
 
 ---
@@ -102,24 +102,49 @@ The canvas is the primary workspace interaction surface — an infinite zoomable
 
 ### Canvas Components
 
+54 components in `apps/web/src/components/canvas/`:
+
 | Component | File | Purpose |
 |---|---|---|
 | **CanvasItemRenderer** | `canvas-item-renderer.tsx` | Renders any canvas item with selection ring, resize handles, anchor dots, context menu, rename |
-| **DocumentView** | `document-view.tsx` | Full BlockNote rich-text editor for `a4-page` items (opens as a tab) |
-| **SecretCardContent** | `secret-card-content.tsx` | Canvas preview for encrypted secret cards |
-| **SecretCardView** | `secret-card-view.tsx` | Full edit view for secret cards (opens as a tab) |
-| **NoteCardContent** | `note-card-content.tsx` | Inline-editable sticky note |
-| **GeneralToolPanel** | `general-tool-panel.tsx` | Right-panel tool palette — drag `a4-page` or `note` onto canvas |
-| **SecretToolPanel** | `secret-tool-panel.tsx` | Right-panel tool palette — drag `secret-card` onto canvas |
+| **CanvasMinimap** | `canvas-minimap.tsx` | Bottom-right overview showing all items as green rectangles with viewport indicator |
+| **DocumentView** | `document-view.tsx` | Full BlockNote rich-text editor for `a4-page` items |
 | **TabBar** | `tab-bar.tsx` | Open item tabs (like VS Code tabs) above canvas |
+| **GeneralToolPanel** | `general-tool-panel.tsx` | Tool palette — `a4-page`, `note` |
+| **SecretToolPanel** | `secret-tool-panel.tsx` | Tool palette — `secret-card` |
+| **DataToolPanel** | `data-tool-panel.tsx` | Tool palette — `table-card`, `kpi-card`, `chart-card`, `file-card`, `timer-card` |
+| **FinanceToolPanel** | `finance-tool-panel.tsx` | Tool palette — `invoice-card`, `budget-card`, `ledger-card`, `receipt-card`, `subscription-card`, `account-card`, `loan-calculator-card`, `projection-card`, `breakeven-card`, `depreciation-card` |
+| **ReportsToolPanel** | `reports-tool-panel.tsx` | Tool palette — `pnl-card`, `balance-sheet-card`, `cash-flow-card` |
+| **TaxToolPanel** | `tax-tool-panel.tsx` | Tool palette — `tax-estimator-card` |
+| ***-content.tsx** | 22 files | Compact canvas preview per item type (memo, `h-full w-full`, no zoom prop) |
+| ***-view.tsx** | 19 files | Full tab editor per item type (local state, dirtyRef, debounced auto-save) |
 
-### Canvas Item Types
+### Canvas Item Types (22 types)
 
 | Type | Preview (on canvas) | Full View (in tab) | Content Storage |
 |---|---|---|---|
 | `a4-page` | Scaled-down BlockNote render | Full BlockNote editor | `data.content` — BlockNote JSON blocks |
 | `secret-card` | Locked card with icon | Decrypted key/value fields | `data` — AES-256-GCM encrypted JSON |
 | `note` | Inline editable text card | N/A (edited in place) | `data.text` — plain string |
+| `table-card` | Column headers + data rows | Full spreadsheet editor | `data.columns`, `data.rows` |
+| `kpi-card` | Metric value + label | Config with table-card binding | `data` — aggregation config (sum/avg/min/max/count/latest) |
+| `chart-card` | Recharts pie/bar/line/area | Chart config + table binding | `data` — chart type, series config |
+| `file-card` | File preview (PDF/CSV/image) | Full file viewer | `data` — fileId, fileName, preview data |
+| `timer-card` | Countdown display | Timer config with color presets | `data` — deadline, color |
+| `invoice-card` | Invoice summary | Line items, tax, from/to, PDF export | `data` — InvoiceData (status, items, parties) |
+| `budget-card` | Budget summary + progress | Category groups, table binding, progress bars | `data` — BudgetData (period, groups, categories) |
+| `ledger-card` | Recent entries + balance | Income/expense entries, categories, filters | `data` — LedgerData (entries, categories, currency) |
+| `receipt-card` | Receipt list + totals | Receipt capture, categorization | `data` — ReceiptData (receipts, categories) |
+| `subscription-card` | Active subscriptions | Recurring bills tracker | `data` — SubscriptionData (subscriptions, categories) |
+| `account-card` | Account balances overview | Bank/brokerage/card accounts, groups | `data` — AccountData (accounts, groups, currency) |
+| `pnl-card` | P&L summary | 12-month income statement, waterfall, margins | `data` — PnlData (sections, line items) |
+| `balance-sheet-card` | Balance summary | Assets/liabilities/equity, ratios | `data` — BSData (sections, line items) |
+| `cash-flow-card` | Cash flow summary | 12-month indirect method, 3 GAAP sections | `data` — CFData (sections, line items) |
+| `tax-estimator-card` | Tax estimate summary | Federal + state, all 50 states, FICA/SE | `data` — TaxEstimatorData (income, deductions, credits) |
+| `loan-calculator-card` | Monthly payment headline | Amortization schedule, PITI+PMI+HOA, extra payments | `data` — LoanCalculatorData (mortgage inputs) |
+| `projection-card` | Final balance + growth bar | Compound growth inputs, year-by-year schedule | `data` — ProjectionCardData (starting amount, contributions, growth rate, inflation) |
+| `breakeven-card` | Break-even units + cost bar | Cost/pricing inputs, profit/loss schedule | `data` — BreakevenCardData (fixed costs, variable cost, price per unit) |
+| `depreciation-card` | Year 1 depreciation + progress bar | 4 methods (SL/DB/DDB/SYD), depreciation schedule | `data` — DepreciationCardData (asset cost, salvage, life, method) |
 
 ### Canvas Store (`canvas-store.ts`)
 

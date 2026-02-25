@@ -1,6 +1,6 @@
 # A4 — Roadmap
 
-> **Last updated:** 2026-02-24
+> **Last updated:** 2026-02-25
 
 ---
 
@@ -46,6 +46,11 @@
 - [x] Balance sheet cards (assets, liabilities, equity; ratios; balance indicator)
 - [x] Cash flow statement cards (12-month indirect method, 3 GAAP sections, rolling cash balance, burn rate/runway)
 - [x] Tax estimator cards (US federal + state, 2025/2026, all filing statuses, all 50 states + DC, FICA/SE, credits, withholding)
+- [x] Loan/mortgage calculator cards (amortization schedule, PITI+PMI+HOA breakdown, extra payment savings, PMI auto-drop at 80% LTV)
+- [x] Projection calculator cards (compound growth with monthly contributions, inflation adjustment, year-by-year schedule)
+- [x] Break-even calculator cards (contribution margin, break-even units/revenue, profit/loss schedule, negative margin handling)
+- [x] Depreciation calculator cards (4 methods: SL/DB/DDB/SYD, year-by-year schedule, book value tracking)
+- [x] Canvas minimap (bottom-right overview, green item rectangles, viewport indicator, theme-aware, dynamic positioning with tools panel)
 
 ---
 
@@ -59,8 +64,7 @@
 - [x] ~~Ledger card~~ — Built
 - [x] ~~Account card~~ — Built
 - [x] ~~Subscription card~~ — Built
-- [ ] **Image card** — image upload / screenshot on canvas
-- [ ] **Embed card** — external content / iframe embeds
+- [x] ~~Embed card~~ — Built (embed-card)
 
 ### Financial calculators & generators
 
@@ -69,10 +73,10 @@
 - [x] ~~Cash flow statement generator~~ — Built (cash-flow-card)
 - [x] ~~Tax estimator / projection model~~ — Built (tax-estimator-card)
 - [ ] **Tax form templates** — W-2, 1099, Schedule C pre-built structures
-- [ ] **Loan / mortgage calculator** — amortization schedule, refi break-even
-- [ ] **Financial projections / forecasting** — revenue/expense forward modeling
-- [ ] **Break-even analysis** — business viability calculator
-- [ ] **Depreciation schedule** — business/rental asset tracking
+- [x] ~~Loan / mortgage calculator~~ — Built (loan-calculator-card)
+- [x] ~~Financial projections / forecasting~~ — Built (projection-card)
+- [x] ~~Break-even analysis~~ — Built (breakeven-card)
+- [x] ~~Depreciation schedule~~ — Built (depreciation-card)
 
 ### Infrastructure & platform
 

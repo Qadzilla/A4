@@ -1,6 +1,6 @@
 # A4 — Architecture Overview
 
-> **Last updated:** 2026-02-19
+> **Last updated:** 2026-02-25
 > **Status:** Canvas MVP complete. No AI chat pipeline yet.
 
 **Detailed docs:** [Systems Reference](./A4_SYSTEMS.md) | [Roadmap](./A4_ROADMAP.md) | [Infrastructure](./A4_INFRASTRUCTURE.md) | [Financial Autonomy Checklist](./A4_FINANCIAL_AUTONOMY.md)
@@ -37,7 +37,7 @@ The AI is not a generic chatbot. It is **always grounded in the user's actual fi
 |---|---|
 | **Workspace** | Top-level container. Has its own canvas, documents, conversations, and financial data. Supports nesting via folders. |
 | **Canvas** | Infinite zoomable surface per workspace. Items positioned freely, connected with bezier curves, persisted to DB. |
-| **Canvas Item** | A typed card on the canvas: `a4-page` (rich doc), `secret-card` (encrypted credential), `note` (sticky note). |
+| **Canvas Item** | A typed card on the canvas — 19 types: documents (`a4-page`), notes, secrets, data tools (tables, KPIs, charts, files, timers), finance tools (invoices, budgets, ledgers, receipts, subscriptions, accounts), financial statements (P&L, balance sheet, cash flow), calculators (tax estimator, loan/mortgage). |
 | **Connection** | Anchor-to-anchor link between two canvas items. Rendered as cubic bezier SVG paths. |
 | **Vault** | Per-user client-side encryption. Passphrase → PBKDF2 → AES-256-GCM. Server stores salt + verification only. |
 | **Conversation** | AI chat session scoped to a workspace. Messages persisted. |
@@ -129,18 +129,20 @@ A4/
 │   │   │   ├── components/
 │   │   │   │   ├── Sidebar.tsx       # Collapsible nav sidebar
 │   │   │   │   ├── ThemeToggle.tsx   # Light/dark/system toggle
-│   │   │   │   ├── canvas/           # 8 canvas components
+│   │   │   │   ├── canvas/           # 45 canvas components (renderer, minimap, 19 content, 16 views, 6 tool panels, tab bar)
 │   │   │   │   └── vault/            # VaultSetupModal, VaultUnlockModal
 │   │   │   ├── hooks/                # useDebounce, useMediaQuery, useTheme, useDevUser,
 │   │   │   │                         # useWorkspaceThumbnail, useCanvasDrop, useMarketWebSocket
 │   │   │   ├── stores/
 │   │   │   │   ├── ui-store.ts       # Sidebar collapsed, theme (persisted)
-│   │   │   │   ├── canvas-store.ts   # Items, connections, selection, highlights
+│   │   │   │   ├── canvas-store.ts   # Items, connections, selection, highlights (22 item types)
 │   │   │   │   └── market-store.ts   # Real-time quotes/trades
-│   │   │   ├── lib/
+│   │   │   ├── lib/                  # 27 utility files
 │   │   │   │   ├── trpc.ts           # tRPC client with Clerk token injection
 │   │   │   │   ├── canvas-utils.ts   # Alignment, spacing, anchors, bezier paths
-│   │   │   │   └── vault-crypto.ts   # PBKDF2 + AES-256-GCM encryption
+│   │   │   │   ├── vault-crypto.ts   # PBKDF2 + AES-256-GCM encryption
+│   │   │   │   ├── *-utils.ts        # Per-item-type utils (table, kpi, chart, invoice, budget, ledger, receipt, subscription, account, pnl, balance-sheet, cash-flow, tax-estimator, loan-calculator, projection, breakeven, depreciation, timer, file, currency)
+│   │   │   │   └── tax-data.ts       # US federal + 50 state tax brackets/rates
 │   │   │   ├── styles/               # global.css
 │   │   │   ├── constants/            # ROUTES object
 │   │   │   └── types/                # Re-exports from @a4/shared-types
