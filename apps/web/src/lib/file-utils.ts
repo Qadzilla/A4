@@ -99,18 +99,58 @@ function generateCsvPreview(file: File): Promise<FileTablePreview | undefined> {
 }
 
 async function generateExcelPreview(file: File): Promise<FileTablePreview | undefined> {
+  // Parse XLSX (which is a ZIP of XML files) without the vulnerable SheetJS library.
+  // We only need the first sheet's first few rows for a preview.
   try {
-    const XLSX = await import('xlsx');
     const arrayBuffer = await file.arrayBuffer();
-    const wb = XLSX.read(arrayBuffer, { type: 'array' });
-    const sheetName = wb.SheetNames[0];
-    if (!sheetName) return undefined;
-    const ws = wb.Sheets[sheetName];
-    if (!ws) return undefined;
-    const raw = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 });
-    if (raw.length < 1) return undefined;
-    const columns = (raw[0] ?? []).map(String);
-    const rows = raw.slice(1, 6).map((row) => columns.map((_, i) => String(row[i] ?? '')));
+    const { unzipSync } = await import('fflate');
+    const decompressed = unzipSync(new Uint8Array(arrayBuffer));
+
+    // Find shared strings (cell values are often stored here)
+    const decoder = new TextDecoder();
+    const sharedStrings: string[] = [];
+    const ssData = decompressed['xl/sharedStrings.xml'];
+    if (ssData) {
+      const ssXml = decoder.decode(ssData);
+      for (const siMatch of ssXml.matchAll(/<si>([\s\S]*?)<\/si>/g)) {
+        let text = '';
+        for (const tMatch of (siMatch[1] ?? '').matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)) {
+          text += tMatch[1];
+        }
+        sharedStrings.push(text);
+      }
+    }
+
+    // Parse first sheet
+    const sheetData = decompressed['xl/worksheets/sheet1.xml'];
+    if (!sheetData) return undefined;
+    const sheetXml = decoder.decode(sheetData);
+
+    // Extract rows (first 6 only for preview)
+    const grid: string[][] = [];
+    for (const rowMatch of sheetXml.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)) {
+      if (grid.length >= 6) break;
+      const cells: string[] = [];
+      for (const cellMatch of (rowMatch[1] ?? '').matchAll(
+        /<c\s([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g,
+      )) {
+        const attrs = cellMatch[1] ?? '';
+        const inner = cellMatch[2] ?? '';
+        const vMatch = inner.match(/<v>([\s\S]*?)<\/v>/);
+        const val = vMatch?.[1] ?? '';
+        // t="s" means shared string reference
+        if (attrs.includes('t="s"') && val) {
+          cells.push(sharedStrings[Number(val)] ?? val);
+        } else {
+          cells.push(val);
+        }
+      }
+      grid.push(cells);
+    }
+
+    if (grid.length < 1) return undefined;
+    const columns = (grid[0] ?? []).map(String);
+    const rows = grid.slice(1, 6).map((row) => columns.map((_, i) => String(row[i] ?? '')));
     return { columns, rows };
   } catch {
     return undefined;
