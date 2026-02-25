@@ -131,6 +131,94 @@ const financeTools = [
     ),
   },
   {
+    type: 'networth-card',
+    label: 'Net Worth',
+    description: 'Assets & liabilities tracker',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
+        <path d="M12 3v18" />
+        <path d="M16 7l-8 0" />
+        <path d="M18 12H6" />
+        <path d="M16 17H8" />
+        <circle cx="4" cy="7" r="1" />
+        <circle cx="20" cy="17" r="1" />
+      </svg>
+    ),
+  },
+  {
+    type: 'debt-planner-card',
+    label: 'Debt Planner',
+    description: 'Multi-debt paydown strategy',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
+        <path d="M12 2v20" />
+        <path d="m7 7 5-5 5 5" />
+        <path d="m7 17 5 5 5-5" />
+      </svg>
+    ),
+  },
+  {
+    type: 'portfolio-card',
+    label: 'Portfolio',
+    description: 'Asset allocation tracker',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 2a10 10 0 0 1 0 20" />
+        <path d="M12 2v20" />
+        <path d="M2 12h10" />
+      </svg>
+    ),
+  },
+  {
+    type: 'rent-vs-buy-card',
+    label: 'Rent vs Buy',
+    description: 'Home ownership comparison',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+        <path d="M1 12h3M20 12h3" />
+      </svg>
+    ),
+  },
+  {
     type: 'loan-calculator-card',
     label: 'Loan Calculator',
     description: 'Mortgage & loan payments',
@@ -152,6 +240,67 @@ const financeTools = [
         <line x1="8" y1="18" x2="11" y2="18" />
         <line x1="14" y1="14" x2="16" y2="14" />
         <line x1="14" y1="18" x2="16" y2="18" />
+      </svg>
+    ),
+  },
+  {
+    type: 'projection-card',
+    label: 'Projection',
+    description: 'Growth & investment forecast',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+        <polyline points="16 7 22 7 22 13" />
+      </svg>
+    ),
+  },
+  {
+    type: 'breakeven-card',
+    label: 'Break-Even',
+    description: 'Cost vs revenue analysis',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
+        <path d="M3 3v18h18" />
+        <path d="m19 9-5 5-4-4-3 3" />
+      </svg>
+    ),
+  },
+  {
+    type: 'depreciation-card',
+    label: 'Depreciation',
+    description: 'Asset depreciation schedule',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
+      >
+        <path d="M3 3v18h18" />
+        <path d="M21 9 9 21" />
+        <path d="M15 3h6v6" />
       </svg>
     ),
   },

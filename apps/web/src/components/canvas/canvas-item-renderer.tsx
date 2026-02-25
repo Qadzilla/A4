@@ -18,12 +18,20 @@ import { BalanceSheetCardContent } from './balance-sheet-card-content';
 import { BudgetCardContent } from './budget-card-content';
 import { CashFlowCardContent } from './cash-flow-card-content';
 import { ChartCardContent } from './chart-card-content';
+import { EmbedCardContent } from './embed-card-content';
 import { FileCardContent } from './file-card-content';
 import { InvoiceCardContent } from './invoice-card-content';
 import { KpiCardContent } from './kpi-card-content';
 import { LedgerCardContent } from './ledger-card-content';
+import { BreakevenCardContent } from './breakeven-card-content';
+import { DepreciationCardContent } from './depreciation-card-content';
 import { LoanCalculatorCardContent } from './loan-calculator-card-content';
+import { DebtPlannerCardContent } from './debt-planner-card-content';
+import { NetWorthCardContent } from './networth-card-content';
+import { RentVsBuyCardContent } from './rent-vs-buy-card-content';
 import { NoteCardContent } from './note-card-content';
+import { PortfolioCardContent } from './portfolio-card-content';
+import { ProjectionCardContent } from './projection-card-content';
 import { PnlCardContent } from './pnl-card-content';
 import { ReceiptCardContent } from './receipt-card-content';
 import { SecretCardContent } from './secret-card-content';
@@ -265,7 +273,15 @@ export const CanvasItemRenderer = memo(
           item.type === 'balance-sheet-card' ||
           item.type === 'cash-flow-card' ||
           item.type === 'tax-estimator-card' ||
-          item.type === 'loan-calculator-card';
+          item.type === 'loan-calculator-card' ||
+          item.type === 'projection-card' ||
+          item.type === 'breakeven-card' ||
+          item.type === 'depreciation-card' ||
+          item.type === 'embed-card' ||
+          item.type === 'networth-card' ||
+          item.type === 'debt-planner-card' ||
+          item.type === 'rent-vs-buy-card' ||
+          item.type === 'portfolio-card';
 
         let newW: number;
         let newH: number;
@@ -485,6 +501,22 @@ export const CanvasItemRenderer = memo(
               <TaxEstimatorCardContent item={item} />
             ) : item.type === 'loan-calculator-card' ? (
               <LoanCalculatorCardContent item={item} />
+            ) : item.type === 'projection-card' ? (
+              <ProjectionCardContent item={item} />
+            ) : item.type === 'breakeven-card' ? (
+              <BreakevenCardContent item={item} />
+            ) : item.type === 'depreciation-card' ? (
+              <DepreciationCardContent item={item} />
+            ) : item.type === 'networth-card' ? (
+              <NetWorthCardContent item={item} />
+            ) : item.type === 'debt-planner-card' ? (
+              <DebtPlannerCardContent item={item} />
+            ) : item.type === 'rent-vs-buy-card' ? (
+              <RentVsBuyCardContent item={item} />
+            ) : item.type === 'portfolio-card' ? (
+              <PortfolioCardContent item={item} />
+            ) : item.type === 'embed-card' ? (
+              <EmbedCardContent item={item} />
             ) : (
               <div className="flex h-full w-full items-center justify-center rounded-sm border border-border/40 bg-muted/20 text-xs text-muted-foreground">
                 {item.type}

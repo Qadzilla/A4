@@ -15,10 +15,18 @@ import { createDefaultKpiData } from '../lib/kpi-utils';
 import { createDefaultLedgerData } from '../lib/ledger-utils';
 import { createDefaultLoanCalculatorData } from '../lib/loan-calculator-utils';
 import { createDefaultPnlData } from '../lib/pnl-utils';
+import { createDefaultProjectionData } from '../lib/projection-utils';
+import { createDefaultBreakevenData } from '../lib/breakeven-utils';
+import { createDefaultDepreciationData } from '../lib/depreciation-utils';
 import { createDefaultReceiptData } from '../lib/receipt-utils';
 import { createDefaultSubscriptionData } from '../lib/subscription-utils';
 import { createDefaultTableData } from '../lib/table-utils';
 import { createDefaultTaxEstimatorData } from '../lib/tax-estimator-utils';
+import { createDefaultEmbedData } from '../lib/embed-utils';
+import { createDefaultDebtPlannerData } from '../lib/debt-planner-utils';
+import { createDefaultNetWorthData } from '../lib/networth-utils';
+import { createDefaultPortfolioData } from '../lib/portfolio-utils';
+import { createDefaultRentVsBuyData } from '../lib/rent-vs-buy-utils';
 import { createDefaultTimerData } from '../lib/timer-utils';
 
 export type { CanvasConnection, AlignmentGuide, SpacingGuide };
@@ -55,6 +63,14 @@ const defaultNames: Record<string, string> = {
   'cash-flow-card': 'Untitled Cash Flow',
   'tax-estimator-card': 'Untitled Tax Estimate',
   'loan-calculator-card': 'Untitled Loan Calculator',
+  'projection-card': 'Untitled Projection',
+  'breakeven-card': 'Untitled Break-Even',
+  'depreciation-card': 'Untitled Depreciation',
+  'embed-card': 'Untitled Embed',
+  'networth-card': 'Net Worth',
+  'debt-planner-card': 'Debt Paydown Planner',
+  'rent-vs-buy-card': 'Rent vs Buy',
+  'portfolio-card': 'Untitled Portfolio',
 };
 
 interface CanvasState {
@@ -174,7 +190,47 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
                                           string,
                                           unknown
                                         >)
-                                      : item.data;
+                                      : item.type === 'projection-card' && !item.data
+                                        ? (createDefaultProjectionData() as unknown as Record<
+                                            string,
+                                            unknown
+                                          >)
+                                        : item.type === 'breakeven-card' && !item.data
+                                          ? (createDefaultBreakevenData() as unknown as Record<
+                                              string,
+                                              unknown
+                                            >)
+                                          : item.type === 'depreciation-card' && !item.data
+                                            ? (createDefaultDepreciationData() as unknown as Record<
+                                                string,
+                                                unknown
+                                              >)
+                                            : item.type === 'embed-card' && !item.data
+                                        ? (createDefaultEmbedData() as unknown as Record<
+                                            string,
+                                            unknown
+                                          >)
+                                        : item.type === 'networth-card' && !item.data
+                                          ? (createDefaultNetWorthData() as unknown as Record<
+                                              string,
+                                              unknown
+                                            >)
+                                          : item.type === 'debt-planner-card' && !item.data
+                                            ? (createDefaultDebtPlannerData() as unknown as Record<
+                                                string,
+                                                unknown
+                                              >)
+                                            : item.type === 'rent-vs-buy-card' && !item.data
+                                              ? (createDefaultRentVsBuyData() as unknown as Record<
+                                                  string,
+                                                  unknown
+                                                >)
+                                              : item.type === 'portfolio-card' && !item.data
+                                                ? (createDefaultPortfolioData() as unknown as Record<
+                                                    string,
+                                                    unknown
+                                                  >)
+                                                : item.data;
       return {
         items: [...s.items, { ...item, id, name, data, zIndex: s.nextZIndex }],
         nextZIndex: s.nextZIndex + 1,

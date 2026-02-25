@@ -9,6 +9,11 @@ import { CanvasItemRenderer } from '../../../../components/canvas/canvas-item-re
 import { CanvasMinimap } from '../../../../components/canvas/canvas-minimap';
 import { CashFlowCardView } from '../../../../components/canvas/cash-flow-card-view';
 import { ChartCardView } from '../../../../components/canvas/chart-card-view';
+import { EmbedCardView } from '../../../../components/canvas/embed-card-view';
+import { DebtPlannerCardView } from '../../../../components/canvas/debt-planner-card-view';
+import { NetWorthCardView } from '../../../../components/canvas/networth-card-view';
+import { PortfolioCardView } from '../../../../components/canvas/portfolio-card-view';
+import { RentVsBuyCardView } from '../../../../components/canvas/rent-vs-buy-card-view';
 import { DataToolPanel } from '../../../../components/canvas/data-tool-panel';
 import { DocumentView } from '../../../../components/canvas/document-view';
 import { FileCardView } from '../../../../components/canvas/file-card-view';
@@ -18,6 +23,9 @@ import { InvoiceCardView } from '../../../../components/canvas/invoice-card-view
 import { KpiCardView } from '../../../../components/canvas/kpi-card-view';
 import { LedgerCardView } from '../../../../components/canvas/ledger-card-view';
 import { LoanCalculatorCardView } from '../../../../components/canvas/loan-calculator-card-view';
+import { ProjectionCardView } from '../../../../components/canvas/projection-card-view';
+import { BreakevenCardView } from '../../../../components/canvas/breakeven-card-view';
+import { DepreciationCardView } from '../../../../components/canvas/depreciation-card-view';
 import { PnlCardView } from '../../../../components/canvas/pnl-card-view';
 import { ReceiptCardView } from '../../../../components/canvas/receipt-card-view';
 import { ReportsToolPanel } from '../../../../components/canvas/reports-tool-panel';
@@ -849,6 +857,22 @@ export default function WorkspaceDetailPage() {
           <TaxEstimatorCardView item={activeItem} />
         ) : activeItem.type === 'loan-calculator-card' ? (
           <LoanCalculatorCardView item={activeItem} />
+        ) : activeItem.type === 'projection-card' ? (
+          <ProjectionCardView item={activeItem} />
+        ) : activeItem.type === 'breakeven-card' ? (
+          <BreakevenCardView item={activeItem} />
+        ) : activeItem.type === 'depreciation-card' ? (
+          <DepreciationCardView item={activeItem} />
+        ) : activeItem.type === 'networth-card' ? (
+          <NetWorthCardView item={activeItem} />
+        ) : activeItem.type === 'debt-planner-card' ? (
+          <DebtPlannerCardView item={activeItem} />
+        ) : activeItem.type === 'portfolio-card' ? (
+          <PortfolioCardView item={activeItem} />
+        ) : activeItem.type === 'rent-vs-buy-card' ? (
+          <RentVsBuyCardView item={activeItem} />
+        ) : activeItem.type === 'embed-card' ? (
+          <EmbedCardView item={activeItem} />
         ) : (
           <DocumentView item={activeItem} />
         ))}

@@ -21,6 +21,14 @@ export const ITEM_DEFAULTS: Record<string, { width: number; height: number }> = 
   'cash-flow-card': { width: 360, height: 280 },
   'tax-estimator-card': { width: 320, height: 300 },
   'loan-calculator-card': { width: 340, height: 300 },
+  'projection-card': { width: 340, height: 280 },
+  'breakeven-card': { width: 320, height: 260 },
+  'depreciation-card': { width: 340, height: 280 },
+  'embed-card': { width: 480, height: 320 },
+  'networth-card': { width: 340, height: 280 },
+  'debt-planner-card': { width: 340, height: 300 },
+  'rent-vs-buy-card': { width: 340, height: 300 },
+  'portfolio-card': { width: 340, height: 280 },
 };
 
 interface DragState {
