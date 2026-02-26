@@ -1,4 +1,5 @@
 import { cn } from '@a4/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SUPPORTED_CURRENCIES, formatCurrency } from '../../lib/currency-utils';
 import type { SupportedCurrency } from '../../lib/currency-utils';
@@ -8,28 +9,21 @@ import {
   computeNextBillingDate,
   computeSubscriptionTotals,
   cycleSubscriptionStatus,
-  getSubscriptionStatusColor,
 } from '../../lib/subscription-utils';
 import type {
-  Subscription,
   SubscriptionCardData,
-  SubscriptionCategory,
   SubscriptionFrequency,
   SubscriptionStatus,
 } from '../../lib/subscription-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
 const inputClass =
   'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
 
-function defaultData(): SubscriptionCardData {
-  return {
-    currency: 'USD',
-    categories: [],
-    subscriptions: [],
-    notes: '',
-  };
+function defaultViewConfig(): SubscriptionCardData {
+  return { currency: 'USD', notes: '' };
 }
 
 const statusStyles: Record<SubscriptionStatus, string> = {
@@ -39,23 +33,29 @@ const statusStyles: Record<SubscriptionStatus, string> = {
 };
 
 export const SubscriptionCardView = memo(
-  function SubscriptionCardView({ item }: { item: CanvasItem }) {
+  function SubscriptionCardView({
+    item,
+    workspaceId,
+  }: { item: CanvasItem; workspaceId: string }) {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const updateItemData = useCanvasStore((s) => s.updateItemData);
 
-    const [data, setData] = useState<SubscriptionCardData>(() => {
+    // ── View config (persisted in item.data) ──
+    const [viewConfig, setViewConfig] = useState<SubscriptionCardData>(() => {
       const d = item.data as SubscriptionCardData | undefined;
-      return d?.currency ? { ...defaultData(), ...d } : defaultData();
+      return d?.currency ? { ...defaultViewConfig(), ...d } : defaultViewConfig();
     });
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const savedIndicatorRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const dirtyRef = useRef(false);
 
-    // Filter state (view-only, not persisted)
+    // Filter state
     const [statusFilter, setStatusFilter] = useState<'all' | SubscriptionStatus>('all');
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
-    // New subscription form state
+    // New subscription form
     const [newSub, setNewSub] = useState({
       name: '',
       amount: '',
@@ -64,29 +64,25 @@ export const SubscriptionCardView = memo(
       categoryId: '',
     });
 
-    // Re-load when switching items
     // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on item.id only
     useEffect(() => {
       const d = item.data as SubscriptionCardData | undefined;
-      setData(d?.currency ? { ...defaultData(), ...d } : defaultData());
+      setViewConfig(d?.currency ? { ...defaultViewConfig(), ...d } : defaultViewConfig());
       dirtyRef.current = false;
     }, [item.id]);
 
-    // Auto-save (debounced 800ms)
     useEffect(() => {
       if (!dirtyRef.current) return;
-
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         setSaveStatus('saving');
-        updateItemData(item.id, data as unknown as Record<string, unknown>);
+        updateItemData(item.id, viewConfig as unknown as Record<string, unknown>);
         setSaveStatus('saved');
         clearTimeout(savedIndicatorRef.current);
         savedIndicatorRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
       }, 800);
-
       return () => clearTimeout(saveTimerRef.current);
-    }, [data, item.id, updateItemData]);
+    }, [viewConfig, item.id, updateItemData]);
 
     useEffect(() => {
       return () => {
@@ -95,28 +91,70 @@ export const SubscriptionCardView = memo(
       };
     }, []);
 
-    const update = (patch: Partial<SubscriptionCardData>) => {
+    const updateView = (patch: Partial<SubscriptionCardData>) => {
       dirtyRef.current = true;
-      setData((prev) => ({ ...prev, ...patch }));
+      setViewConfig((prev) => ({ ...prev, ...patch }));
     };
 
-    // Subscription mutations
+    // ── tRPC queries ──
+    const { data: subs = [], isLoading: subsLoading } = useQuery(
+      trpc.subscription.list.queryOptions({ workspaceId }),
+    );
+    const { data: categories = [], isLoading: catLoading } = useQuery(
+      trpc.category.list.queryOptions({ workspaceId, context: 'subscription' }),
+    );
+
+    const isLoading = subsLoading || catLoading;
+
+    // ── tRPC mutations ──
+    const subQueryKey = trpc.subscription.list.queryKey();
+    const summaryQueryKey = trpc.subscription.getSummary.queryKey();
+    const catQueryKey = trpc.category.list.queryKey();
+
+    const invalidateSubs = () => {
+      queryClient.invalidateQueries({ queryKey: subQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+    };
+
+    const createSub = useMutation(
+      trpc.subscription.create.mutationOptions({ onSuccess: invalidateSubs }),
+    );
+    const updateSub = useMutation(
+      trpc.subscription.update.mutationOptions({ onSuccess: invalidateSubs }),
+    );
+    const deleteSub = useMutation(
+      trpc.subscription.delete.mutationOptions({ onSuccess: invalidateSubs }),
+    );
+    const createCat = useMutation(
+      trpc.category.create.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+    const updateCat = useMutation(
+      trpc.category.update.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+    const deleteCat = useMutation(
+      trpc.category.delete.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+
+    // ── Subscription actions ──
     const addSubscription = () => {
       const amount = Number(newSub.amount);
       if (!newSub.name.trim() || !amount || amount <= 0) return;
-      const sub: Subscription = {
-        id: crypto.randomUUID(),
+      createSub.mutate({
+        workspaceId,
         name: newSub.name.trim(),
         amount,
         frequency: newSub.frequency,
         startDate: newSub.startDate,
         nextBillingDate: computeNextBillingDate(newSub.startDate, newSub.frequency),
-        categoryId: newSub.categoryId || undefined,
+        categoryId: newSub.categoryId || null,
         status: 'active',
-        notes: '',
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, subscriptions: [...prev.subscriptions, sub] }));
+      });
       setNewSub({
         name: '',
         amount: '',
@@ -127,71 +165,77 @@ export const SubscriptionCardView = memo(
     };
 
     const removeSubscription = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        subscriptions: prev.subscriptions.filter((s) => s.id !== id),
-      }));
+      deleteSub.mutate({ id });
     };
 
-    const updateSubscription = (id: string, patch: Partial<Subscription>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        subscriptions: prev.subscriptions.map((s) => {
-          if (s.id !== id) return s;
-          const updated = { ...s, ...patch };
-          // Recompute nextBillingDate when frequency or startDate changes
-          if (patch.frequency || patch.startDate) {
-            updated.nextBillingDate = computeNextBillingDate(updated.startDate, updated.frequency);
-          }
-          return updated;
-        }),
-      }));
+    const handleSubBlur = (id: string, field: string, value: string | number) => {
+      const existing = subs.find((s) => s.id === id);
+      if (!existing) return;
+      const current = existing[field as keyof typeof existing];
+      if (current === value) return;
+
+      const data: Record<string, string | number> = { [field]: value };
+
+      // Recompute nextBillingDate when frequency or startDate changes
+      if (field === 'frequency' || field === 'startDate') {
+        const startDate = field === 'startDate' ? (value as string) : existing.startDate;
+        const frequency = field === 'frequency' ? (value as string) : existing.frequency;
+        data.nextBillingDate = computeNextBillingDate(
+          startDate,
+          frequency as SubscriptionFrequency,
+        );
+      }
+
+      updateSub.mutate({ id, data });
     };
 
-    // Category mutations
+    const handleStatusCycle = (id: string, currentStatus: SubscriptionStatus) => {
+      updateSub.mutate({ id, data: { status: cycleSubscriptionStatus(currentStatus) } });
+    };
+
+    // ── Category actions ──
     const addCategory = () => {
-      const usedColors = new Set(data.categories.map((c) => c.color));
+      const usedColors = new Set(categories.map((c: { color: string }) => c.color));
       const nextColor =
         SUBSCRIPTION_CATEGORY_COLORS.find((c) => !usedColors.has(c)) ??
         SUBSCRIPTION_CATEGORY_COLORS[0]!;
-      const cat: SubscriptionCategory = {
-        id: crypto.randomUUID(),
-        name: '',
+      createCat.mutate({
+        workspaceId,
+        name: 'Unnamed',
         color: nextColor,
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, categories: [...prev.categories, cat] }));
+        type: 'both',
+        context: 'subscription',
+      });
     };
 
     const removeCategory = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        categories: prev.categories.filter((c) => c.id !== id),
-        subscriptions: prev.subscriptions.map((s) =>
-          s.categoryId === id ? { ...s, categoryId: undefined } : s,
-        ),
-      }));
+      deleteCat.mutate({ id });
     };
 
-    const updateCategory = (id: string, patch: Partial<SubscriptionCategory>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        categories: prev.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-      }));
+    const handleCategoryColorChange = (id: string, color: string) => {
+      updateCat.mutate({ id, data: { color } });
     };
 
-    // Computed values
-    const { monthlyCost, annualCost, byStatus } = computeSubscriptionTotals(data.subscriptions);
+    const handleCategoryNameBlur = (id: string, name: string) => {
+      const existing = categories.find((c: { id: string }) => c.id === id);
+      if (!existing || existing.name === name) return;
+      if (!name.trim()) return;
+      updateCat.mutate({ id, data: { name: name.trim() } });
+    };
 
-    // Display subscriptions: sorted by nextBillingDate asc, then filtered
+    // ── Computed values ──
+    const { monthlyCost, annualCost, byStatus } = computeSubscriptionTotals(
+      subs.map((s) => ({
+        ...s,
+        notes: s.notes ?? '',
+        categoryId: s.categoryId ?? undefined,
+        frequency: s.frequency as SubscriptionFrequency,
+        status: s.status as SubscriptionStatus,
+      })),
+    );
+
     const displaySubscriptions = useMemo(() => {
-      let filtered = [...data.subscriptions].sort((a, b) =>
-        a.nextBillingDate.localeCompare(b.nextBillingDate),
-      );
+      let filtered = [...subs].sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate));
       if (statusFilter !== 'all') {
         filtered = filtered.filter((s) => s.status === statusFilter);
       }
@@ -199,7 +243,18 @@ export const SubscriptionCardView = memo(
         filtered = filtered.filter((s) => (s.categoryId ?? '') === categoryFilter);
       }
       return filtered;
-    }, [data.subscriptions, statusFilter, categoryFilter]);
+    }, [subs, statusFilter, categoryFilter]);
+
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="space-y-2 text-center">
+            <div className="h-6 w-32 rounded bg-muted/40 animate-pulse mx-auto" />
+            <p className="text-[12px] text-muted-foreground">Loading subscriptions...</p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
@@ -239,8 +294,8 @@ export const SubscriptionCardView = memo(
               Currency
             </label>
             <select
-              value={data.currency}
-              onChange={(e) => update({ currency: e.target.value as SupportedCurrency })}
+              value={viewConfig.currency}
+              onChange={(e) => updateView({ currency: e.target.value as SupportedCurrency })}
               className={cn(inputClass, 'w-[200px]')}
             >
               {SUPPORTED_CURRENCIES.map((c) => (
@@ -279,16 +334,16 @@ export const SubscriptionCardView = memo(
               </button>
             </div>
 
-            {data.categories.length > 0 && (
+            {categories.length > 0 && (
               <div className="space-y-2">
-                {data.categories.map((cat) => (
+                {categories.map((cat) => (
                   <div key={cat.id} className="flex items-center gap-2">
                     <div className="flex gap-1">
                       {SUBSCRIPTION_CATEGORY_COLORS.map((color) => (
                         <button
                           key={color}
                           type="button"
-                          onClick={() => updateCategory(cat.id, { color })}
+                          onClick={() => handleCategoryColorChange(cat.id, color)}
                           className={cn(
                             'size-5 rounded-full border-2 transition-all',
                             cat.color === color
@@ -301,8 +356,8 @@ export const SubscriptionCardView = memo(
                     </div>
                     <input
                       type="text"
-                      value={cat.name}
-                      onChange={(e) => updateCategory(cat.id, { name: e.target.value })}
+                      defaultValue={cat.name}
+                      onBlur={(e) => handleCategoryNameBlur(cat.id, e.target.value)}
                       placeholder="Category name"
                       className="flex-1 border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                     />
@@ -390,7 +445,7 @@ export const SubscriptionCardView = memo(
                   className={cn(inputClass, 'w-[130px]')}
                 />
               </div>
-              {data.categories.length > 0 && (
+              {categories.length > 0 && (
                 <div className="space-y-1">
                   <label className="text-[11px] text-muted-foreground">Category</label>
                   <select
@@ -399,7 +454,7 @@ export const SubscriptionCardView = memo(
                     className={cn(inputClass, 'w-[120px]')}
                   >
                     <option value="">None</option>
-                    {data.categories.map((c) => (
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name || 'Unnamed'}
                       </option>
@@ -436,14 +491,14 @@ export const SubscriptionCardView = memo(
                 </button>
               ))}
             </div>
-            {data.categories.length > 0 && (
+            {categories.length > 0 && (
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className={cn(inputClass, 'w-auto')}
               >
                 <option value="all">All categories</option>
-                {data.categories.map((c) => (
+                {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name || 'Unnamed'}
                   </option>
@@ -458,7 +513,6 @@ export const SubscriptionCardView = memo(
               Subscriptions ({displaySubscriptions.length})
             </p>
             <div className="rounded-lg border border-border overflow-hidden">
-              {/* Header row */}
               <div className="grid grid-cols-[1fr_90px_100px_100px_90px_80px_32px] gap-2 px-3 py-2 bg-muted/30 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                 <span>Name</span>
                 <span className="text-right">Amount</span>
@@ -476,7 +530,7 @@ export const SubscriptionCardView = memo(
                 </div>
               ) : (
                 displaySubscriptions.map((sub) => {
-                  const cat = data.categories.find((c) => c.id === sub.categoryId);
+                  const cat = categories.find((c) => c.id === sub.categoryId);
                   return (
                     <div
                       key={sub.id}
@@ -484,8 +538,8 @@ export const SubscriptionCardView = memo(
                     >
                       <input
                         type="text"
-                        value={sub.name}
-                        onChange={(e) => updateSubscription(sub.id, { name: e.target.value })}
+                        defaultValue={sub.name}
+                        onBlur={(e) => handleSubBlur(sub.id, 'name', e.target.value)}
                         placeholder="Name"
                         className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                       />
@@ -493,19 +547,15 @@ export const SubscriptionCardView = memo(
                         type="number"
                         min={0}
                         step={0.01}
-                        value={sub.amount}
-                        onChange={(e) =>
-                          updateSubscription(sub.id, { amount: Number(e.target.value) || 0 })
+                        defaultValue={sub.amount}
+                        onBlur={(e) =>
+                          handleSubBlur(sub.id, 'amount', Number(e.target.value) || 0)
                         }
                         className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
                       />
                       <select
                         value={sub.frequency}
-                        onChange={(e) =>
-                          updateSubscription(sub.id, {
-                            frequency: e.target.value as SubscriptionFrequency,
-                          })
-                        }
+                        onChange={(e) => handleSubBlur(sub.id, 'frequency', e.target.value)}
                         className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
                       >
                         {SUBSCRIPTION_FREQUENCIES.map((f) => (
@@ -516,9 +566,9 @@ export const SubscriptionCardView = memo(
                       </select>
                       <input
                         type="date"
-                        value={sub.nextBillingDate}
-                        onChange={(e) =>
-                          updateSubscription(sub.id, { nextBillingDate: e.target.value })
+                        defaultValue={sub.nextBillingDate}
+                        onBlur={(e) =>
+                          handleSubBlur(sub.id, 'nextBillingDate', e.target.value)
                         }
                         className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
                       />
@@ -540,13 +590,11 @@ export const SubscriptionCardView = memo(
                       <button
                         type="button"
                         onClick={() =>
-                          updateSubscription(sub.id, {
-                            status: cycleSubscriptionStatus(sub.status),
-                          })
+                          handleStatusCycle(sub.id, sub.status as SubscriptionStatus)
                         }
                         className={cn(
                           'px-2 py-0.5 rounded-full text-[11px] font-medium capitalize transition-colors cursor-pointer',
-                          statusStyles[sub.status],
+                          statusStyles[sub.status as SubscriptionStatus],
                         )}
                       >
                         {sub.status}
@@ -584,7 +632,7 @@ export const SubscriptionCardView = memo(
                 Monthly Cost
               </p>
               <p className="text-[16px] font-bold text-green-600 dark:text-green-400 tabular-nums">
-                {formatCurrency(monthlyCost, data.currency)}
+                {formatCurrency(monthlyCost, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -592,7 +640,7 @@ export const SubscriptionCardView = memo(
                 Annual Cost
               </p>
               <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {formatCurrency(annualCost, data.currency)}
+                {formatCurrency(annualCost, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -603,9 +651,7 @@ export const SubscriptionCardView = memo(
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
-              <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {data.subscriptions.length}
-              </p>
+              <p className="text-[16px] font-bold text-foreground tabular-nums">{subs.length}</p>
             </div>
           </div>
 
@@ -615,8 +661,8 @@ export const SubscriptionCardView = memo(
               Notes
             </label>
             <textarea
-              value={data.notes}
-              onChange={(e) => update({ notes: e.target.value })}
+              value={viewConfig.notes}
+              onChange={(e) => updateView({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
               className={cn(inputClass, 'resize-none')}
@@ -626,5 +672,5 @@ export const SubscriptionCardView = memo(
       </div>
     );
   },
-  (prev, next) => prev.item.id === next.item.id,
+  (prev, next) => prev.item.id === next.item.id && prev.workspaceId === next.workspaceId,
 );

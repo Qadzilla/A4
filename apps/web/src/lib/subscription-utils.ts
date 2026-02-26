@@ -3,12 +3,6 @@ import type { SupportedCurrency } from './currency-utils';
 export type SubscriptionStatus = 'active' | 'paused' | 'cancelled';
 export type SubscriptionFrequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annual';
 
-export interface SubscriptionCategory {
-  id: string;
-  name: string;
-  color: string;
-}
-
 export interface Subscription {
   id: string;
   name: string;
@@ -16,15 +10,14 @@ export interface Subscription {
   frequency: SubscriptionFrequency;
   startDate: string; // YYYY-MM-DD
   nextBillingDate: string; // YYYY-MM-DD (auto-computed, overridable)
-  categoryId?: string;
+  categoryId?: string | null;
   status: SubscriptionStatus;
-  notes: string;
+  notes: string | null;
 }
 
+/** View config stored in item.data — actual subscriptions/categories live in DB */
 export interface SubscriptionCardData {
   currency: SupportedCurrency;
-  categories: SubscriptionCategory[];
-  subscriptions: Subscription[];
   notes: string;
 }
 
@@ -57,8 +50,6 @@ export const SUBSCRIPTION_STATUSES: { value: SubscriptionStatus; label: string; 
 export function createDefaultSubscriptionData(): SubscriptionCardData {
   return {
     currency: 'USD',
-    categories: [],
-    subscriptions: [],
     notes: '',
   };
 }

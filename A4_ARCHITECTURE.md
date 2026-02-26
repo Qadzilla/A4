@@ -1,6 +1,6 @@
 # A4 — Architecture Overview
 
-> **Last updated:** 2026-02-25
+> **Last updated:** 2026-02-26
 > **Status:** Canvas MVP complete. No AI chat pipeline yet.
 
 **Detailed docs:** [Systems Reference](./A4_SYSTEMS.md) | [Roadmap](./A4_ROADMAP.md) | [Infrastructure](./A4_INFRASTRUCTURE.md) | [Financial Autonomy Checklist](./A4_FINANCIAL_AUTONOMY.md)
@@ -37,7 +37,7 @@ The AI is not a generic chatbot. It is **always grounded in the user's actual fi
 |---|---|
 | **Workspace** | Top-level container. Has its own canvas, documents, conversations, and financial data. Supports nesting via folders. |
 | **Canvas** | Infinite zoomable surface per workspace. Items positioned freely, connected with bezier curves, persisted to DB. |
-| **Canvas Item** | A typed card on the canvas — 19 types: documents (`a4-page`), notes, secrets, data tools (tables, KPIs, charts, files, timers), finance tools (invoices, budgets, ledgers, receipts, subscriptions, accounts), financial statements (P&L, balance sheet, cash flow), calculators (tax estimator, loan/mortgage). |
+| **Canvas Item** | A typed card on the canvas — 27 types: documents (`a4-page`), notes, secrets, data tools (tables, KPIs, charts, files, timers, embeds), finance tools (invoices, budgets, ledgers, receipts, subscriptions, accounts, portfolios, net worth, debt planners), financial statements (P&L, balance sheet, cash flow), calculators (tax estimator, loan/mortgage, projection, breakeven, depreciation, rent-vs-buy). |
 | **Connection** | Anchor-to-anchor link between two canvas items. Rendered as cubic bezier SVG paths. |
 | **Vault** | Per-user client-side encryption. Passphrase → PBKDF2 → AES-256-GCM. Server stores salt + verification only. |
 | **Conversation** | AI chat session scoped to a workspace. Messages persisted. |
@@ -129,19 +129,19 @@ A4/
 │   │   │   ├── components/
 │   │   │   │   ├── Sidebar.tsx       # Collapsible nav sidebar
 │   │   │   │   ├── ThemeToggle.tsx   # Light/dark/system toggle
-│   │   │   │   ├── canvas/           # 45 canvas components (renderer, minimap, 19 content, 16 views, 6 tool panels, tab bar)
+│   │   │   │   ├── canvas/           # 61 canvas components (renderer, minimap, 27 content, 27 views, 6 tool panels, tab bar)
 │   │   │   │   └── vault/            # VaultSetupModal, VaultUnlockModal
 │   │   │   ├── hooks/                # useDebounce, useMediaQuery, useTheme, useDevUser,
 │   │   │   │                         # useWorkspaceThumbnail, useCanvasDrop, useMarketWebSocket
 │   │   │   ├── stores/
 │   │   │   │   ├── ui-store.ts       # Sidebar collapsed, theme (persisted)
-│   │   │   │   ├── canvas-store.ts   # Items, connections, selection, highlights (22 item types)
+│   │   │   │   ├── canvas-store.ts   # Items, connections, selection, highlights (27 item types)
 │   │   │   │   └── market-store.ts   # Real-time quotes/trades
-│   │   │   ├── lib/                  # 27 utility files
+│   │   │   ├── lib/                  # 30 utility files
 │   │   │   │   ├── trpc.ts           # tRPC client with Clerk token injection
 │   │   │   │   ├── canvas-utils.ts   # Alignment, spacing, anchors, bezier paths
 │   │   │   │   ├── vault-crypto.ts   # PBKDF2 + AES-256-GCM encryption
-│   │   │   │   ├── *-utils.ts        # Per-item-type utils (table, kpi, chart, invoice, budget, ledger, receipt, subscription, account, pnl, balance-sheet, cash-flow, tax-estimator, loan-calculator, projection, breakeven, depreciation, timer, file, currency)
+│   │   │   │   ├── *-utils.ts        # Per-item-type utils (table, kpi, chart, invoice, budget, ledger, receipt, subscription, account, portfolio, networth, debt-planner, rent-vs-buy, pnl, balance-sheet, cash-flow, tax-estimator, loan-calculator, projection, breakeven, depreciation, timer, file, embed, currency)
 │   │   │   │   └── tax-data.ts       # US federal + 50 state tax brackets/rates
 │   │   │   ├── styles/               # global.css
 │   │   │   ├── constants/            # ROUTES object
@@ -154,17 +154,17 @@ A4/
 │       │   ├── env.ts                # Zod-validated environment variables
 │       │   ├── db/
 │       │   │   ├── index.ts          # Drizzle + better-sqlite3 (WAL mode, FK on)
-│       │   │   └── schema.ts         # 6 tables
+│       │   │   └── schema.ts         # 21 tables
 │       │   └── trpc/
 │       │       ├── trpc.ts           # initTRPC, publicProcedure, protectedProcedure
 │       │       ├── context.ts        # Auth context + DB instance
-│       │       ├── router.ts         # Root router (10 sub-routers)
-│       │       └── routers/          # 10 routers
+│       │       ├── router.ts         # Root router (20 sub-routers)
+│       │       └── routers/          # 20 routers
 │       └── a4.db                     # SQLite database file (gitignored)
 │
 ├── packages/
 │   ├── ui/                           # 14 Radix+CVA components
-│   ├── shared-schemas/               # 7 Zod schema files
+│   ├── shared-schemas/               # 16 Zod schema files
 │   ├── shared-types/                 # z.infer types + AppRouter type
 │   ├── tailwind-config/              # base.css — design tokens, dark mode
 │   └── typescript-config/            # Shared tsconfig bases (base, react, node)
@@ -280,6 +280,15 @@ ClerkProvider
 | `canvas` | `load`, `save` | Protected | **Fully implemented** |
 | `vault` | `getConfig`, `setup` | Protected | **Fully implemented** |
 | `marketData` | `searchTickers`, `getTickerDetail`, `getAggregates`, `getSnapshot` | Protected | **Fully implemented** |
+| `account` | `list`, `create`, `update`, `delete`, `getSummary` | Protected | **Fully implemented** |
+| `budget` | `listGroups`, `createGroup`, `updateGroup`, `deleteGroup`, `listCategories`, `createCategory`, `updateCategory`, `deleteCategory`, `getSummary` | Protected | **Fully implemented** |
+| `category` | `list`, `create`, `update`, `delete` | Protected | **Fully implemented** |
+| `invoice` | `list`, `create`, `update`, `delete`, `listLineItems`, `createLineItem`, `updateLineItem`, `deleteLineItem`, `getSummary` | Protected | **Fully implemented** |
+| `receipt` | `list`, `create`, `update`, `delete`, `getSummary` | Protected | **Fully implemented** |
+| `subscription` | `list`, `create`, `update`, `delete`, `getSummary` | Protected | **Fully implemented** |
+| `holding` | `list`, `create`, `update`, `delete`, `getSummary` | Protected | **Fully implemented** |
+| `debt` | `list`, `create`, `update`, `delete`, `getSummary` | Protected | **Fully implemented** |
+| `networth` | `listCategories`, `createCategory`, `updateCategory`, `deleteCategory`, `seedDefaults`, `listEntries`, `createEntry`, `updateEntry`, `deleteEntry`, `getSummary` | Protected | **Fully implemented** |
 | `folder` | `list`, `create`, `update`, `delete` | Protected | Stubs |
 | `chat` | `listConversations`, `getConversation`, `createConversation`, `sendMessage`, `deleteConversation` | Protected | Stubs |
 | `financial` | `getSummary`, `getTransactions` | Protected | Stubs |

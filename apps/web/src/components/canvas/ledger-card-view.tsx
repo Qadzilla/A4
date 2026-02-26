@@ -1,4 +1,5 @@
 import { cn } from '@a4/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SUPPORTED_CURRENCIES, formatCurrency } from '../../lib/currency-utils';
 import type { SupportedCurrency } from '../../lib/currency-utils';
@@ -8,12 +9,8 @@ import {
   computeNetBalance,
   computeRunningBalance,
 } from '../../lib/ledger-utils';
-import type {
-  LedgerCardData,
-  LedgerCategory,
-  LedgerEntry,
-  LedgerEntryType,
-} from '../../lib/ledger-utils';
+import type { LedgerCardData, LedgerEntry, LedgerEntryType } from '../../lib/ledger-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
@@ -21,20 +18,17 @@ const inputClass =
   'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
 
 function defaultData(): LedgerCardData {
-  return {
-    startingBalance: 0,
-    currency: 'USD',
-    categories: [],
-    entries: [],
-    notes: '',
-  };
+  return { startingBalance: 0, currency: 'USD', notes: '' };
 }
 
 export const LedgerCardView = memo(
-  function LedgerCardView({ item }: { item: CanvasItem }) {
+  function LedgerCardView({ item, workspaceId }: { item: CanvasItem; workspaceId: string }) {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const updateItemData = useCanvasStore((s) => s.updateItemData);
 
-    const [data, setData] = useState<LedgerCardData>(() => {
+    // ── View config (persisted in item.data) ──
+    const [viewConfig, setViewConfig] = useState<LedgerCardData>(() => {
       const d = item.data as LedgerCardData | undefined;
       return d?.currency ? { ...defaultData(), ...d } : defaultData();
     });
@@ -56,29 +50,27 @@ export const LedgerCardView = memo(
       categoryId: '',
     });
 
-    // Re-load when switching items
+    // Re-load view config when switching items
     // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on item.id only
     useEffect(() => {
       const d = item.data as LedgerCardData | undefined;
-      setData(d?.currency ? { ...defaultData(), ...d } : defaultData());
+      setViewConfig(d?.currency ? { ...defaultData(), ...d } : defaultData());
       dirtyRef.current = false;
     }, [item.id]);
 
-    // Auto-save (debounced 800ms)
+    // Auto-save view config (debounced 800ms)
     useEffect(() => {
       if (!dirtyRef.current) return;
-
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         setSaveStatus('saving');
-        updateItemData(item.id, data as unknown as Record<string, unknown>);
+        updateItemData(item.id, viewConfig as unknown as Record<string, unknown>);
         setSaveStatus('saved');
         clearTimeout(savedIndicatorRef.current);
         savedIndicatorRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
       }, 800);
-
       return () => clearTimeout(saveTimerRef.current);
-    }, [data, item.id, updateItemData]);
+    }, [viewConfig, item.id, updateItemData]);
 
     useEffect(() => {
       return () => {
@@ -87,26 +79,68 @@ export const LedgerCardView = memo(
       };
     }, []);
 
-    const update = (patch: Partial<LedgerCardData>) => {
+    const updateViewConfig = (patch: Partial<LedgerCardData>) => {
       dirtyRef.current = true;
-      setData((prev) => ({ ...prev, ...patch }));
+      setViewConfig((prev) => ({ ...prev, ...patch }));
     };
 
-    // Entry mutations
+    // ── tRPC queries ──
+    const { data: transactions = [], isLoading: txLoading } = useQuery(
+      trpc.financial.listTransactions.queryOptions({ workspaceId }),
+    );
+    const { data: categories = [], isLoading: catLoading } = useQuery(
+      trpc.category.list.queryOptions({ workspaceId, context: 'ledger' }),
+    );
+
+    const isLoading = txLoading || catLoading;
+
+    // ── tRPC mutations ──
+    const txQueryKey = trpc.financial.listTransactions.queryKey();
+    const summaryQueryKey = trpc.financial.getSummary.queryKey();
+    const catQueryKey = trpc.category.list.queryKey();
+
+    const invalidateTx = () => {
+      queryClient.invalidateQueries({ queryKey: txQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+    };
+
+    const createTx = useMutation(
+      trpc.financial.createTransaction.mutationOptions({ onSuccess: invalidateTx }),
+    );
+    const updateTx = useMutation(
+      trpc.financial.updateTransaction.mutationOptions({ onSuccess: invalidateTx }),
+    );
+    const deleteTx = useMutation(
+      trpc.financial.deleteTransaction.mutationOptions({ onSuccess: invalidateTx }),
+    );
+    const createCat = useMutation(
+      trpc.category.create.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+    const updateCat = useMutation(
+      trpc.category.update.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+    const deleteCat = useMutation(
+      trpc.category.delete.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+
+    // ── Entry mutations ──
     const addEntry = () => {
       const amount = Number(newEntry.amount);
       if (!newEntry.description.trim() || !amount || amount <= 0) return;
-      const entry: LedgerEntry = {
-        id: crypto.randomUUID(),
+      createTx.mutate({
+        workspaceId,
         date: newEntry.date,
         description: newEntry.description.trim(),
         amount,
         type: newEntry.type,
-        categoryId: newEntry.categoryId || undefined,
-        notes: '',
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, entries: [...prev.entries, entry] }));
+        categoryId: newEntry.categoryId || null,
+      });
       setNewEntry({
         date: new Date().toISOString().slice(0, 10),
         description: '',
@@ -117,75 +151,82 @@ export const LedgerCardView = memo(
     };
 
     const removeEntry = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, entries: prev.entries.filter((e) => e.id !== id) }));
+      deleteTx.mutate({ id });
     };
 
-    const updateEntry = (id: string, patch: Partial<LedgerEntry>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        entries: prev.entries.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-      }));
+    const handleEntryBlur = (id: string, field: string, value: string | number) => {
+      const existing = transactions.find((t) => t.id === id);
+      if (!existing) return;
+      const current = existing[field as keyof typeof existing];
+      if (current === value) return; // no change
+      updateTx.mutate({ id, data: { [field]: value } });
     };
 
-    // Category mutations
+    // ── Category mutations ──
     const addCategory = () => {
-      const usedColors = new Set(data.categories.map((c) => c.color));
+      const usedColors = new Set(categories.map((c: { color: string }) => c.color));
       const nextColor =
         LEDGER_CATEGORY_COLORS.find((c) => !usedColors.has(c)) ?? LEDGER_CATEGORY_COLORS[0]!;
-      const cat: LedgerCategory = {
-        id: crypto.randomUUID(),
-        name: '',
+      createCat.mutate({
+        workspaceId,
+        name: 'Unnamed',
         color: nextColor,
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, categories: [...prev.categories, cat] }));
+        type: 'both',
+        context: 'ledger',
+      });
     };
 
     const removeCategory = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        categories: prev.categories.filter((c) => c.id !== id),
-        entries: prev.entries.map((e) =>
-          e.categoryId === id ? { ...e, categoryId: undefined } : e,
-        ),
-      }));
+      deleteCat.mutate({ id });
     };
 
-    const updateCategory = (id: string, patch: Partial<LedgerCategory>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        categories: prev.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-      }));
+    const handleCategoryColorChange = (id: string, color: string) => {
+      updateCat.mutate({ id, data: { color } });
     };
 
-    // Computed values
-    const { totalIncome, totalExpenses, net } = computeLedgerTotals(data.entries);
-    const netBalance = computeNetBalance(data.startingBalance, data.entries);
+    const handleCategoryNameBlur = (id: string, name: string) => {
+      const existing = categories.find((c: { id: string }) => c.id === id);
+      if (!existing || existing.name === name) return;
+      if (!name.trim()) return; // name is required (min 1)
+      updateCat.mutate({ id, data: { name: name.trim() } });
+    };
 
-    // Running balance is computed on ALL entries (sorted by date asc), regardless of filter
+    // ── Computed values ──
+    // Map DB transactions to LedgerEntry shape for utility functions
+    const entries: LedgerEntry[] = useMemo(
+      () =>
+        transactions.map((t) => ({
+          id: t.id,
+          date: t.date,
+          description: t.description,
+          amount: Number(t.amount),
+          type: t.type as LedgerEntryType,
+          categoryId: t.categoryId ?? undefined,
+          notes: t.notes ?? null,
+        })),
+      [transactions],
+    );
+
+    const { totalIncome, totalExpenses } = computeLedgerTotals(entries);
+    const netBalance = computeNetBalance(viewConfig.startingBalance, entries);
+
     const sortedEntries = useMemo(
-      () => [...data.entries].sort((a, b) => a.date.localeCompare(b.date)),
-      [data.entries],
+      () => [...entries].sort((a, b) => a.date.localeCompare(b.date)),
+      [entries],
     );
     const runningBalances = useMemo(
-      () => computeRunningBalance(data.startingBalance, data.entries),
-      [data.startingBalance, data.entries],
+      () => computeRunningBalance(viewConfig.startingBalance, entries),
+      [viewConfig.startingBalance, entries],
     );
 
-    // Build a map from entry id → running balance (sorted entries aligned with runningBalances)
     const balanceMap = useMemo(() => {
       const map = new Map<string, number>();
       sortedEntries.forEach((e, i) => map.set(e.id, runningBalances[i]!));
       return map;
     }, [sortedEntries, runningBalances]);
 
-    // Display entries: newest first, then filtered
     const displayEntries = useMemo(() => {
-      let filtered = [...data.entries].sort((a, b) => b.date.localeCompare(a.date));
+      let filtered = [...entries].sort((a, b) => b.date.localeCompare(a.date));
       if (typeFilter !== 'all') {
         filtered = filtered.filter((e) => e.type === typeFilter);
       }
@@ -193,7 +234,18 @@ export const LedgerCardView = memo(
         filtered = filtered.filter((e) => (e.categoryId ?? '') === categoryFilter);
       }
       return filtered;
-    }, [data.entries, typeFilter, categoryFilter]);
+    }, [entries, typeFilter, categoryFilter]);
+
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center bg-muted/30">
+          <div className="flex flex-col items-center gap-3">
+            <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <p className="text-[13px] text-muted-foreground">Loading ledger...</p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
@@ -235,8 +287,8 @@ export const LedgerCardView = memo(
               <input
                 type="number"
                 step={0.01}
-                value={data.startingBalance}
-                onChange={(e) => update({ startingBalance: Number(e.target.value) || 0 })}
+                value={viewConfig.startingBalance}
+                onChange={(e) => updateViewConfig({ startingBalance: Number(e.target.value) || 0 })}
                 className={inputClass}
               />
             </div>
@@ -245,8 +297,10 @@ export const LedgerCardView = memo(
                 Currency
               </label>
               <select
-                value={data.currency}
-                onChange={(e) => update({ currency: e.target.value as SupportedCurrency })}
+                value={viewConfig.currency}
+                onChange={(e) =>
+                  updateViewConfig({ currency: e.target.value as SupportedCurrency })
+                }
                 className={inputClass}
               >
                 {SUPPORTED_CURRENCIES.map((c) => (
@@ -267,7 +321,8 @@ export const LedgerCardView = memo(
               <button
                 type="button"
                 onClick={addCategory}
-                className="flex items-center gap-1 text-[12px] text-primary hover:text-primary/80 font-medium transition-colors"
+                disabled={createCat.isPending}
+                className="flex items-center gap-1 text-[12px] text-primary hover:text-primary/80 font-medium transition-colors disabled:opacity-50"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -286,9 +341,9 @@ export const LedgerCardView = memo(
               </button>
             </div>
 
-            {data.categories.length > 0 && (
+            {categories.length > 0 && (
               <div className="space-y-2">
-                {data.categories.map((cat) => (
+                {categories.map((cat: { id: string; name: string; color: string }) => (
                   <div key={cat.id} className="flex items-center gap-2">
                     {/* Color picker */}
                     <div className="flex gap-1">
@@ -296,7 +351,7 @@ export const LedgerCardView = memo(
                         <button
                           key={color}
                           type="button"
-                          onClick={() => updateCategory(cat.id, { color })}
+                          onClick={() => handleCategoryColorChange(cat.id, color)}
                           className={cn(
                             'size-5 rounded-full border-2 transition-all',
                             cat.color === color
@@ -309,8 +364,8 @@ export const LedgerCardView = memo(
                     </div>
                     <input
                       type="text"
-                      value={cat.name}
-                      onChange={(e) => updateCategory(cat.id, { name: e.target.value })}
+                      defaultValue={cat.name}
+                      onBlur={(e) => handleCategoryNameBlur(cat.id, e.target.value)}
                       placeholder="Category name"
                       className="flex-1 border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                     />
@@ -411,7 +466,7 @@ export const LedgerCardView = memo(
                   </button>
                 </div>
               </div>
-              {data.categories.length > 0 && (
+              {categories.length > 0 && (
                 <div className="space-y-1">
                   <label className="text-[11px] text-muted-foreground">Category</label>
                   <select
@@ -420,7 +475,7 @@ export const LedgerCardView = memo(
                     className={cn(inputClass, 'w-[120px]')}
                   >
                     <option value="">None</option>
-                    {data.categories.map((c) => (
+                    {categories.map((c: { id: string; name: string }) => (
                       <option key={c.id} value={c.id}>
                         {c.name || 'Unnamed'}
                       </option>
@@ -431,7 +486,8 @@ export const LedgerCardView = memo(
               <button
                 type="button"
                 onClick={addEntry}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                disabled={createTx.isPending}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 Add
               </button>
@@ -457,14 +513,14 @@ export const LedgerCardView = memo(
                 </button>
               ))}
             </div>
-            {data.categories.length > 0 && (
+            {categories.length > 0 && (
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className={cn(inputClass, 'w-auto')}
               >
                 <option value="all">All categories</option>
-                {data.categories.map((c) => (
+                {categories.map((c: { id: string; name: string }) => (
                   <option key={c.id} value={c.id}>
                     {c.name || 'Unnamed'}
                   </option>
@@ -496,7 +552,9 @@ export const LedgerCardView = memo(
                 </div>
               ) : (
                 displayEntries.map((entry) => {
-                  const cat = data.categories.find((c) => c.id === entry.categoryId);
+                  const cat = categories.find((c: { id: string }) => c.id === entry.categoryId) as
+                    | { id: string; name: string; color: string }
+                    | undefined;
                   const balance = balanceMap.get(entry.id) ?? 0;
                   return (
                     <div
@@ -505,14 +563,14 @@ export const LedgerCardView = memo(
                     >
                       <input
                         type="date"
-                        value={entry.date}
-                        onChange={(e) => updateEntry(entry.id, { date: e.target.value })}
+                        defaultValue={entry.date}
+                        onBlur={(e) => handleEntryBlur(entry.id, 'date', e.target.value)}
                         className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
                       />
                       <input
                         type="text"
-                        value={entry.description}
-                        onChange={(e) => updateEntry(entry.id, { description: e.target.value })}
+                        defaultValue={entry.description}
+                        onBlur={(e) => handleEntryBlur(entry.id, 'description', e.target.value)}
                         placeholder="Description"
                         className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                       />
@@ -528,7 +586,7 @@ export const LedgerCardView = memo(
                             </span>
                           </>
                         ) : (
-                          <span className="text-[11px] text-muted-foreground/50">—</span>
+                          <span className="text-[11px] text-muted-foreground/50">&mdash;</span>
                         )}
                       </div>
                       <div className="flex items-center justify-end">
@@ -546,9 +604,9 @@ export const LedgerCardView = memo(
                           type="number"
                           min={0}
                           step={0.01}
-                          value={entry.amount}
-                          onChange={(e) =>
-                            updateEntry(entry.id, { amount: Number(e.target.value) || 0 })
+                          defaultValue={entry.amount}
+                          onBlur={(e) =>
+                            handleEntryBlur(entry.id, 'amount', Number(e.target.value) || 0)
                           }
                           className={cn(
                             'border-0 bg-transparent text-[13px] text-right focus:outline-none tabular-nums w-[70px]',
@@ -559,7 +617,7 @@ export const LedgerCardView = memo(
                         />
                       </div>
                       <span className="text-[12px] text-right text-muted-foreground tabular-nums">
-                        {formatCurrency(balance, data.currency)}
+                        {formatCurrency(balance, viewConfig.currency)}
                       </span>
                       <button
                         type="button"
@@ -594,7 +652,7 @@ export const LedgerCardView = memo(
                 Total Income
               </p>
               <p className="text-[16px] font-bold text-green-600 dark:text-green-400 tabular-nums">
-                {formatCurrency(totalIncome, data.currency)}
+                {formatCurrency(totalIncome, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -602,7 +660,7 @@ export const LedgerCardView = memo(
                 Total Expenses
               </p>
               <p className="text-[16px] font-bold text-red-600 dark:text-red-400 tabular-nums">
-                {formatCurrency(totalExpenses, data.currency)}
+                {formatCurrency(totalExpenses, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -617,14 +675,12 @@ export const LedgerCardView = memo(
                     : 'text-red-600 dark:text-red-400',
                 )}
               >
-                {formatCurrency(netBalance, data.currency)}
+                {formatCurrency(netBalance, viewConfig.currency)}
               </p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Entries</p>
-              <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {data.entries.length}
-              </p>
+              <p className="text-[16px] font-bold text-foreground tabular-nums">{entries.length}</p>
             </div>
           </div>
 
@@ -634,8 +690,8 @@ export const LedgerCardView = memo(
               Notes
             </label>
             <textarea
-              value={data.notes}
-              onChange={(e) => update({ notes: e.target.value })}
+              value={viewConfig.notes}
+              onChange={(e) => updateViewConfig({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
               className={cn(inputClass, 'resize-none')}
@@ -645,5 +701,5 @@ export const LedgerCardView = memo(
       </div>
     );
   },
-  (prev, next) => prev.item.id === next.item.id,
+  (prev, next) => prev.item.id === next.item.id && prev.workspaceId === next.workspaceId,
 );

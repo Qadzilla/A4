@@ -1,6 +1,6 @@
 # A4 — Roadmap
 
-> **Last updated:** 2026-02-25
+> **Last updated:** 2026-02-26
 
 ---
 
@@ -11,9 +11,9 @@
 - [x] 14 UI components with design tokens and dark mode
 - [x] Auth flow (Clerk, AuthGuard, sign-in/sign-up/SSO, dev bypass)
 - [x] Dashboard layout (collapsible sidebar, 6 nav items, theme toggle)
-- [x] tRPC client + server with 10 routers (4 fully implemented, 6 stubs)
+- [x] tRPC client + server with 20 routers (15 fully implemented, 5 stubs)
 - [x] Express hardened (Helmet, CORS, rate limiting)
-- [x] SQLite + Drizzle ORM with 6 tables
+- [x] SQLite + Drizzle ORM with 21 tables
 - [x] Workspace CRUD (create, read, update, soft-delete, restore, permanent delete, folder hierarchy, thumbnails)
 - [x] Infinite canvas (dot grid, zoom/pan, double-click reset, fit-to-content)
 - [x] Canvas items (A4 pages, secret cards, notes, table cards, KPI cards, chart cards, file cards, timer cards) with drag-drop from tool panel
@@ -50,6 +50,12 @@
 - [x] Projection calculator cards (compound growth with monthly contributions, inflation adjustment, year-by-year schedule)
 - [x] Break-even calculator cards (contribution margin, break-even units/revenue, profit/loss schedule, negative margin handling)
 - [x] Depreciation calculator cards (4 methods: SL/DB/DDB/SYD, year-by-year schedule, book value tracking)
+- [x] Portfolio cards (holdings, target allocation, drift analysis, rebalance trades)
+- [x] Net worth cards (assets/liabilities by category, default categories, balance breakdown)
+- [x] Debt planner cards (snowball/avalanche strategy, paydown simulation, interest savings)
+- [x] Rent-vs-buy calculator cards (monthly comparison, breakeven year, 30-year total cost)
+- [x] Embed cards (external URL embedding)
+- [x] DB migration — all 9 financial card types (invoice, budget, receipt, subscription, account, holding, debt, networth + categories) backed by dedicated DB tables with tRPC CRUD routers
 - [x] Canvas minimap (bottom-right overview, green item rectangles, viewport indicator, theme-aware, dynamic positioning with tools panel)
 
 ---
@@ -65,6 +71,10 @@
 - [x] ~~Account card~~ — Built
 - [x] ~~Subscription card~~ — Built
 - [x] ~~Embed card~~ — Built (embed-card)
+- [x] ~~Portfolio card~~ — Built (portfolio-card)
+- [x] ~~Net worth card~~ — Built (networth-card)
+- [x] ~~Debt planner card~~ — Built (debt-planner-card)
+- [x] ~~Rent-vs-buy card~~ — Built (rent-vs-buy-card)
 
 ### Financial calculators & generators
 
@@ -83,8 +93,8 @@
 - [ ] **AI chat pipeline** — Anthropic SDK, streaming responses, workspace-scoped context injection
 - [ ] **RAG** — Document embedding, vector search, context window management
 - [ ] **File upload (cloud)** — migrate local disk storage to S3/R2 for production deployment
-- [ ] **Wire remaining routers** — folder, chat, financial, user, billing (currently stubs)
-- [ ] **More DB tables** — conversations, messages, transactions, user profiles, billing
+- [ ] **Wire remaining routers** — folder, chat, financial, user, billing (5 stubs remain)
+- [ ] **More DB tables** — conversations, messages, user profiles, billing
 - [ ] **Integrations** — Plaid (bank feeds), Stripe (billing), QuickBooks/Xero (accounting)
 - [ ] **Real-time chat** — SSE or WebSocket for streaming AI responses
 - [ ] **Billing** — Stripe subscriptions, usage metering, plan enforcement

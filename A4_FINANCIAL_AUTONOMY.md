@@ -1,6 +1,6 @@
 # A4 — Master Checklist: Full DIY Financial Autonomy (US baseline)
 
-> **Last updated:** 2026-02-25
+> **Last updated:** 2026-02-26
 > Zero fluff. Extremely detailed. Personal + small business + freelancing. Taxes (strategy + filing). Investing (design + execution). Insurance/risk. Real estate. Equity comp. Crypto. Legal/estate. No outsourcing.
 
 Use this as your **operating checklist**. If you complete and maintain every item, you've basically built the personal + micro-business version of a CFO + controller + tax preparer + compliance + wealth manager + risk manager.
@@ -20,8 +20,17 @@ This file also tracks the **A4 platform toolkit** — what's built, what's neede
 | `canvas_connections` table | Built | Canvas — item relationships |
 | `vault_config` table + setup/verify router | Built | 0.1 — secrets & credentials |
 | `market_bars` + `ticker_details` tables + market data router | Built | 4 — investing, market tracking |
-| Transactions table + `financial` router | **Not built** | 1, 2, 7 — cash flow, banking, bookkeeping |
-| Categories table (income/expense taxonomy) | **Not built** | 1.2, 7.2 — categorization |
+| `files` table + upload endpoint | Built | 0.2 — document storage |
+| `categories` table + CRUD router | Built | 1.2, 7.2 — income/expense categorization |
+| `transactions` table | Built (table exists, `financial` router still stub) | 1, 2, 7 — cash flow, banking, bookkeeping |
+| `accounts` + `account_groups` tables + CRUD router | Built | 2 — treasury, cash management |
+| `receipts` table + CRUD router | Built | 13 — audit readiness, expense evidence |
+| `subscriptions` table + CRUD router | Built | 1.3 — autopay registry, renewal alerts |
+| `invoices` + `invoice_line_items` tables + CRUD router | Built | 7.1 — invoicing, accounts receivable |
+| `budget_groups` + `budget_categories` tables + CRUD router | Built | 1.3 — budgeting, spending control |
+| `holdings` table + CRUD router | Built | 4.2, 4.3 — portfolio allocation, drift, rebalancing |
+| `debts` table + CRUD router | Built | 3.2 — debt payoff planning |
+| `networth_categories` + `networth_entries` tables + CRUD router | Built | 1.1 — balance sheet, net worth |
 | Conversations + messages tables + `chat` router | **Not built** | AI chat persistence (future) |
 | User profiles table + `user` router | **Not built** | 0 — user settings, preferences |
 | `folder` router (real implementation) | **Not built** | 0.2 — document organization |

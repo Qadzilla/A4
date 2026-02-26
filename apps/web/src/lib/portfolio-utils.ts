@@ -10,7 +10,6 @@ export interface PortfolioHolding {
 
 export interface PortfolioCardData {
   currency: SupportedCurrency;
-  holdings: PortfolioHolding[];
   notes: string;
 }
 
@@ -48,14 +47,11 @@ const DRIFT_THRESHOLD = 1.0;
 export function createDefaultPortfolioData(): PortfolioCardData {
   return {
     currency: 'USD',
-    holdings: [],
     notes: '',
   };
 }
 
-export function computePortfolio(data: PortfolioCardData): PortfolioResult {
-  const { holdings } = data;
-
+export function computePortfolio(holdings: PortfolioHolding[]): PortfolioResult {
   if (holdings.length === 0) {
     return {
       totalValue: 0,

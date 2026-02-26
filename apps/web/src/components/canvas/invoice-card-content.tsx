@@ -1,7 +1,15 @@
 import { cn } from '@a4/ui';
+import { useQuery } from '@tanstack/react-query';
 import { memo } from 'react';
-import { computeSubtotal, computeTax, computeTotal, formatCurrency } from '../../lib/invoice-utils';
+import { useParams } from 'react-router';
+import {
+  computeSubtotal,
+  computeTax,
+  computeTotal,
+  formatCurrency,
+} from '../../lib/invoice-utils';
 import type { InvoiceCardData, InvoiceStatus } from '../../lib/invoice-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 
 const statusColors: Record<InvoiceStatus, string> = {
@@ -12,15 +20,53 @@ const statusColors: Record<InvoiceStatus, string> = {
 };
 
 export const InvoiceCardContent = memo(function InvoiceCardContent({ item }: { item: CanvasItem }) {
-  const data = item.data as InvoiceCardData | undefined;
-  const status: InvoiceStatus = data?.status ?? 'draft';
-  const invoiceNumber = data?.invoiceNumber ?? 'INV-001';
-  const clientName = data?.to?.name || 'No client';
-  const lineItemCount = data?.items?.length ?? 0;
-  const dueDate = data?.dueDate ?? '';
+  const { id: workspaceId } = useParams();
+  const trpc = useTRPC();
+  const cardData = item.data as InvoiceCardData | undefined;
+  const invoiceId = cardData?.invoiceId || '';
 
-  const subtotal = computeSubtotal(data?.items ?? []);
-  const tax = computeTax(subtotal, data?.taxRate ?? 0);
+  const { data: invoice, isLoading: invLoading } = useQuery({
+    ...trpc.invoice.get.queryOptions({ id: invoiceId }),
+    enabled: !!invoiceId,
+    staleTime: 60_000,
+  });
+  const { data: lineItems = [], isLoading: liLoading } = useQuery({
+    ...trpc.invoice.listLineItems.queryOptions({ invoiceId }),
+    enabled: !!invoiceId,
+    staleTime: 60_000,
+  });
+
+  const isLoading = !invoiceId || invLoading || liLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
+        <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
+          <div className="h-3 w-12 rounded bg-muted/40 animate-pulse" />
+          <div className="h-3 w-16 rounded bg-muted/40 animate-pulse" />
+        </div>
+        <div className="flex-1 flex items-end px-3 pb-2">
+          <div className="h-6 w-24 rounded bg-muted/40 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!invoice) return null;
+
+  const status = invoice.status as InvoiceStatus;
+  const clientName = invoice.toName || 'No client';
+  const dueDate = invoice.dueDate;
+
+  const subtotal = computeSubtotal(
+    lineItems.map((li) => ({
+      id: li.id,
+      description: li.description,
+      quantity: li.quantity,
+      unitPrice: li.unitPrice,
+    })),
+  );
+  const tax = computeTax(subtotal, invoice.taxRate);
   const total = computeTotal(subtotal, tax);
 
   const isOverdue =
@@ -38,7 +84,9 @@ export const InvoiceCardContent = memo(function InvoiceCardContent({ item }: { i
         >
           {status}
         </span>
-        <span className="text-[10px] text-muted-foreground font-mono">{invoiceNumber}</span>
+        <span className="text-[10px] text-muted-foreground font-mono">
+          {invoice.invoiceNumber}
+        </span>
       </div>
 
       {/* Invoice label */}
@@ -55,7 +103,7 @@ export const InvoiceCardContent = memo(function InvoiceCardContent({ item }: { i
       {/* Line items count */}
       <div className="px-3 pb-1">
         <span className="text-[10px] text-muted-foreground">
-          {lineItemCount} {lineItemCount === 1 ? 'item' : 'items'}
+          {lineItems.length} {lineItems.length === 1 ? 'item' : 'items'}
         </span>
       </div>
 

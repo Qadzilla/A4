@@ -1,4 +1,5 @@
 import { cn } from '@a4/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useRef, useState } from 'react';
 import {
   computeSubtotal,
@@ -7,7 +8,8 @@ import {
   exportInvoicePdf,
   formatCurrency,
 } from '../../lib/invoice-utils';
-import type { InvoiceCardData, InvoiceLineItem, InvoiceStatus } from '../../lib/invoice-utils';
+import type { InvoiceCardData, InvoiceStatus } from '../../lib/invoice-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
@@ -38,114 +40,187 @@ const statuses: { value: InvoiceStatus; label: string; color: string }[] = [
   },
 ];
 
-function defaultData(): InvoiceCardData {
-  const today = new Date();
-  const due = new Date();
-  due.setDate(due.getDate() + 30);
-  return {
-    invoiceNumber: 'INV-001',
-    date: today.toISOString().slice(0, 10),
-    dueDate: due.toISOString().slice(0, 10),
-    from: { name: '', address: '', email: '' },
-    to: { name: '', address: '', email: '' },
-    items: [{ id: crypto.randomUUID(), description: '', quantity: 1, unitPrice: 0 }],
-    taxRate: 0,
-    notes: '',
-    status: 'draft',
-  };
-}
-
 const inputClass =
   'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
 
 export const InvoiceCardView = memo(
-  function InvoiceCardView({ item }: { item: CanvasItem }) {
+  function InvoiceCardView({
+    item,
+    workspaceId,
+  }: { item: CanvasItem; workspaceId: string }) {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const updateItemData = useCanvasStore((s) => s.updateItemData);
 
-    const [data, setData] = useState<InvoiceCardData>(() => {
-      const d = item.data as InvoiceCardData | undefined;
-      return d?.invoiceNumber ? { ...defaultData(), ...d } : defaultData();
-    });
-    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const cardData = item.data as InvoiceCardData | undefined;
+    const invoiceId = cardData?.invoiceId || '';
+
     const [isExporting, setIsExporting] = useState(false);
-    const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const savedIndicatorRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const dirtyRef = useRef(false);
+    const creatingRef = useRef(false);
 
-    // Re-load when switching items
-    // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on item.id only
+    // ── Create invoice in DB if not yet created ──
+    const createInvoice = useMutation(
+      trpc.invoice.create.mutationOptions({
+        onSuccess: (result) => {
+          updateItemData(item.id, { invoiceId: result.id } as unknown as Record<string, unknown>);
+          queryClient.invalidateQueries({ queryKey: trpc.invoice.get.queryKey() });
+          queryClient.invalidateQueries({ queryKey: trpc.invoice.listLineItems.queryKey() });
+          queryClient.invalidateQueries({ queryKey: trpc.invoice.getSummary.queryKey() });
+        },
+      }),
+    );
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: one-time creation
     useEffect(() => {
-      const d = item.data as InvoiceCardData | undefined;
-      setData(d?.invoiceNumber ? { ...defaultData(), ...d } : defaultData());
-      dirtyRef.current = false;
-    }, [item.id]);
+      if (!invoiceId && !creatingRef.current) {
+        creatingRef.current = true;
+        const today = new Date();
+        const due = new Date();
+        due.setDate(due.getDate() + 30);
+        createInvoice.mutate({
+          workspaceId,
+          invoiceNumber: 'INV-001',
+          date: today.toISOString().slice(0, 10),
+          dueDate: due.toISOString().slice(0, 10),
+          taxRate: 0,
+          status: 'draft',
+        });
+      }
+    }, [invoiceId]);
 
-    // Auto-save (debounced 800ms)
-    useEffect(() => {
-      if (!dirtyRef.current) return;
+    // ── Fetch invoice data ──
+    const { data: invoice, isLoading: invLoading } = useQuery({
+      ...trpc.invoice.get.queryOptions({ id: invoiceId }),
+      enabled: !!invoiceId,
+    });
+    const { data: lineItems = [], isLoading: liLoading } = useQuery({
+      ...trpc.invoice.listLineItems.queryOptions({ invoiceId }),
+      enabled: !!invoiceId,
+    });
 
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
-        setSaveStatus('saving');
-        updateItemData(item.id, data as unknown as Record<string, unknown>);
-        setSaveStatus('saved');
-        clearTimeout(savedIndicatorRef.current);
-        savedIndicatorRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
-      }, 800);
+    const isLoading = !invoiceId || invLoading || liLoading;
 
-      return () => clearTimeout(saveTimerRef.current);
-    }, [data, item.id, updateItemData]);
+    // ── Mutations ──
+    const invQueryKey = trpc.invoice.get.queryKey();
+    const liQueryKey = trpc.invoice.listLineItems.queryKey();
+    const summaryQueryKey = trpc.invoice.getSummary.queryKey();
 
-    useEffect(() => {
-      return () => {
-        clearTimeout(saveTimerRef.current);
-        clearTimeout(savedIndicatorRef.current);
-      };
-    }, []);
-
-    const update = (patch: Partial<InvoiceCardData>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, ...patch }));
+    const invalidateInvoice = () => {
+      queryClient.invalidateQueries({ queryKey: invQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+    };
+    const invalidateLineItems = () => {
+      queryClient.invalidateQueries({ queryKey: liQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
     };
 
-    const updateLineItem = (id: string, patch: Partial<InvoiceLineItem>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        items: prev.items.map((li) => (li.id === id ? { ...li, ...patch } : li)),
-      }));
+    const updateInvoice = useMutation(
+      trpc.invoice.update.mutationOptions({ onSuccess: invalidateInvoice }),
+    );
+    const createLineItem = useMutation(
+      trpc.invoice.createLineItem.mutationOptions({ onSuccess: invalidateLineItems }),
+    );
+    const updateLineItem = useMutation(
+      trpc.invoice.updateLineItem.mutationOptions({ onSuccess: invalidateLineItems }),
+    );
+    const deleteLineItem = useMutation(
+      trpc.invoice.deleteLineItem.mutationOptions({ onSuccess: invalidateLineItems }),
+    );
+
+    // ── Handlers ──
+    const handleFieldBlur = (field: string, value: string | number | null) => {
+      if (!invoiceId || !invoice) return;
+      const current = invoice[field as keyof typeof invoice];
+      if (current === value) return;
+      updateInvoice.mutate({ id: invoiceId, data: { [field]: value } });
+    };
+
+    const handleStatusChange = (status: InvoiceStatus) => {
+      if (!invoiceId) return;
+      updateInvoice.mutate({ id: invoiceId, data: { status } });
+    };
+
+    const handleLineItemBlur = (id: string, field: string, value: string | number) => {
+      const existing = lineItems.find((li) => li.id === id);
+      if (!existing) return;
+      const current = existing[field as keyof typeof existing];
+      if (current === value) return;
+      updateLineItem.mutate({ id, data: { [field]: value } });
     };
 
     const addLineItem = () => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        items: [
-          ...prev.items,
-          { id: crypto.randomUUID(), description: '', quantity: 1, unitPrice: 0 },
-        ],
-      }));
+      if (!invoiceId) return;
+      createLineItem.mutate({
+        invoiceId,
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        sortOrder: lineItems.length,
+      });
     };
 
     const removeLineItem = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        items: prev.items.filter((li) => li.id !== id),
-      }));
+      deleteLineItem.mutate({ id });
     };
 
     const handleExport = async () => {
+      if (!invoice) return;
       setIsExporting(true);
       try {
-        await exportInvoicePdf(data, item.name);
+        await exportInvoicePdf(
+          {
+            invoiceNumber: invoice.invoiceNumber,
+            date: invoice.date,
+            dueDate: invoice.dueDate,
+            from: {
+              name: invoice.fromName ?? '',
+              address: invoice.fromAddress ?? '',
+              email: invoice.fromEmail ?? '',
+            },
+            to: {
+              name: invoice.toName ?? '',
+              address: invoice.toAddress ?? '',
+              email: invoice.toEmail ?? '',
+            },
+            items: lineItems.map((li) => ({
+              id: li.id,
+              description: li.description,
+              quantity: li.quantity,
+              unitPrice: li.unitPrice,
+            })),
+            taxRate: invoice.taxRate,
+            notes: invoice.notes ?? '',
+            status: invoice.status as InvoiceStatus,
+          },
+          item.name,
+        );
       } finally {
         setIsExporting(false);
       }
     };
 
-    const subtotal = computeSubtotal(data.items);
-    const tax = computeTax(subtotal, data.taxRate);
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="space-y-2 text-center">
+            <div className="h-6 w-32 rounded bg-muted/40 animate-pulse mx-auto" />
+            <p className="text-[12px] text-muted-foreground">Loading invoice...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!invoice) return null;
+
+    const subtotal = computeSubtotal(
+      lineItems.map((li) => ({
+        id: li.id,
+        description: li.description,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+      })),
+    );
+    const tax = computeTax(subtotal, invoice.taxRate);
     const total = computeTotal(subtotal, tax);
 
     return (
@@ -174,11 +249,6 @@ export const InvoiceCardView = memo(
               <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
               <p className="text-[11px] text-black/60 dark:text-zinc-300">Invoice</p>
             </div>
-            {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
-                {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-              </span>
-            )}
           </div>
 
           {/* Status pills */}
@@ -191,11 +261,11 @@ export const InvoiceCardView = memo(
                 <button
                   key={s.value}
                   type="button"
-                  onClick={() => update({ status: s.value })}
+                  onClick={() => handleStatusChange(s.value)}
                   className={cn(
                     'px-3 py-1 rounded-full text-[12px] font-medium border transition-all',
                     s.color,
-                    data.status === s.value
+                    invoice.status === s.value
                       ? 'ring-2 ring-primary ring-offset-1 ring-offset-background'
                       : 'opacity-60 hover:opacity-100',
                   )}
@@ -214,8 +284,8 @@ export const InvoiceCardView = memo(
               </label>
               <input
                 type="text"
-                value={data.invoiceNumber}
-                onChange={(e) => update({ invoiceNumber: e.target.value })}
+                defaultValue={invoice.invoiceNumber}
+                onBlur={(e) => handleFieldBlur('invoiceNumber', e.target.value)}
                 className={inputClass}
               />
             </div>
@@ -225,8 +295,8 @@ export const InvoiceCardView = memo(
               </label>
               <input
                 type="date"
-                value={data.date}
-                onChange={(e) => update({ date: e.target.value })}
+                defaultValue={invoice.date}
+                onBlur={(e) => handleFieldBlur('date', e.target.value)}
                 className={inputClass}
               />
             </div>
@@ -236,8 +306,8 @@ export const InvoiceCardView = memo(
               </label>
               <input
                 type="date"
-                value={data.dueDate}
-                onChange={(e) => update({ dueDate: e.target.value })}
+                defaultValue={invoice.dueDate}
+                onBlur={(e) => handleFieldBlur('dueDate', e.target.value)}
                 className={inputClass}
               />
             </div>
@@ -252,22 +322,22 @@ export const InvoiceCardView = memo(
               <input
                 type="text"
                 placeholder="Name"
-                value={data.from.name}
-                onChange={(e) => update({ from: { ...data.from, name: e.target.value } })}
+                defaultValue={invoice.fromName ?? ''}
+                onBlur={(e) => handleFieldBlur('fromName', e.target.value || null)}
                 className={inputClass}
               />
               <input
                 type="text"
                 placeholder="Address"
-                value={data.from.address}
-                onChange={(e) => update({ from: { ...data.from, address: e.target.value } })}
+                defaultValue={invoice.fromAddress ?? ''}
+                onBlur={(e) => handleFieldBlur('fromAddress', e.target.value || null)}
                 className={inputClass}
               />
               <input
                 type="email"
                 placeholder="Email"
-                value={data.from.email}
-                onChange={(e) => update({ from: { ...data.from, email: e.target.value } })}
+                defaultValue={invoice.fromEmail ?? ''}
+                onBlur={(e) => handleFieldBlur('fromEmail', e.target.value || null)}
                 className={inputClass}
               />
             </div>
@@ -278,22 +348,22 @@ export const InvoiceCardView = memo(
               <input
                 type="text"
                 placeholder="Name"
-                value={data.to.name}
-                onChange={(e) => update({ to: { ...data.to, name: e.target.value } })}
+                defaultValue={invoice.toName ?? ''}
+                onBlur={(e) => handleFieldBlur('toName', e.target.value || null)}
                 className={inputClass}
               />
               <input
                 type="text"
                 placeholder="Address"
-                value={data.to.address}
-                onChange={(e) => update({ to: { ...data.to, address: e.target.value } })}
+                defaultValue={invoice.toAddress ?? ''}
+                onBlur={(e) => handleFieldBlur('toAddress', e.target.value || null)}
                 className={inputClass}
               />
               <input
                 type="email"
                 placeholder="Email"
-                value={data.to.email}
-                onChange={(e) => update({ to: { ...data.to, email: e.target.value } })}
+                defaultValue={invoice.toEmail ?? ''}
+                onBlur={(e) => handleFieldBlur('toEmail', e.target.value || null)}
                 className={inputClass}
               />
             </div>
@@ -305,7 +375,6 @@ export const InvoiceCardView = memo(
               Line Items
             </p>
             <div className="rounded-lg border border-border overflow-hidden">
-              {/* Header row */}
               <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-2 px-3 py-2 bg-muted/30 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                 <span>Description</span>
                 <span className="text-right">Qty</span>
@@ -314,8 +383,7 @@ export const InvoiceCardView = memo(
                 <span />
               </div>
 
-              {/* Rows */}
-              {data.items.map((li) => {
+              {lineItems.map((li) => {
                 const amount = li.quantity * li.unitPrice;
                 return (
                   <div
@@ -324,17 +392,17 @@ export const InvoiceCardView = memo(
                   >
                     <input
                       type="text"
-                      value={li.description}
-                      onChange={(e) => updateLineItem(li.id, { description: e.target.value })}
+                      defaultValue={li.description}
+                      onBlur={(e) => handleLineItemBlur(li.id, 'description', e.target.value)}
                       placeholder="Item description"
                       className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                     />
                     <input
                       type="number"
                       min={0}
-                      value={li.quantity}
-                      onChange={(e) =>
-                        updateLineItem(li.id, { quantity: Number(e.target.value) || 0 })
+                      defaultValue={li.quantity}
+                      onBlur={(e) =>
+                        handleLineItemBlur(li.id, 'quantity', Number(e.target.value) || 0)
                       }
                       className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums"
                     />
@@ -342,9 +410,9 @@ export const InvoiceCardView = memo(
                       type="number"
                       min={0}
                       step={0.01}
-                      value={li.unitPrice}
-                      onChange={(e) =>
-                        updateLineItem(li.id, { unitPrice: Number(e.target.value) || 0 })
+                      defaultValue={li.unitPrice}
+                      onBlur={(e) =>
+                        handleLineItemBlur(li.id, 'unitPrice', Number(e.target.value) || 0)
                       }
                       className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums"
                     />
@@ -354,7 +422,7 @@ export const InvoiceCardView = memo(
                     <button
                       type="button"
                       onClick={() => removeLineItem(li.id)}
-                      disabled={data.items.length <= 1}
+                      disabled={lineItems.length <= 1}
                       className="flex items-center justify-center size-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <svg
@@ -414,8 +482,10 @@ export const InvoiceCardView = memo(
                     type="number"
                     min={0}
                     step={0.1}
-                    value={data.taxRate}
-                    onChange={(e) => update({ taxRate: Number(e.target.value) || 0 })}
+                    defaultValue={invoice.taxRate}
+                    onBlur={(e) =>
+                      handleFieldBlur('taxRate', Number(e.target.value) || 0)
+                    }
                     className="w-16 rounded-md border border-border bg-muted/20 px-1.5 py-0.5 text-[12px] text-right text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50"
                   />
                   <span className="text-[12px] text-black/60 dark:text-zinc-400">%</span>
@@ -441,8 +511,8 @@ export const InvoiceCardView = memo(
               Notes
             </label>
             <textarea
-              value={data.notes}
-              onChange={(e) => update({ notes: e.target.value })}
+              defaultValue={invoice.notes ?? ''}
+              onBlur={(e) => handleFieldBlur('notes', e.target.value || null)}
               placeholder="Payment terms, bank details, thank you note..."
               rows={3}
               className={cn(inputClass, 'resize-none')}
@@ -476,5 +546,5 @@ export const InvoiceCardView = memo(
       </div>
     );
   },
-  (prev, next) => prev.item.id === next.item.id,
+  (prev, next) => prev.item.id === next.item.id && prev.workspaceId === next.workspaceId,
 );

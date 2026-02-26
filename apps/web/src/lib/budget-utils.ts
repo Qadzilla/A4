@@ -43,11 +43,10 @@ export interface BudgetGroup {
 
 export type BudgetCurrency = SupportedCurrency;
 
+/** View config stored in item.data — actual groups/categories live in DB */
 export interface BudgetCardData {
   period: BudgetPeriod;
   currency: BudgetCurrency;
-  groups: BudgetGroup[];
-  categories: BudgetCategory[];
   notes: string;
 }
 
@@ -66,7 +65,6 @@ export const BUDGET_CURRENCIES = SUPPORTED_CURRENCIES;
 
 export function createDefaultBudgetData(): BudgetCardData {
   const now = new Date();
-  const groupId = crypto.randomUUID();
   return {
     period: {
       type: 'monthly' as const,
@@ -74,17 +72,6 @@ export function createDefaultBudgetData(): BudgetCardData {
       year: now.getFullYear(),
     },
     currency: 'USD' as const,
-    groups: [{ id: groupId, name: 'General', color: BUDGET_GROUP_COLORS[0]! }],
-    categories: [
-      {
-        id: crypto.randomUUID(),
-        name: '',
-        budgeted: 0,
-        actual: 0,
-        notes: '',
-        groupId,
-      },
-    ],
     notes: '',
   };
 }

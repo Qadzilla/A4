@@ -1,4 +1,5 @@
 import { cn } from '@a4/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SUPPORTED_CURRENCIES, formatCurrency } from '../../lib/currency-utils';
 import type { SupportedCurrency } from '../../lib/currency-utils';
@@ -8,6 +9,7 @@ import {
   getDriftColor,
 } from '../../lib/portfolio-utils';
 import type { PortfolioCardData, PortfolioHolding } from '../../lib/portfolio-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
@@ -24,10 +26,13 @@ function MetricBox({ label, children }: { label: string; children: React.ReactNo
 }
 
 export const PortfolioCardView = memo(
-  function PortfolioCardView({ item }: { item: CanvasItem }) {
+  function PortfolioCardView({ item, workspaceId }: { item: CanvasItem; workspaceId: string }) {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const updateItemData = useCanvasStore((s) => s.updateItemData);
 
-    const [data, setData] = useState<PortfolioCardData>(() => {
+    // ── View config (persisted in item.data) ──
+    const [viewConfig, setViewConfig] = useState<PortfolioCardData>(() => {
       const d = item.data as PortfolioCardData | undefined;
       return d?.currency ? { ...createDefaultPortfolioData(), ...d } : createDefaultPortfolioData();
     });
@@ -50,27 +55,25 @@ export const PortfolioCardView = memo(
     // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on item.id only
     useEffect(() => {
       const d = item.data as PortfolioCardData | undefined;
-      setData(
+      setViewConfig(
         d?.currency ? { ...createDefaultPortfolioData(), ...d } : createDefaultPortfolioData(),
       );
       dirtyRef.current = false;
     }, [item.id]);
 
-    // Auto-save (debounced 800ms)
+    // Auto-save view config (debounced 800ms)
     useEffect(() => {
       if (!dirtyRef.current) return;
-
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         setSaveStatus('saving');
-        updateItemData(item.id, data as unknown as Record<string, unknown>);
+        updateItemData(item.id, viewConfig as unknown as Record<string, unknown>);
         setSaveStatus('saved');
         clearTimeout(savedIndicatorRef.current);
         savedIndicatorRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
       }, 800);
-
       return () => clearTimeout(saveTimerRef.current);
-    }, [data, item.id, updateItemData]);
+    }, [viewConfig, item.id, updateItemData]);
 
     useEffect(() => {
       return () => {
@@ -79,49 +82,92 @@ export const PortfolioCardView = memo(
       };
     }, []);
 
-    const update = (patch: Partial<PortfolioCardData>) => {
+    const updateConfig = (patch: Partial<PortfolioCardData>) => {
       dirtyRef.current = true;
-      setData((prev) => ({ ...prev, ...patch }));
+      setViewConfig((prev) => ({ ...prev, ...patch }));
     };
 
+    // ── tRPC queries ──
+    const { data: dbHoldings = [], isLoading } = useQuery(
+      trpc.holding.list.queryOptions({ workspaceId }),
+    );
+
+    // ── tRPC mutations ──
+    const holdingQueryKey = trpc.holding.list.queryKey();
+    const summaryQueryKey = trpc.holding.getSummary.queryKey();
+
+    const invalidateHoldings = () => {
+      queryClient.invalidateQueries({ queryKey: holdingQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+    };
+
+    const createHolding = useMutation(
+      trpc.holding.create.mutationOptions({ onSuccess: invalidateHoldings }),
+    );
+    const updateHolding = useMutation(
+      trpc.holding.update.mutationOptions({ onSuccess: invalidateHoldings }),
+    );
+    const deleteHolding = useMutation(
+      trpc.holding.delete.mutationOptions({ onSuccess: invalidateHoldings }),
+    );
+
+    // ── Holding mutations ──
     const addHolding = () => {
       const value = Number(newHolding.value);
       const targetPct = Number(newHolding.targetPct);
       if (!newHolding.symbol.trim() || Number.isNaN(value) || value < 0) return;
       if (Number.isNaN(targetPct) || targetPct < 0 || targetPct > 100) return;
 
-      const holding: PortfolioHolding = {
-        id: crypto.randomUUID(),
+      createHolding.mutate({
+        workspaceId,
         symbol: newHolding.symbol.trim().toUpperCase(),
         name: newHolding.name.trim(),
         value,
         targetPct,
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, holdings: [...prev.holdings, holding] }));
+      });
       setNewHolding({ symbol: '', name: '', value: '', targetPct: '' });
     };
 
     const removeHolding = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, holdings: prev.holdings.filter((h) => h.id !== id) }));
+      deleteHolding.mutate({ id });
     };
 
-    const updateHolding = (id: string, patch: Partial<PortfolioHolding>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        holdings: prev.holdings.map((h) => (h.id === id ? { ...h, ...patch } : h)),
-      }));
+    const handleHoldingBlur = (id: string, field: string, value: string | number) => {
+      const existing = dbHoldings.find((h) => h.id === id);
+      if (!existing) return;
+      const current = existing[field as keyof typeof existing];
+      if (current === value) return;
+      updateHolding.mutate({ id, data: { [field]: value } });
     };
 
-    const result = useMemo(() => computePortfolio(data), [data]);
+    // ── Computed ──
+    const holdings: PortfolioHolding[] = useMemo(
+      () =>
+        dbHoldings.map((h) => ({
+          id: h.id,
+          symbol: h.symbol,
+          name: h.name,
+          value: h.value,
+          targetPct: h.targetPct,
+        })),
+      [dbHoldings],
+    );
+
+    const result = useMemo(() => computePortfolio(holdings), [holdings]);
 
     const driftColorClass = (color: 'green' | 'yellow' | 'red') => {
       if (color === 'green') return 'text-green-600 dark:text-green-400';
       if (color === 'yellow') return 'text-amber-600 dark:text-amber-400';
       return 'text-red-600 dark:text-red-400';
     };
+
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center bg-muted/30">
+          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      );
+    }
 
     return (
       <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
@@ -162,8 +208,8 @@ export const PortfolioCardView = memo(
               Currency
             </label>
             <select
-              value={data.currency}
-              onChange={(e) => update({ currency: e.target.value as SupportedCurrency })}
+              value={viewConfig.currency}
+              onChange={(e) => updateConfig({ currency: e.target.value as SupportedCurrency })}
               className={cn(inputClass, 'w-[200px]')}
             >
               {SUPPORTED_CURRENCIES.map((c) => (
@@ -178,7 +224,7 @@ export const PortfolioCardView = memo(
           <div className="grid grid-cols-4 gap-4 rounded-lg border border-border bg-muted/20 p-4">
             <MetricBox label="Total Value">
               <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {formatCurrency(result.totalValue, data.currency)}
+                {formatCurrency(result.totalValue, viewConfig.currency)}
               </p>
             </MetricBox>
             <MetricBox label="Target Total">
@@ -195,7 +241,7 @@ export const PortfolioCardView = memo(
             </MetricBox>
             <MetricBox label="Holdings">
               <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {data.holdings.length}
+                {holdings.length}
               </p>
             </MetricBox>
             <MetricBox label="Status">
@@ -215,7 +261,7 @@ export const PortfolioCardView = memo(
           </div>
 
           {/* Target total warning */}
-          {data.holdings.length > 0 && Math.abs(result.targetTotal - 100) > 0.01 && (
+          {holdings.length > 0 && Math.abs(result.targetTotal - 100) > 0.01 && (
             <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5">
               <p className="text-[12px] text-amber-700 dark:text-amber-300">
                 Target allocations sum to {result.targetTotal.toFixed(1)}% instead of 100%. Adjust
@@ -302,7 +348,7 @@ export const PortfolioCardView = memo(
           {/* Holdings Table */}
           <div className="space-y-2">
             <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
-              Holdings ({data.holdings.length})
+              Holdings ({holdings.length})
             </p>
             <div className="rounded-lg border border-border overflow-hidden">
               {/* Header row */}
@@ -318,7 +364,7 @@ export const PortfolioCardView = memo(
                 <span />
               </div>
 
-              {data.holdings.length === 0 ? (
+              {holdings.length === 0 ? (
                 <div className="px-3 py-6 text-center text-[12px] text-muted-foreground">
                   No holdings yet
                 </div>
@@ -333,16 +379,16 @@ export const PortfolioCardView = memo(
                     >
                       <input
                         type="text"
-                        value={h.symbol}
-                        onChange={(e) =>
-                          updateHolding(h.id, { symbol: e.target.value.toUpperCase() })
+                        defaultValue={h.symbol}
+                        onBlur={(e) =>
+                          handleHoldingBlur(h.id, 'symbol', e.target.value.toUpperCase())
                         }
                         className="border-0 bg-transparent text-[13px] font-medium text-black dark:text-zinc-100 uppercase focus:outline-none w-full"
                       />
                       <input
                         type="text"
-                        value={h.name}
-                        onChange={(e) => updateHolding(h.id, { name: e.target.value })}
+                        defaultValue={h.name}
+                        onBlur={(e) => handleHoldingBlur(h.id, 'name', e.target.value)}
                         placeholder="Name"
                         className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none w-full"
                       />
@@ -350,9 +396,9 @@ export const PortfolioCardView = memo(
                         type="number"
                         min={0}
                         step={0.01}
-                        value={h.value}
-                        onChange={(e) =>
-                          updateHolding(h.id, { value: Number(e.target.value) || 0 })
+                        defaultValue={h.value}
+                        onBlur={(e) =>
+                          handleHoldingBlur(h.id, 'value', Number(e.target.value) || 0)
                         }
                         className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
                       />
@@ -361,9 +407,9 @@ export const PortfolioCardView = memo(
                         min={0}
                         max={100}
                         step={0.1}
-                        value={h.targetPct}
-                        onChange={(e) =>
-                          updateHolding(h.id, { targetPct: Number(e.target.value) || 0 })
+                        defaultValue={h.targetPct}
+                        onBlur={(e) =>
+                          handleHoldingBlur(h.id, 'targetPct', Number(e.target.value) || 0)
                         }
                         className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
                       />
@@ -386,7 +432,7 @@ export const PortfolioCardView = memo(
                         )}
                       >
                         {h.driftValue >= 0 ? '+' : ''}
-                        {formatCurrency(h.driftValue, data.currency)}
+                        {formatCurrency(h.driftValue, viewConfig.currency)}
                       </span>
                       <span className="text-[11px] text-center">
                         {trade ? (
@@ -398,7 +444,7 @@ export const PortfolioCardView = memo(
                             }
                           >
                             {trade.action === 'buy' ? 'Buy' : 'Sell'}{' '}
-                            {formatCurrency(trade.amount, data.currency)}
+                            {formatCurrency(trade.amount, viewConfig.currency)}
                           </span>
                         ) : (
                           <span className="text-muted-foreground/50">&mdash;</span>
@@ -485,7 +531,7 @@ export const PortfolioCardView = memo(
                             : 'text-red-600 dark:text-red-400',
                         )}
                       >
-                        {formatCurrency(trade.amount, data.currency)}
+                        {formatCurrency(trade.amount, viewConfig.currency)}
                       </span>
                     </div>
                   ))}
@@ -500,8 +546,8 @@ export const PortfolioCardView = memo(
               Notes
             </label>
             <textarea
-              value={data.notes}
-              onChange={(e) => update({ notes: e.target.value })}
+              value={viewConfig.notes}
+              onChange={(e) => updateConfig({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
               className={cn(inputClass, 'resize-none')}
@@ -518,5 +564,5 @@ export const PortfolioCardView = memo(
       </div>
     );
   },
-  (prev, next) => prev.item.id === next.item.id,
+  (prev, next) => prev.item.id === next.item.id && prev.workspaceId === next.workspaceId,
 );

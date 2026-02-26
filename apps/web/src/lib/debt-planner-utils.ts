@@ -20,7 +20,6 @@ export interface DebtPlannerCardData {
   strategy: DebtStrategy;
   extraMonthlyBudget: number;
   startDate: string; // ISO month "2026-03"
-  debts: Debt[];
   notes: string;
 }
 
@@ -66,7 +65,6 @@ export function createDefaultDebtPlannerData(): DebtPlannerCardData {
     strategy: 'avalanche',
     extraMonthlyBudget: 0,
     startDate: `${now.getFullYear()}-${month}`,
-    debts: [],
     notes: '',
   };
 }
@@ -271,14 +269,17 @@ function runSimulation(
 
 // ─── Public API ────────────────────────────────────────────────────
 
-export function simulateDebtPaydown(data: DebtPlannerCardData): DebtPaydownResult {
-  const { year, month } = parseStartDate(data.startDate);
+export function simulateDebtPaydown(
+  config: Pick<DebtPlannerCardData, 'strategy' | 'extraMonthlyBudget' | 'startDate'>,
+  debts: Debt[],
+): DebtPaydownResult {
+  const { year, month } = parseStartDate(config.startDate);
 
   // Strategy run (with extra budget)
-  const main = runSimulation(data.debts, data.strategy, data.extraMonthlyBudget, year, month);
+  const main = runSimulation(debts, config.strategy, config.extraMonthlyBudget, year, month);
 
   // Baseline run (minimums only, no extra)
-  const baseline = runSimulation(data.debts, data.strategy, 0, year, month);
+  const baseline = runSimulation(debts, config.strategy, 0, year, month);
 
   return {
     debtResults: main.results,

@@ -1,13 +1,13 @@
 # A4 — Systems Reference
 
-> **Last updated:** 2026-02-25
+> **Last updated:** 2026-02-26
 > Deep technical reference for each system. For the high-level overview, see [Architecture](./A4_ARCHITECTURE.md).
 
 ---
 
 ## 1. Database Schema
 
-SQLite via Drizzle ORM. 6 tables, all filtered by `userId` for row-level security.
+SQLite via Drizzle ORM. 21 tables, all filtered by `userId` for row-level security.
 
 **Schema file:** `apps/server/src/db/schema.ts`
 
@@ -94,6 +94,232 @@ Cached ticker metadata from Polygon.io.
 | `logo_url` | text | |
 | `cached_at` | integer NOT NULL | |
 
+### `files`
+Uploaded file metadata.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `name` | text NOT NULL | Original filename |
+| `mime_type` | text NOT NULL | |
+| `size` | integer NOT NULL | Bytes |
+| `path` | text NOT NULL | Server storage path |
+| `created_at` | integer (timestamp) | |
+
+### `categories`
+Income/expense categories for ledger cards.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `name` | text NOT NULL | |
+| `color` | text NOT NULL | Hex color |
+| `type` | text NOT NULL | `'income'` or `'expense'` |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `transactions`
+Financial transactions linked to categories.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `category_id` | text | FK to categories |
+| `amount` | real NOT NULL | |
+| `currency` | text NOT NULL | |
+| `description` | text | |
+| `date` | integer (timestamp) | |
+| `type` | text NOT NULL | `'income'` or `'expense'` |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `account_groups`
+Groupings for account cards (e.g., "Banking", "Brokerage").
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `name` | text NOT NULL | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `accounts`
+Individual financial accounts.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `group_id` | text | FK to account_groups |
+| `name` | text NOT NULL | |
+| `institution` | text | |
+| `balance` | real NOT NULL | |
+| `type` | text NOT NULL | `'checking'`, `'savings'`, `'brokerage'`, `'credit'`, `'other'` |
+| `notes` | text | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `receipts`
+Receipt entries for receipt cards.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `merchant` | text NOT NULL | |
+| `amount` | real NOT NULL | |
+| `date` | text NOT NULL | |
+| `category` | text | |
+| `notes` | text | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `subscriptions`
+Recurring subscription entries.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `name` | text NOT NULL | |
+| `amount` | real NOT NULL | |
+| `frequency` | text NOT NULL | `'monthly'`, `'yearly'`, etc. |
+| `category` | text | |
+| `next_billing_date` | text | |
+| `status` | text NOT NULL | `'active'`, `'paused'`, `'cancelled'` |
+| `notes` | text | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `invoices`
+Invoice headers for invoice cards.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `invoice_number` | text | |
+| `status` | text NOT NULL | `'draft'`, `'sent'`, `'paid'`, `'overdue'` |
+| `from_name` | text | |
+| `to_name` | text | |
+| `issue_date` | text | |
+| `due_date` | text | |
+| `tax_rate` | real | |
+| `notes` | text | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `invoice_line_items`
+Line items for invoices.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `invoice_id` | text NOT NULL | FK to invoices |
+| `user_id` | text NOT NULL | |
+| `description` | text NOT NULL | |
+| `quantity` | real NOT NULL | |
+| `unit_price` | real NOT NULL | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `budget_groups`
+Budget category groups for budget cards.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `name` | text NOT NULL | |
+| `color` | text NOT NULL | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `budget_categories`
+Individual budget categories within groups.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `group_id` | text NOT NULL | FK to budget_groups |
+| `user_id` | text NOT NULL | |
+| `name` | text NOT NULL | |
+| `budgeted` | real NOT NULL | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `holdings`
+Portfolio holdings for portfolio cards.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `symbol` | text NOT NULL | Ticker symbol |
+| `name` | text NOT NULL | |
+| `value` | real NOT NULL | Current value |
+| `target_pct` | real NOT NULL | Target allocation % |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `debts`
+Debt entries for debt planner cards.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `name` | text NOT NULL | |
+| `balance` | real NOT NULL | |
+| `annual_interest_rate` | real NOT NULL | |
+| `minimum_payment` | real NOT NULL | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `networth_categories`
+Asset/liability categories for net worth cards.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `name` | text NOT NULL | |
+| `kind` | text NOT NULL | `'asset'` or `'liability'` |
+| `is_default` | integer (boolean) | Default `false` |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
+### `networth_entries`
+Individual asset/liability entries within categories.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `workspace_id` | text NOT NULL | |
+| `user_id` | text NOT NULL | |
+| `name` | text NOT NULL | |
+| `category_id` | text NOT NULL | FK to networth_categories |
+| `value` | real NOT NULL | |
+| `notes` | text | |
+| `created_at` | integer (timestamp) | |
+| `updated_at` | integer (timestamp) | |
+
 ---
 
 ## 2. Canvas System
@@ -102,7 +328,7 @@ The canvas is the primary workspace interaction surface — an infinite zoomable
 
 ### Canvas Components
 
-54 components in `apps/web/src/components/canvas/`:
+61 components in `apps/web/src/components/canvas/`:
 
 | Component | File | Purpose |
 |---|---|---|
@@ -113,13 +339,13 @@ The canvas is the primary workspace interaction surface — an infinite zoomable
 | **GeneralToolPanel** | `general-tool-panel.tsx` | Tool palette — `a4-page`, `note` |
 | **SecretToolPanel** | `secret-tool-panel.tsx` | Tool palette — `secret-card` |
 | **DataToolPanel** | `data-tool-panel.tsx` | Tool palette — `table-card`, `kpi-card`, `chart-card`, `file-card`, `timer-card` |
-| **FinanceToolPanel** | `finance-tool-panel.tsx` | Tool palette — `invoice-card`, `budget-card`, `ledger-card`, `receipt-card`, `subscription-card`, `account-card`, `loan-calculator-card`, `projection-card`, `breakeven-card`, `depreciation-card` |
+| **FinanceToolPanel** | `finance-tool-panel.tsx` | Tool palette — `invoice-card`, `budget-card`, `ledger-card`, `receipt-card`, `subscription-card`, `account-card`, `portfolio-card`, `networth-card`, `debt-planner-card`, `loan-calculator-card`, `projection-card`, `breakeven-card`, `depreciation-card`, `rent-vs-buy-card`, `embed-card` |
 | **ReportsToolPanel** | `reports-tool-panel.tsx` | Tool palette — `pnl-card`, `balance-sheet-card`, `cash-flow-card` |
 | **TaxToolPanel** | `tax-tool-panel.tsx` | Tool palette — `tax-estimator-card` |
-| ***-content.tsx** | 22 files | Compact canvas preview per item type (memo, `h-full w-full`, no zoom prop) |
-| ***-view.tsx** | 19 files | Full tab editor per item type (local state, dirtyRef, debounced auto-save) |
+| ***-content.tsx** | 27 files | Compact canvas preview per item type (memo, `h-full w-full`, no zoom prop) |
+| ***-view.tsx** | 27 files | Full tab editor per item type (local state, dirtyRef, debounced auto-save) |
 
-### Canvas Item Types (22 types)
+### Canvas Item Types (27 types)
 
 | Type | Preview (on canvas) | Full View (in tab) | Content Storage |
 |---|---|---|---|
@@ -131,12 +357,12 @@ The canvas is the primary workspace interaction surface — an infinite zoomable
 | `chart-card` | Recharts pie/bar/line/area | Chart config + table binding | `data` — chart type, series config |
 | `file-card` | File preview (PDF/CSV/image) | Full file viewer | `data` — fileId, fileName, preview data |
 | `timer-card` | Countdown display | Timer config with color presets | `data` — deadline, color |
-| `invoice-card` | Invoice summary | Line items, tax, from/to, PDF export | `data` — InvoiceData (status, items, parties) |
-| `budget-card` | Budget summary + progress | Category groups, table binding, progress bars | `data` — BudgetData (period, groups, categories) |
+| `invoice-card` | Invoice summary | Line items, tax, from/to, PDF export | `data` — view config (currency, notes); entity data in `invoices` + `invoice_line_items` DB tables |
+| `budget-card` | Budget summary + progress | Category groups, table binding, progress bars | `data` — view config (period, currency, notes); entity data in `budget_groups` + `budget_categories` DB tables |
 | `ledger-card` | Recent entries + balance | Income/expense entries, categories, filters | `data` — LedgerData (entries, categories, currency) |
-| `receipt-card` | Receipt list + totals | Receipt capture, categorization | `data` — ReceiptData (receipts, categories) |
-| `subscription-card` | Active subscriptions | Recurring bills tracker | `data` — SubscriptionData (subscriptions, categories) |
-| `account-card` | Account balances overview | Bank/brokerage/card accounts, groups | `data` — AccountData (accounts, groups, currency) |
+| `receipt-card` | Receipt list + totals | Receipt capture, categorization | `data` — view config (currency, notes); entity data in `receipts` DB table |
+| `subscription-card` | Active subscriptions | Recurring bills tracker | `data` — view config (currency, notes); entity data in `subscriptions` DB table |
+| `account-card` | Account balances overview | Bank/brokerage/card accounts, groups | `data` — view config (currency, notes); entity data in `accounts` + `account_groups` DB tables |
 | `pnl-card` | P&L summary | 12-month income statement, waterfall, margins | `data` — PnlData (sections, line items) |
 | `balance-sheet-card` | Balance summary | Assets/liabilities/equity, ratios | `data` — BSData (sections, line items) |
 | `cash-flow-card` | Cash flow summary | 12-month indirect method, 3 GAAP sections | `data` — CFData (sections, line items) |
@@ -145,6 +371,11 @@ The canvas is the primary workspace interaction surface — an infinite zoomable
 | `projection-card` | Final balance + growth bar | Compound growth inputs, year-by-year schedule | `data` — ProjectionCardData (starting amount, contributions, growth rate, inflation) |
 | `breakeven-card` | Break-even units + cost bar | Cost/pricing inputs, profit/loss schedule | `data` — BreakevenCardData (fixed costs, variable cost, price per unit) |
 | `depreciation-card` | Year 1 depreciation + progress bar | 4 methods (SL/DB/DDB/SYD), depreciation schedule | `data` — DepreciationCardData (asset cost, salvage, life, method) |
+| `embed-card` | Embedded URL preview | External content / iframe embedding | `data` — EmbedCardData (url, title) |
+| `portfolio-card` | Total value + holding count | Holdings, drift analysis, rebalance trades | `data` — view config (currency, notes); entity data in `holdings` DB table |
+| `networth-card` | Assets/liabilities/net worth | Categories, entries, balance breakdown | `data` — view config (currency, notes); entity data in `networth_categories` + `networth_entries` DB tables |
+| `debt-planner-card` | Total balance + debt count | Snowball/avalanche simulation, paydown timeline | `data` — view config (currency, strategy, extraMonthlyBudget, startDate, notes); entity data in `debts` DB table |
+| `rent-vs-buy-card` | Monthly cost comparison | Home ownership vs renting analysis, breakeven year | `data` — RentVsBuyCardData (purchase price, down payment, rates, rent, etc.) |
 
 ### Canvas Store (`canvas-store.ts`)
 
@@ -291,6 +522,15 @@ Real-time and historical market data via Polygon.io.
 | `user.ts` | `userProfileSchema`, `updateProfileSchema` |
 | `canvas.ts` | `anchorPositionSchema`, `canvasItemSchema`, `canvasConnectionSchema`, `saveCanvasSchema` |
 | `market-data.ts` | `assetClassSchema`, `timespanSchema`, `tickerDetailSchema`, `aggregateBarSchema`, `realtimeQuoteSchema`, `realtimeTradeSchema`, `tickerSnapshotSchema`, `tickerSearchInputSchema`, `aggregateInputSchema`, WebSocket message schemas |
+| `account.ts` | `createAccountSchema`, `updateAccountSchema`, `createAccountGroupSchema`, `updateAccountGroupSchema` |
+| `category.ts` | `createCategorySchema`, `updateCategorySchema` |
+| `receipt.ts` | `createReceiptSchema`, `updateReceiptSchema` |
+| `subscription.ts` | `createSubscriptionSchema`, `updateSubscriptionSchema` |
+| `invoice.ts` | `createInvoiceSchema`, `updateInvoiceSchema`, `createInvoiceLineItemSchema`, `updateInvoiceLineItemSchema` |
+| `budget.ts` | `createBudgetGroupSchema`, `updateBudgetGroupSchema`, `createBudgetCategorySchema`, `updateBudgetCategorySchema` |
+| `holding.ts` | `createHoldingSchema`, `updateHoldingSchema` |
+| `debt.ts` | `createDebtSchema`, `updateDebtSchema` |
+| `networth.ts` | `networthCategoryKindSchema`, `createNetworthCategorySchema`, `updateNetworthCategorySchema`, `createNetworthEntrySchema`, `updateNetworthEntrySchema`, `DEFAULT_NETWORTH_CATEGORIES` |
 
 ---
 

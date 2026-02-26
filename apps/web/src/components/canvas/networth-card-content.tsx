@@ -1,8 +1,11 @@
 import { cn } from '@a4/ui';
+import { useQuery } from '@tanstack/react-query';
 import { memo } from 'react';
+import { useParams } from 'react-router';
 import { formatCurrency } from '../../lib/currency-utils';
-import { computeNetWorth, getNetWorthHealthColor } from '../../lib/networth-utils';
+import { getNetWorthHealthColor } from '../../lib/networth-utils';
 import type { NetWorthCardData } from '../../lib/networth-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 
 const compactFormatter = new Intl.NumberFormat('en-US', {
@@ -10,29 +13,25 @@ const compactFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 1,
 });
 
-export const NetWorthCardContent = memo(function NetWorthCardContent({ item }: { item: CanvasItem }) {
+export const NetWorthCardContent = memo(function NetWorthCardContent({
+  item,
+}: { item: CanvasItem }) {
+  const { id: workspaceId } = useParams();
+  const trpc = useTRPC();
   const data = item.data as NetWorthCardData | undefined;
-
   const currency = data?.currency ?? 'USD';
-  const entries = data?.entries ?? [];
-  const categories = data?.categories ?? [];
 
-  const safeData: NetWorthCardData = {
-    currency,
-    categories,
-    entries,
-    notes: data?.notes ?? '',
-  };
+  const { data: summary, isLoading } = useQuery({
+    ...trpc.networth.getSummary.queryOptions({ workspaceId: workspaceId ?? '' }),
+    staleTime: 60_000,
+    enabled: !!workspaceId,
+  });
 
-  const { totalAssets, totalLiabilities, netWorth } = computeNetWorth(safeData);
+  const totalAssets = summary?.totalAssets ?? 0;
+  const totalLiabilities = summary?.totalLiabilities ?? 0;
+  const netWorth = summary?.netWorth ?? 0;
+  const entryCount = summary?.entryCount ?? 0;
   const healthColor = getNetWorthHealthColor(netWorth);
-
-  const assetCatCount = new Set(
-    entries.filter((e) => categories.find((c) => c.id === e.categoryId)?.kind === 'asset').map((e) => e.categoryId),
-  ).size;
-  const liabCatCount = new Set(
-    entries.filter((e) => categories.find((c) => c.id === e.categoryId)?.kind === 'liability').map((e) => e.categoryId),
-  ).size;
 
   const total = totalAssets + totalLiabilities;
   const assetPct = total > 0 ? (totalAssets / total) * 100 : 50;
@@ -45,58 +44,65 @@ export const NetWorthCardContent = memo(function NetWorthCardContent({ item }: {
           Net Worth
         </span>
         <span className="text-[10px] text-muted-foreground truncate ml-2">
-          {entries.length} entr{entries.length === 1 ? 'y' : 'ies'}
+          {isLoading ? '...' : `${entryCount} entr${entryCount === 1 ? 'y' : 'ies'}`}
         </span>
       </div>
 
       {/* Body */}
       <div className="flex-1 flex flex-col justify-center px-3 py-2 gap-1">
-        <p className="text-[10px] text-muted-foreground">Net Worth</p>
-        <p
-          className={cn(
-            'text-[20px] font-bold leading-tight',
-            healthColor === 'green'
-              ? 'text-green-600 dark:text-green-400'
-              : 'text-red-600 dark:text-red-400',
-          )}
-        >
-          {formatCurrency(netWorth, currency)}
-        </p>
-        <p className="text-[13px] text-muted-foreground tabular-nums">
-          +${compactFormatter.format(totalAssets)} assets &minus;$
-          {compactFormatter.format(totalLiabilities)} liab
-        </p>
+        {isLoading ? (
+          <div className="space-y-2">
+            <div className="h-3 w-16 rounded bg-muted/40 animate-pulse" />
+            <div className="h-6 w-28 rounded bg-muted/40 animate-pulse" />
+            <div className="h-3 w-24 rounded bg-muted/40 animate-pulse" />
+          </div>
+        ) : (
+          <>
+            <p className="text-[10px] text-muted-foreground">Net Worth</p>
+            <p
+              className={cn(
+                'text-[20px] font-bold leading-tight',
+                healthColor === 'green'
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400',
+              )}
+            >
+              {formatCurrency(netWorth, currency)}
+            </p>
+            <p className="text-[13px] text-muted-foreground tabular-nums">
+              +${compactFormatter.format(totalAssets)} assets &minus;$
+              {compactFormatter.format(totalLiabilities)} liab
+            </p>
 
-        {/* Asset vs Liability bar */}
-        <div className="mt-1">
-          <div className="h-2 w-full rounded-full bg-muted/40 overflow-hidden flex">
-            <div
-              className="h-full bg-green-500 dark:bg-green-400 transition-all"
-              style={{ width: `${assetPct}%` }}
-            />
-            <div
-              className="h-full bg-red-500 dark:bg-red-400 transition-all"
-              style={{ width: `${100 - assetPct}%` }}
-            />
-          </div>
-          <div className="flex justify-between mt-0.5">
-            <span className="text-[9px] text-green-600 dark:text-green-400">
-              Assets {Math.round(assetPct)}%
-            </span>
-            <span className="text-[9px] text-red-600 dark:text-red-400">
-              Liab {Math.round(100 - assetPct)}%
-            </span>
-          </div>
-        </div>
+            {/* Asset vs Liability bar */}
+            <div className="mt-1">
+              <div className="h-2 w-full rounded-full bg-muted/40 overflow-hidden flex">
+                <div
+                  className="h-full bg-green-500 dark:bg-green-400 transition-all"
+                  style={{ width: `${assetPct}%` }}
+                />
+                <div
+                  className="h-full bg-red-500 dark:bg-red-400 transition-all"
+                  style={{ width: `${100 - assetPct}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-0.5">
+                <span className="text-[9px] text-green-600 dark:text-green-400">
+                  Assets {Math.round(assetPct)}%
+                </span>
+                <span className="text-[9px] text-red-600 dark:text-red-400">
+                  Liab {Math.round(100 - assetPct)}%
+                </span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-muted/20">
         <span className="text-[10px] text-muted-foreground">
-          {assetCatCount} asset cat{assetCatCount === 1 ? '' : 's'}
-        </span>
-        <span className="text-[10px] text-muted-foreground">
-          {liabCatCount} liab cat{liabCatCount === 1 ? '' : 's'}
+          {isLoading ? '...' : `${entryCount} entr${entryCount === 1 ? 'y' : 'ies'}`}
         </span>
       </div>
     </div>

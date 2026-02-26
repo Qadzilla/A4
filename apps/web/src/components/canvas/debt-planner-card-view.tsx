@@ -1,35 +1,29 @@
 import { cn } from '@a4/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SUPPORTED_CURRENCIES, formatCurrency } from '../../lib/currency-utils';
 import type { SupportedCurrency } from '../../lib/currency-utils';
-import { simulateDebtPaydown } from '../../lib/debt-planner-utils';
+import { createDefaultDebtPlannerData, simulateDebtPaydown } from '../../lib/debt-planner-utils';
 import type { Debt, DebtPlannerCardData, DebtStrategy } from '../../lib/debt-planner-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
 const inputClass =
   'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
 
-function defaultData(): DebtPlannerCardData {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return {
-    currency: 'USD',
-    strategy: 'avalanche',
-    extraMonthlyBudget: 0,
-    startDate: `${now.getFullYear()}-${month}`,
-    debts: [],
-    notes: '',
-  };
-}
-
 export const DebtPlannerCardView = memo(
-  function DebtPlannerCardView({ item }: { item: CanvasItem }) {
+  function DebtPlannerCardView({ item, workspaceId }: { item: CanvasItem; workspaceId: string }) {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const updateItemData = useCanvasStore((s) => s.updateItemData);
 
-    const [data, setData] = useState<DebtPlannerCardData>(() => {
+    // ── View config (persisted in item.data) ──
+    const [viewConfig, setViewConfig] = useState<DebtPlannerCardData>(() => {
       const d = item.data as DebtPlannerCardData | undefined;
-      return d?.currency ? { ...defaultData(), ...d } : defaultData();
+      return d?.currency
+        ? { ...createDefaultDebtPlannerData(), ...d }
+        : createDefaultDebtPlannerData();
     });
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -46,25 +40,25 @@ export const DebtPlannerCardView = memo(
     // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on item.id only
     useEffect(() => {
       const d = item.data as DebtPlannerCardData | undefined;
-      setData(d?.currency ? { ...defaultData(), ...d } : defaultData());
+      setViewConfig(
+        d?.currency ? { ...createDefaultDebtPlannerData(), ...d } : createDefaultDebtPlannerData(),
+      );
       dirtyRef.current = false;
     }, [item.id]);
 
-    // Auto-save (debounced 800ms)
+    // Auto-save view config (debounced 800ms)
     useEffect(() => {
       if (!dirtyRef.current) return;
-
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         setSaveStatus('saving');
-        updateItemData(item.id, data as unknown as Record<string, unknown>);
+        updateItemData(item.id, viewConfig as unknown as Record<string, unknown>);
         setSaveStatus('saved');
         clearTimeout(savedIndicatorRef.current);
         savedIndicatorRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
       }, 800);
-
       return () => clearTimeout(saveTimerRef.current);
-    }, [data, item.id, updateItemData]);
+    }, [viewConfig, item.id, updateItemData]);
 
     useEffect(() => {
       return () => {
@@ -73,12 +67,36 @@ export const DebtPlannerCardView = memo(
       };
     }, []);
 
-    const update = (patch: Partial<DebtPlannerCardData>) => {
+    const updateConfig = (patch: Partial<DebtPlannerCardData>) => {
       dirtyRef.current = true;
-      setData((prev) => ({ ...prev, ...patch }));
+      setViewConfig((prev) => ({ ...prev, ...patch }));
     };
 
-    // Debt mutations
+    // ── tRPC queries ──
+    const { data: dbDebts = [], isLoading } = useQuery(
+      trpc.debt.list.queryOptions({ workspaceId }),
+    );
+
+    // ── tRPC mutations ──
+    const debtQueryKey = trpc.debt.list.queryKey();
+    const summaryQueryKey = trpc.debt.getSummary.queryKey();
+
+    const invalidateDebts = () => {
+      queryClient.invalidateQueries({ queryKey: debtQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+    };
+
+    const createDebt = useMutation(
+      trpc.debt.create.mutationOptions({ onSuccess: invalidateDebts }),
+    );
+    const updateDebt = useMutation(
+      trpc.debt.update.mutationOptions({ onSuccess: invalidateDebts }),
+    );
+    const deleteDebt = useMutation(
+      trpc.debt.delete.mutationOptions({ onSuccess: invalidateDebts }),
+    );
+
+    // ── Debt mutations ──
     const addDebt = () => {
       const balance = Number(newDebt.balance);
       const rate = Number(newDebt.rate);
@@ -93,35 +111,53 @@ export const DebtPlannerCardView = memo(
         minPayment <= 0
       )
         return;
-      const debt: Debt = {
-        id: crypto.randomUUID(),
+
+      createDebt.mutate({
+        workspaceId,
         name: newDebt.name.trim(),
         balance,
         annualInterestRate: rate,
         minimumPayment: minPayment,
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, debts: [...prev.debts, debt] }));
+      });
       setNewDebt({ name: '', balance: '', rate: '', minPayment: '' });
     };
 
     const removeDebt = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, debts: prev.debts.filter((d) => d.id !== id) }));
+      deleteDebt.mutate({ id });
     };
 
-    const updateDebt = (id: string, patch: Partial<Debt>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        debts: prev.debts.map((d) => (d.id === id ? { ...d, ...patch } : d)),
-      }));
+    const handleDebtBlur = (id: string, field: string, value: string | number) => {
+      const existing = dbDebts.find((d) => d.id === id);
+      if (!existing) return;
+      const current = existing[field as keyof typeof existing];
+      if (current === value) return;
+      updateDebt.mutate({ id, data: { [field]: value } });
     };
 
-    // Computed
-    const result = useMemo(() => simulateDebtPaydown(data), [data]);
+    // ── Computed ──
+    const debts: Debt[] = useMemo(
+      () =>
+        dbDebts.map((d) => ({
+          id: d.id,
+          name: d.name,
+          balance: d.balance,
+          annualInterestRate: d.annualInterestRate,
+          minimumPayment: d.minimumPayment,
+        })),
+      [dbDebts],
+    );
 
-    const totalDebt = data.debts.reduce((s, d) => s + d.balance, 0);
+    const result = useMemo(() => simulateDebtPaydown(viewConfig, debts), [viewConfig, debts]);
+
+    const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
+
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center bg-muted/30">
+          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      );
+    }
 
     return (
       <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
@@ -155,7 +191,7 @@ export const DebtPlannerCardView = memo(
             )}
           </div>
 
-          {/* Settings 2×2 grid */}
+          {/* Settings 2x2 grid */}
           <div className="grid grid-cols-2 gap-4">
             {/* Currency */}
             <div className="space-y-1.5">
@@ -163,8 +199,8 @@ export const DebtPlannerCardView = memo(
                 Currency
               </label>
               <select
-                value={data.currency}
-                onChange={(e) => update({ currency: e.target.value as SupportedCurrency })}
+                value={viewConfig.currency}
+                onChange={(e) => updateConfig({ currency: e.target.value as SupportedCurrency })}
                 className={inputClass}
               >
                 {SUPPORTED_CURRENCIES.map((c) => (
@@ -182,8 +218,8 @@ export const DebtPlannerCardView = memo(
               </label>
               <input
                 type="month"
-                value={data.startDate}
-                onChange={(e) => update({ startDate: e.target.value })}
+                value={viewConfig.startDate}
+                onChange={(e) => updateConfig({ startDate: e.target.value })}
                 className={inputClass}
               />
             </div>
@@ -196,10 +232,10 @@ export const DebtPlannerCardView = memo(
               <div className="flex rounded-lg border border-border overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => update({ strategy: 'avalanche' })}
+                  onClick={() => updateConfig({ strategy: 'avalanche' })}
                   className={cn(
                     'flex-1 px-3 py-1.5 text-[12px] font-medium transition-colors',
-                    data.strategy === 'avalanche'
+                    viewConfig.strategy === 'avalanche'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted/20 text-muted-foreground hover:bg-muted/40',
                   )}
@@ -208,10 +244,10 @@ export const DebtPlannerCardView = memo(
                 </button>
                 <button
                   type="button"
-                  onClick={() => update({ strategy: 'snowball' })}
+                  onClick={() => updateConfig({ strategy: 'snowball' })}
                   className={cn(
                     'flex-1 px-3 py-1.5 text-[12px] font-medium transition-colors',
-                    data.strategy === 'snowball'
+                    viewConfig.strategy === 'snowball'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted/20 text-muted-foreground hover:bg-muted/40',
                   )}
@@ -220,7 +256,7 @@ export const DebtPlannerCardView = memo(
                 </button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                {data.strategy === 'avalanche'
+                {viewConfig.strategy === 'avalanche'
                   ? 'Highest interest rate first — minimizes total interest'
                   : 'Smallest balance first — quicker wins for motivation'}
               </p>
@@ -235,9 +271,9 @@ export const DebtPlannerCardView = memo(
                 type="number"
                 min={0}
                 step={1}
-                value={data.extraMonthlyBudget}
+                value={viewConfig.extraMonthlyBudget}
                 onChange={(e) =>
-                  update({ extraMonthlyBudget: Math.max(0, Number(e.target.value) || 0) })
+                  updateConfig({ extraMonthlyBudget: Math.max(0, Number(e.target.value) || 0) })
                 }
                 className={inputClass}
               />
@@ -322,10 +358,10 @@ export const DebtPlannerCardView = memo(
           {/* Debt list table */}
           <div className="space-y-2">
             <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
-              Debts ({data.debts.length})
+              Debts ({debts.length})
             </p>
             <div className="rounded-lg border border-border overflow-hidden">
-              {data.debts.length === 0 ? (
+              {debts.length === 0 ? (
                 <div className="px-3 py-6 text-center text-[12px] text-muted-foreground">
                   No debts yet
                 </div>
@@ -353,7 +389,7 @@ export const DebtPlannerCardView = memo(
                     </span>
                     <span />
                   </div>
-                  {data.debts.map((debt) => {
+                  {debts.map((debt) => {
                     const dr = result.debtResults.find((r) => r.debtId === debt.id);
                     return (
                       <div
@@ -362,17 +398,17 @@ export const DebtPlannerCardView = memo(
                       >
                         <input
                           type="text"
-                          value={debt.name}
-                          onChange={(e) => updateDebt(debt.id, { name: e.target.value })}
+                          defaultValue={debt.name}
+                          onBlur={(e) => handleDebtBlur(debt.id, 'name', e.target.value)}
                           className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 focus:outline-none"
                         />
                         <input
                           type="number"
                           min={0}
                           step={0.01}
-                          value={debt.balance}
-                          onChange={(e) =>
-                            updateDebt(debt.id, { balance: Number(e.target.value) || 0 })
+                          defaultValue={debt.balance}
+                          onBlur={(e) =>
+                            handleDebtBlur(debt.id, 'balance', Number(e.target.value) || 0)
                           }
                           className="border-0 bg-transparent text-[13px] text-right text-red-600 dark:text-red-400 focus:outline-none tabular-nums w-full"
                         />
@@ -380,11 +416,13 @@ export const DebtPlannerCardView = memo(
                           type="number"
                           min={0}
                           step={0.1}
-                          value={debt.annualInterestRate}
-                          onChange={(e) =>
-                            updateDebt(debt.id, {
-                              annualInterestRate: Number(e.target.value) || 0,
-                            })
+                          defaultValue={debt.annualInterestRate}
+                          onBlur={(e) =>
+                            handleDebtBlur(
+                              debt.id,
+                              'annualInterestRate',
+                              Number(e.target.value) || 0,
+                            )
                           }
                           className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
                         />
@@ -392,11 +430,9 @@ export const DebtPlannerCardView = memo(
                           type="number"
                           min={0}
                           step={1}
-                          value={debt.minimumPayment}
-                          onChange={(e) =>
-                            updateDebt(debt.id, {
-                              minimumPayment: Number(e.target.value) || 0,
-                            })
+                          defaultValue={debt.minimumPayment}
+                          onBlur={(e) =>
+                            handleDebtBlur(debt.id, 'minimumPayment', Number(e.target.value) || 0)
                           }
                           className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
                         />
@@ -404,7 +440,7 @@ export const DebtPlannerCardView = memo(
                           {dr && dr.payoffMonth > 0 ? `Mo ${dr.payoffMonth}` : '—'}
                         </span>
                         <span className="text-[12px] text-right text-red-600 dark:text-red-400 tabular-nums">
-                          {dr ? formatCurrency(dr.totalInterest, data.currency) : '—'}
+                          {dr ? formatCurrency(dr.totalInterest, viewConfig.currency) : '—'}
                         </span>
                         <button
                           type="button"
@@ -434,7 +470,7 @@ export const DebtPlannerCardView = memo(
           </div>
 
           {/* Payoff Schedule (collapsible) */}
-          {data.debts.length > 0 && result.schedule.length > 0 && (
+          {debts.length > 0 && result.schedule.length > 0 && (
             <div className="space-y-2">
               <button
                 type="button"
@@ -487,16 +523,16 @@ export const DebtPlannerCardView = memo(
                           <tr key={row.month} className="border-b border-border/10 last:border-b-0">
                             <td className="px-3 py-1 text-muted-foreground">{row.date}</td>
                             <td className="px-3 py-1 text-right tabular-nums">
-                              {formatCurrency(row.totalPayment, data.currency)}
+                              {formatCurrency(row.totalPayment, viewConfig.currency)}
                             </td>
                             <td className="px-3 py-1 text-right tabular-nums text-red-600 dark:text-red-400">
-                              {formatCurrency(row.totalInterest, data.currency)}
+                              {formatCurrency(row.totalInterest, viewConfig.currency)}
                             </td>
                             <td className="px-3 py-1 text-right tabular-nums text-green-600 dark:text-green-400">
-                              {formatCurrency(row.totalPrincipal, data.currency)}
+                              {formatCurrency(row.totalPrincipal, viewConfig.currency)}
                             </td>
                             <td className="px-3 py-1 text-right tabular-nums">
-                              {formatCurrency(row.totalBalance, data.currency)}
+                              {formatCurrency(row.totalBalance, viewConfig.currency)}
                             </td>
                             <td className="px-3 py-1 text-right tabular-nums text-muted-foreground">
                               {row.debtsRemaining}
@@ -518,7 +554,7 @@ export const DebtPlannerCardView = memo(
                 Total Debt
               </p>
               <p className="text-[16px] font-bold text-red-600 dark:text-red-400 tabular-nums">
-                {formatCurrency(totalDebt, data.currency)}
+                {formatCurrency(totalDebt, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -526,7 +562,7 @@ export const DebtPlannerCardView = memo(
                 Debt-Free Date
               </p>
               <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {data.debts.length > 0 ? result.debtFreeDate : '—'}
+                {debts.length > 0 ? result.debtFreeDate : '—'}
               </p>
             </div>
             <div>
@@ -534,7 +570,7 @@ export const DebtPlannerCardView = memo(
                 Total Interest
               </p>
               <p className="text-[16px] font-bold text-red-600 dark:text-red-400 tabular-nums">
-                {formatCurrency(result.totalInterest, data.currency)}
+                {formatCurrency(result.totalInterest, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -542,7 +578,7 @@ export const DebtPlannerCardView = memo(
                 Interest Saved
               </p>
               <p className="text-[16px] font-bold text-green-600 dark:text-green-400 tabular-nums">
-                {formatCurrency(result.interestSaved, data.currency)}
+                {formatCurrency(result.interestSaved, viewConfig.currency)}
               </p>
             </div>
           </div>
@@ -553,8 +589,8 @@ export const DebtPlannerCardView = memo(
               Notes
             </label>
             <textarea
-              value={data.notes}
-              onChange={(e) => update({ notes: e.target.value })}
+              value={viewConfig.notes}
+              onChange={(e) => updateConfig({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
               className={cn(inputClass, 'resize-none')}
@@ -564,5 +600,5 @@ export const DebtPlannerCardView = memo(
       </div>
     );
   },
-  (prev, next) => prev.item.id === next.item.id,
+  (prev, next) => prev.item.id === next.item.id && prev.workspaceId === next.workspaceId,
 );

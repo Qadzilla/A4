@@ -836,17 +836,17 @@ export default function WorkspaceDetailPage() {
         ) : activeItem.type === 'timer-card' ? (
           <TimerCardView item={activeItem} />
         ) : activeItem.type === 'invoice-card' ? (
-          <InvoiceCardView item={activeItem} />
+          <InvoiceCardView item={activeItem} workspaceId={id!} />
         ) : activeItem.type === 'budget-card' ? (
-          <BudgetCardView item={activeItem} />
+          <BudgetCardView item={activeItem} workspaceId={id!} />
         ) : activeItem.type === 'ledger-card' ? (
-          <LedgerCardView item={activeItem} />
+          <LedgerCardView item={activeItem} workspaceId={id!} />
         ) : activeItem.type === 'receipt-card' ? (
           <ReceiptCardView item={activeItem} workspaceId={id!} />
         ) : activeItem.type === 'subscription-card' ? (
-          <SubscriptionCardView item={activeItem} />
+          <SubscriptionCardView item={activeItem} workspaceId={id!} />
         ) : activeItem.type === 'account-card' ? (
-          <AccountCardView item={activeItem} />
+          <AccountCardView item={activeItem} workspaceId={id!} />
         ) : activeItem.type === 'pnl-card' ? (
           <PnlCardView item={activeItem} />
         ) : activeItem.type === 'balance-sheet-card' ? (
@@ -864,11 +864,11 @@ export default function WorkspaceDetailPage() {
         ) : activeItem.type === 'depreciation-card' ? (
           <DepreciationCardView item={activeItem} />
         ) : activeItem.type === 'networth-card' ? (
-          <NetWorthCardView item={activeItem} />
+          <NetWorthCardView item={activeItem} workspaceId={id!} />
         ) : activeItem.type === 'debt-planner-card' ? (
-          <DebtPlannerCardView item={activeItem} />
+          <DebtPlannerCardView item={activeItem} workspaceId={id!} />
         ) : activeItem.type === 'portfolio-card' ? (
-          <PortfolioCardView item={activeItem} />
+          <PortfolioCardView item={activeItem} workspaceId={id!} />
         ) : activeItem.type === 'rent-vs-buy-card' ? (
           <RentVsBuyCardView item={activeItem} />
         ) : activeItem.type === 'embed-card' ? (

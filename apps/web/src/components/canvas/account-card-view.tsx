@@ -1,4 +1,5 @@
 import { cn } from '@a4/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ACCOUNT_GROUP_COLORS,
@@ -7,9 +8,10 @@ import {
   getNetWorthHealthColor,
   isLiability,
 } from '../../lib/account-utils';
-import type { Account, AccountCardData, AccountGroup, AccountType } from '../../lib/account-utils';
+import type { Account, AccountCardData, AccountType } from '../../lib/account-utils';
 import { SUPPORTED_CURRENCIES, formatCurrency } from '../../lib/currency-utils';
 import type { SupportedCurrency } from '../../lib/currency-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
@@ -17,23 +19,17 @@ const inputClass =
   'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
 
 function defaultData(): AccountCardData {
-  return {
-    currency: 'USD',
-    groups: [],
-    accounts: [],
-    notes: '',
-  };
-}
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return { currency: 'USD', notes: '' };
 }
 
 export const AccountCardView = memo(
-  function AccountCardView({ item }: { item: CanvasItem }) {
+  function AccountCardView({ item, workspaceId }: { item: CanvasItem; workspaceId: string }) {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const updateItemData = useCanvasStore((s) => s.updateItemData);
 
-    const [data, setData] = useState<AccountCardData>(() => {
+    // ── View config (persisted in item.data) ──
+    const [viewConfig, setViewConfig] = useState<AccountCardData>(() => {
       const d = item.data as AccountCardData | undefined;
       return d?.currency ? { ...defaultData(), ...d } : defaultData();
     });
@@ -55,29 +51,27 @@ export const AccountCardView = memo(
       groupId: '',
     });
 
-    // Re-load when switching items
+    // Re-load view config when switching items
     // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on item.id only
     useEffect(() => {
       const d = item.data as AccountCardData | undefined;
-      setData(d?.currency ? { ...defaultData(), ...d } : defaultData());
+      setViewConfig(d?.currency ? { ...defaultData(), ...d } : defaultData());
       dirtyRef.current = false;
     }, [item.id]);
 
-    // Auto-save (debounced 800ms)
+    // Auto-save view config (debounced 800ms)
     useEffect(() => {
       if (!dirtyRef.current) return;
-
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         setSaveStatus('saving');
-        updateItemData(item.id, data as unknown as Record<string, unknown>);
+        updateItemData(item.id, viewConfig as unknown as Record<string, unknown>);
         setSaveStatus('saved');
         clearTimeout(savedIndicatorRef.current);
         savedIndicatorRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
       }, 800);
-
       return () => clearTimeout(saveTimerRef.current);
-    }, [data, item.id, updateItemData]);
+    }, [viewConfig, item.id, updateItemData]);
 
     useEffect(() => {
       return () => {
@@ -86,102 +80,144 @@ export const AccountCardView = memo(
       };
     }, []);
 
-    const update = (patch: Partial<AccountCardData>) => {
+    const updateViewConfig = (patch: Partial<AccountCardData>) => {
       dirtyRef.current = true;
-      setData((prev) => ({ ...prev, ...patch }));
+      setViewConfig((prev) => ({ ...prev, ...patch }));
     };
 
-    // Account mutations
+    // ── tRPC queries ──
+    const { data: accounts = [], isLoading: accLoading } = useQuery(
+      trpc.account.list.queryOptions({ workspaceId }),
+    );
+    const { data: groups = [], isLoading: grpLoading } = useQuery(
+      trpc.account.listGroups.queryOptions({ workspaceId }),
+    );
+
+    const isLoading = accLoading || grpLoading;
+
+    // ── tRPC mutations ──
+    const accQueryKey = trpc.account.list.queryKey();
+    const summaryQueryKey = trpc.account.getSummary.queryKey();
+    const grpQueryKey = trpc.account.listGroups.queryKey();
+
+    const invalidateAccounts = () => {
+      queryClient.invalidateQueries({ queryKey: accQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+    };
+
+    const createAcc = useMutation(
+      trpc.account.create.mutationOptions({ onSuccess: invalidateAccounts }),
+    );
+    const updateAcc = useMutation(
+      trpc.account.update.mutationOptions({ onSuccess: invalidateAccounts }),
+    );
+    const deleteAcc = useMutation(
+      trpc.account.delete.mutationOptions({ onSuccess: invalidateAccounts }),
+    );
+    const createGrp = useMutation(
+      trpc.account.createGroup.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: grpQueryKey }),
+      }),
+    );
+    const updateGrp = useMutation(
+      trpc.account.updateGroup.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: grpQueryKey }),
+      }),
+    );
+    const deleteGrp = useMutation(
+      trpc.account.deleteGroup.mutationOptions({
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: grpQueryKey });
+          queryClient.invalidateQueries({ queryKey: accQueryKey });
+        },
+      }),
+    );
+
+    // ── Account mutations ──
     const addAccount = () => {
       const balance = Number(newAcc.balance);
       if (!newAcc.name.trim() || Number.isNaN(balance) || balance < 0) return;
-      const acc: Account = {
-        id: crypto.randomUUID(),
+      createAcc.mutate({
+        workspaceId,
         name: newAcc.name.trim(),
         institution: newAcc.institution.trim(),
         type: newAcc.type,
         balance,
         groupId: newAcc.groupId || undefined,
-        lastUpdated: todayStr(),
-        notes: '',
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, accounts: [...prev.accounts, acc] }));
+      });
       setNewAcc({ name: '', institution: '', type: 'checking', balance: '', groupId: '' });
     };
 
     const removeAccount = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, accounts: prev.accounts.filter((a) => a.id !== id) }));
+      deleteAcc.mutate({ id });
     };
 
-    const updateAccount = (id: string, patch: Partial<Account>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        accounts: prev.accounts.map((a) => {
-          if (a.id !== id) return a;
-          const updated = { ...a, ...patch };
-          // Auto-set lastUpdated when balance changes
-          if (patch.balance !== undefined && patch.balance !== a.balance) {
-            updated.lastUpdated = todayStr();
-          }
-          return updated;
-        }),
-      }));
+    const handleAccountBlur = (id: string, field: string, value: string | number) => {
+      const existing = accounts.find((a) => a.id === id);
+      if (!existing) return;
+      const current = existing[field as keyof typeof existing];
+      if (current === value) return;
+      updateAcc.mutate({ id, data: { [field]: value } });
     };
 
-    // Group mutations
+    // ── Group mutations ──
     const addGroup = () => {
-      const usedColors = new Set(data.groups.map((g) => g.color));
+      const usedColors = new Set(groups.map((g) => g.color));
       const nextColor =
-        ACCOUNT_GROUP_COLORS.find((c) => !usedColors.has(c)) ?? ACCOUNT_GROUP_COLORS[0]!;
-      const group: AccountGroup = {
-        id: crypto.randomUUID(),
-        name: '',
-        color: nextColor,
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, groups: [...prev.groups, group] }));
+        ACCOUNT_GROUP_COLORS.find((c) => !usedColors.has(c)) ??
+        ACCOUNT_GROUP_COLORS[0] ??
+        '#3b82f6';
+      createGrp.mutate({ workspaceId, name: 'Unnamed', color: nextColor });
     };
 
     const removeGroup = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        groups: prev.groups.filter((g) => g.id !== id),
-        accounts: prev.accounts.map((a) => (a.groupId === id ? { ...a, groupId: undefined } : a)),
-      }));
+      deleteGrp.mutate({ id });
     };
 
-    const updateGroup = (id: string, patch: Partial<AccountGroup>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        groups: prev.groups.map((g) => (g.id === id ? { ...g, ...patch } : g)),
-      }));
+    const handleGroupColorChange = (id: string, color: string) => {
+      updateGrp.mutate({ id, data: { color } });
     };
 
-    // Computed values
-    const { totalAssets, totalLiabilities, netWorth } = computeAccountTotals(data.accounts);
+    const handleGroupNameBlur = (id: string, name: string) => {
+      const existing = groups.find((g) => g.id === id);
+      if (!existing || existing.name === name) return;
+      updateGrp.mutate({ id, data: { name: name.trim() || 'Unnamed' } });
+    };
+
+    // ── Computed values ──
+    const mappedAccounts: Account[] = useMemo(
+      () =>
+        accounts.map((a) => ({
+          id: a.id,
+          name: a.name,
+          institution: a.institution,
+          type: a.type as AccountType,
+          balance: Number(a.balance),
+          groupId: a.groupId ?? undefined,
+          lastUpdated: a.lastUpdated ?? new Date().toISOString().slice(0, 10),
+          notes: a.notes ?? null,
+        })),
+      [accounts],
+    );
+
+    const { totalAssets, totalLiabilities, netWorth } = computeAccountTotals(mappedAccounts);
     const healthColor = getNetWorthHealthColor(netWorth);
 
     // Unique types present in data (for filter pills)
     const presentTypes = useMemo(() => {
-      const types = new Set(data.accounts.map((a) => a.type));
+      const types = new Set(mappedAccounts.map((a) => a.type));
       return ACCOUNT_TYPES.filter((t) => types.has(t.value));
-    }, [data.accounts]);
+    }, [mappedAccounts]);
 
     // Display accounts: assets first (desc), then liabilities (desc), filtered
     const displayAccounts = useMemo(() => {
-      let filtered = [...data.accounts];
+      let filtered = [...mappedAccounts];
       if (typeFilter !== 'all') {
         filtered = filtered.filter((a) => a.type === typeFilter);
       }
       if (groupFilter !== 'all') {
         filtered = filtered.filter((a) => (a.groupId ?? '') === groupFilter);
       }
-      // Sort: assets first (by balance desc), then liabilities (by balance desc)
       filtered.sort((a, b) => {
         const aIsLiab = isLiability(a.type) ? 1 : 0;
         const bIsLiab = isLiability(b.type) ? 1 : 0;
@@ -189,7 +225,15 @@ export const AccountCardView = memo(
         return b.balance - a.balance;
       });
       return filtered;
-    }, [data.accounts, typeFilter, groupFilter]);
+    }, [mappedAccounts, typeFilter, groupFilter]);
+
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center bg-muted/30">
+          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      );
+    }
 
     return (
       <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
@@ -232,8 +276,8 @@ export const AccountCardView = memo(
               Currency
             </label>
             <select
-              value={data.currency}
-              onChange={(e) => update({ currency: e.target.value as SupportedCurrency })}
+              value={viewConfig.currency}
+              onChange={(e) => updateViewConfig({ currency: e.target.value as SupportedCurrency })}
               className={cn(inputClass, 'w-[200px]')}
             >
               {SUPPORTED_CURRENCIES.map((c) => (
@@ -272,16 +316,16 @@ export const AccountCardView = memo(
               </button>
             </div>
 
-            {data.groups.length > 0 && (
+            {groups.length > 0 && (
               <div className="space-y-2">
-                {data.groups.map((group) => (
+                {groups.map((group) => (
                   <div key={group.id} className="flex items-center gap-2">
                     <div className="flex gap-1">
                       {ACCOUNT_GROUP_COLORS.map((color) => (
                         <button
                           key={color}
                           type="button"
-                          onClick={() => updateGroup(group.id, { color })}
+                          onClick={() => handleGroupColorChange(group.id, color)}
                           className={cn(
                             'size-5 rounded-full border-2 transition-all',
                             group.color === color
@@ -294,8 +338,8 @@ export const AccountCardView = memo(
                     </div>
                     <input
                       type="text"
-                      value={group.name}
-                      onChange={(e) => updateGroup(group.id, { name: e.target.value })}
+                      defaultValue={group.name}
+                      onBlur={(e) => handleGroupNameBlur(group.id, e.target.value)}
                       placeholder="Group name"
                       className="flex-1 border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                     />
@@ -387,7 +431,7 @@ export const AccountCardView = memo(
                   }}
                 />
               </div>
-              {data.groups.length > 0 && (
+              {groups.length > 0 && (
                 <div className="space-y-1">
                   <label className="text-[11px] text-muted-foreground">Group</label>
                   <select
@@ -396,7 +440,7 @@ export const AccountCardView = memo(
                     className={cn(inputClass, 'w-[120px]')}
                   >
                     <option value="">None</option>
-                    {data.groups.map((g) => (
+                    {groups.map((g) => (
                       <option key={g.id} value={g.id}>
                         {g.name || 'Unnamed'}
                       </option>
@@ -415,7 +459,7 @@ export const AccountCardView = memo(
           </div>
 
           {/* Filter bar */}
-          {data.accounts.length > 0 && (
+          {mappedAccounts.length > 0 && (
             <div className="flex items-center gap-3">
               <div className="flex rounded-md border border-border overflow-hidden">
                 <button
@@ -446,14 +490,14 @@ export const AccountCardView = memo(
                   </button>
                 ))}
               </div>
-              {data.groups.length > 0 && (
+              {groups.length > 0 && (
                 <select
                   value={groupFilter}
                   onChange={(e) => setGroupFilter(e.target.value)}
                   className={cn(inputClass, 'w-auto')}
                 >
                   <option value="all">All groups</option>
-                  {data.groups.map((g) => (
+                  {groups.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name || 'Unnamed'}
                     </option>
@@ -487,7 +531,7 @@ export const AccountCardView = memo(
                 </div>
               ) : (
                 displayAccounts.map((acc) => {
-                  const group = data.groups.find((g) => g.id === acc.groupId);
+                  const group = groups.find((g) => g.id === acc.groupId);
                   const liability = isLiability(acc.type);
                   return (
                     <div
@@ -496,23 +540,21 @@ export const AccountCardView = memo(
                     >
                       <input
                         type="text"
-                        value={acc.name}
-                        onChange={(e) => updateAccount(acc.id, { name: e.target.value })}
+                        defaultValue={acc.name}
+                        onBlur={(e) => handleAccountBlur(acc.id, 'name', e.target.value)}
                         placeholder="Name"
                         className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                       />
                       <input
                         type="text"
-                        value={acc.institution}
-                        onChange={(e) => updateAccount(acc.id, { institution: e.target.value })}
+                        defaultValue={acc.institution}
+                        onBlur={(e) => handleAccountBlur(acc.id, 'institution', e.target.value)}
                         placeholder="Institution"
                         className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                       />
                       <select
-                        value={acc.type}
-                        onChange={(e) =>
-                          updateAccount(acc.id, { type: e.target.value as AccountType })
-                        }
+                        defaultValue={acc.type}
+                        onChange={(e) => handleAccountBlur(acc.id, 'type', e.target.value)}
                         className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
                       >
                         {ACCOUNT_TYPES.map((t) => (
@@ -525,9 +567,9 @@ export const AccountCardView = memo(
                         type="number"
                         min={0}
                         step={0.01}
-                        value={acc.balance}
-                        onChange={(e) =>
-                          updateAccount(acc.id, { balance: Number(e.target.value) || 0 })
+                        defaultValue={acc.balance}
+                        onBlur={(e) =>
+                          handleAccountBlur(acc.id, 'balance', Number(e.target.value) || 0)
                         }
                         className={cn(
                           'border-0 bg-transparent text-[13px] text-right focus:outline-none tabular-nums w-full',
@@ -551,12 +593,7 @@ export const AccountCardView = memo(
                           <span className="text-[11px] text-muted-foreground/50">&mdash;</span>
                         )}
                       </div>
-                      <input
-                        type="date"
-                        value={acc.lastUpdated}
-                        onChange={(e) => updateAccount(acc.id, { lastUpdated: e.target.value })}
-                        className="border-0 bg-transparent text-[11px] text-muted-foreground focus:outline-none"
-                      />
+                      <span className="text-[11px] text-muted-foreground">{acc.lastUpdated}</span>
                       <button
                         type="button"
                         onClick={() => removeAccount(acc.id)}
@@ -590,7 +627,7 @@ export const AccountCardView = memo(
                 Total Assets
               </p>
               <p className="text-[16px] font-bold text-green-600 dark:text-green-400 tabular-nums">
-                {formatCurrency(totalAssets, data.currency)}
+                {formatCurrency(totalAssets, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -598,7 +635,7 @@ export const AccountCardView = memo(
                 Total Liabilities
               </p>
               <p className="text-[16px] font-bold text-red-600 dark:text-red-400 tabular-nums">
-                {formatCurrency(totalLiabilities, data.currency)}
+                {formatCurrency(totalLiabilities, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -611,13 +648,13 @@ export const AccountCardView = memo(
                     : 'text-red-600 dark:text-red-400',
                 )}
               >
-                {formatCurrency(netWorth, data.currency)}
+                {formatCurrency(netWorth, viewConfig.currency)}
               </p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Accounts</p>
               <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {data.accounts.length}
+                {mappedAccounts.length}
               </p>
             </div>
           </div>
@@ -628,8 +665,8 @@ export const AccountCardView = memo(
               Notes
             </label>
             <textarea
-              value={data.notes}
-              onChange={(e) => update({ notes: e.target.value })}
+              value={viewConfig.notes}
+              onChange={(e) => updateViewConfig({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
               className={cn(inputClass, 'resize-none')}
@@ -639,5 +676,5 @@ export const AccountCardView = memo(
       </div>
     );
   },
-  (prev, next) => prev.item.id === next.item.id,
+  (prev, next) => prev.item.id === next.item.id && prev.workspaceId === next.workspaceId,
 );

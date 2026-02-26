@@ -3,12 +3,6 @@ import type { SupportedCurrency } from './currency-utils';
 export type ReceiptStatus = 'pending' | 'reviewed' | 'reimbursed';
 export type PaymentMethod = 'cash' | 'card' | 'check' | 'transfer' | 'other';
 
-export interface ReceiptCategory {
-  id: string;
-  name: string;
-  color: string;
-}
-
 export interface Receipt {
   id: string;
   date: string; // YYYY-MM-DD
@@ -16,16 +10,15 @@ export interface Receipt {
   amount: number; // total including tax
   tax: number;
   paymentMethod: PaymentMethod;
-  categoryId?: string;
+  categoryId?: string | null;
   status: ReceiptStatus;
-  linkedFileId?: string; // reference to uploaded file (fileId from file-utils)
-  notes: string;
+  linkedFileId?: string | null; // reference to uploaded file (fileId from file-utils)
+  notes: string | null;
 }
 
+/** View config stored in item.data — actual receipts/categories live in DB */
 export interface ReceiptCardData {
   currency: SupportedCurrency;
-  categories: ReceiptCategory[];
-  receipts: Receipt[];
   notes: string;
 }
 
@@ -57,8 +50,6 @@ export const RECEIPT_STATUSES: { value: ReceiptStatus; label: string; color: str
 export function createDefaultReceiptData(): ReceiptCardData {
   return {
     currency: 'USD',
-    categories: [],
-    receipts: [],
     notes: '',
   };
 }

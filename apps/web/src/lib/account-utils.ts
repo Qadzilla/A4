@@ -11,27 +11,19 @@ export type AccountType =
   | 'crypto'
   | 'other';
 
-export interface AccountGroup {
-  id: string;
-  name: string;
-  color: string;
-}
-
 export interface Account {
   id: string;
   name: string;
   institution: string;
   type: AccountType;
   balance: number;
-  groupId?: string;
+  groupId?: string | null;
   lastUpdated: string; // YYYY-MM-DD
-  notes: string;
+  notes: string | null;
 }
 
 export interface AccountCardData {
   currency: SupportedCurrency;
-  groups: AccountGroup[];
-  accounts: Account[];
   notes: string;
 }
 
@@ -63,8 +55,6 @@ export const LIABILITY_TYPES: Set<AccountType> = new Set(['credit-card', 'loan',
 export function createDefaultAccountData(): AccountCardData {
   return {
     currency: 'USD',
-    groups: [],
-    accounts: [],
     notes: '',
   };
 }

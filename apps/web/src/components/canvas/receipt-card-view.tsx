@@ -1,4 +1,5 @@
 import { cn } from '@a4/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthToken } from '../../hooks/useAuthToken';
 import { SUPPORTED_CURRENCIES, formatCurrency } from '../../lib/currency-utils';
@@ -10,13 +11,8 @@ import {
   computeReceiptTotals,
   cycleStatus,
 } from '../../lib/receipt-utils';
-import type {
-  PaymentMethod,
-  Receipt,
-  ReceiptCardData,
-  ReceiptCategory,
-  ReceiptStatus,
-} from '../../lib/receipt-utils';
+import type { PaymentMethod, ReceiptCardData, ReceiptStatus } from '../../lib/receipt-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
@@ -29,23 +25,21 @@ const STATUS_COLORS: Record<ReceiptStatus, { bg: string; text: string }> = {
   reimbursed: { bg: 'bg-green-100 dark:bg-green-900', text: 'text-green-700 dark:text-green-300' },
 };
 
-function defaultData(): ReceiptCardData {
-  return {
-    currency: 'USD',
-    categories: [],
-    receipts: [],
-    notes: '',
-  };
+function defaultViewConfig(): ReceiptCardData {
+  return { currency: 'USD', notes: '' };
 }
 
 export const ReceiptCardView = memo(
   function ReceiptCardView({ item, workspaceId }: { item: CanvasItem; workspaceId: string }) {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const updateItemData = useCanvasStore((s) => s.updateItemData);
     const getToken = useAuthToken();
 
-    const [data, setData] = useState<ReceiptCardData>(() => {
+    // ── View config (persisted in item.data) ──
+    const [viewConfig, setViewConfig] = useState<ReceiptCardData>(() => {
       const d = item.data as ReceiptCardData | undefined;
-      return d?.currency ? { ...defaultData(), ...d } : defaultData();
+      return d?.currency ? { ...defaultViewConfig(), ...d } : defaultViewConfig();
     });
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -70,29 +64,27 @@ export const ReceiptCardView = memo(
       categoryId: '',
     });
 
-    // Re-load when switching items
+    // Re-load view config when switching items
     // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on item.id only
     useEffect(() => {
       const d = item.data as ReceiptCardData | undefined;
-      setData(d?.currency ? { ...defaultData(), ...d } : defaultData());
+      setViewConfig(d?.currency ? { ...defaultViewConfig(), ...d } : defaultViewConfig());
       dirtyRef.current = false;
     }, [item.id]);
 
-    // Auto-save (debounced 800ms)
+    // Auto-save view config (debounced 800ms)
     useEffect(() => {
       if (!dirtyRef.current) return;
-
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         setSaveStatus('saving');
-        updateItemData(item.id, data as unknown as Record<string, unknown>);
+        updateItemData(item.id, viewConfig as unknown as Record<string, unknown>);
         setSaveStatus('saved');
         clearTimeout(savedIndicatorRef.current);
         savedIndicatorRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
       }, 800);
-
       return () => clearTimeout(saveTimerRef.current);
-    }, [data, item.id, updateItemData]);
+    }, [viewConfig, item.id, updateItemData]);
 
     useEffect(() => {
       return () => {
@@ -101,28 +93,70 @@ export const ReceiptCardView = memo(
       };
     }, []);
 
-    const update = (patch: Partial<ReceiptCardData>) => {
+    const updateView = (patch: Partial<ReceiptCardData>) => {
       dirtyRef.current = true;
-      setData((prev) => ({ ...prev, ...patch }));
+      setViewConfig((prev) => ({ ...prev, ...patch }));
     };
 
-    // Receipt mutations
+    // ── tRPC queries ──
+    const { data: receipts = [], isLoading: rcptLoading } = useQuery(
+      trpc.receipt.list.queryOptions({ workspaceId }),
+    );
+    const { data: categories = [], isLoading: catLoading } = useQuery(
+      trpc.category.list.queryOptions({ workspaceId, context: 'receipt' }),
+    );
+
+    const isLoading = rcptLoading || catLoading;
+
+    // ── tRPC mutations ──
+    const rcptQueryKey = trpc.receipt.list.queryKey();
+    const summaryQueryKey = trpc.receipt.getSummary.queryKey();
+    const catQueryKey = trpc.category.list.queryKey();
+
+    const invalidateReceipts = () => {
+      queryClient.invalidateQueries({ queryKey: rcptQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+    };
+
+    const createReceipt = useMutation(
+      trpc.receipt.create.mutationOptions({ onSuccess: invalidateReceipts }),
+    );
+    const updateReceipt = useMutation(
+      trpc.receipt.update.mutationOptions({ onSuccess: invalidateReceipts }),
+    );
+    const deleteReceipt = useMutation(
+      trpc.receipt.delete.mutationOptions({ onSuccess: invalidateReceipts }),
+    );
+    const createCat = useMutation(
+      trpc.category.create.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+    const updateCat = useMutation(
+      trpc.category.update.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+    const deleteCat = useMutation(
+      trpc.category.delete.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+
+    // ── Receipt actions ──
     const addReceipt = () => {
       const amount = Number(newReceipt.amount);
       if (!newReceipt.merchant.trim() || !amount || amount <= 0) return;
-      const receipt: Receipt = {
-        id: crypto.randomUUID(),
+      createReceipt.mutate({
+        workspaceId,
         date: newReceipt.date,
         merchant: newReceipt.merchant.trim(),
         amount,
         tax: Number(newReceipt.tax) || 0,
         paymentMethod: newReceipt.paymentMethod,
-        categoryId: newReceipt.categoryId || undefined,
+        categoryId: newReceipt.categoryId || null,
         status: 'pending',
-        notes: '',
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, receipts: [...prev.receipts, receipt] }));
+      });
       setNewReceipt({
         date: new Date().toISOString().slice(0, 10),
         merchant: '',
@@ -134,70 +168,77 @@ export const ReceiptCardView = memo(
     };
 
     const removeReceipt = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, receipts: prev.receipts.filter((r) => r.id !== id) }));
+      deleteReceipt.mutate({ id });
     };
 
-    const updateReceipt = (id: string, patch: Partial<Receipt>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        receipts: prev.receipts.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-      }));
+    const handleReceiptBlur = (id: string, field: string, value: string | number) => {
+      const existing = receipts.find((r) => r.id === id);
+      if (!existing) return;
+      const current = existing[field as keyof typeof existing];
+      if (current === value) return;
+      updateReceipt.mutate({ id, data: { [field]: value } });
     };
 
-    // Category mutations
+    const handleStatusCycle = (id: string, currentStatus: ReceiptStatus) => {
+      updateReceipt.mutate({ id, data: { status: cycleStatus(currentStatus) } });
+    };
+
+    // ── Category actions ──
     const addCategory = () => {
-      const usedColors = new Set(data.categories.map((c) => c.color));
+      const usedColors = new Set(categories.map((c: { color: string }) => c.color));
       const nextColor =
         RECEIPT_CATEGORY_COLORS.find((c) => !usedColors.has(c)) ?? RECEIPT_CATEGORY_COLORS[0]!;
-      const cat: ReceiptCategory = {
-        id: crypto.randomUUID(),
-        name: '',
+      createCat.mutate({
+        workspaceId,
+        name: 'Unnamed',
         color: nextColor,
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, categories: [...prev.categories, cat] }));
+        type: 'both',
+        context: 'receipt',
+      });
     };
 
     const removeCategory = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        categories: prev.categories.filter((c) => c.id !== id),
-        receipts: prev.receipts.map((r) =>
-          r.categoryId === id ? { ...r, categoryId: undefined } : r,
-        ),
-      }));
+      deleteCat.mutate({ id });
     };
 
-    const updateCategory = (id: string, patch: Partial<ReceiptCategory>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        categories: prev.categories.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-      }));
+    const handleCategoryColorChange = (id: string, color: string) => {
+      updateCat.mutate({ id, data: { color } });
     };
 
-    // File upload handler
+    const handleCategoryNameBlur = (id: string, name: string) => {
+      const existing = categories.find((c: { id: string }) => c.id === id);
+      if (!existing || existing.name === name) return;
+      if (!name.trim()) return;
+      updateCat.mutate({ id, data: { name: name.trim() } });
+    };
+
+    // ── File upload handler ──
     const handleFileUpload = async (file: File) => {
       const receiptId = pendingReceiptIdRef.current;
       if (!receiptId) return;
       pendingReceiptIdRef.current = null;
       try {
         const result = await uploadFile(file, workspaceId, getToken);
-        updateReceipt(receiptId, { linkedFileId: result.fileId });
+        updateReceipt.mutate({ id: receiptId, data: { linkedFileId: result.fileId } });
       } catch {
         // silently fail — user can retry
       }
     };
 
-    // Computed values
-    const { totalAmount, totalTax, byStatus } = computeReceiptTotals(data.receipts);
+    // ── Computed values ──
+    const { totalAmount, totalTax, byStatus } = computeReceiptTotals(
+      receipts.map((r) => ({
+        ...r,
+        notes: r.notes ?? '',
+        categoryId: r.categoryId ?? undefined,
+        linkedFileId: r.linkedFileId ?? undefined,
+        paymentMethod: r.paymentMethod as PaymentMethod,
+        status: r.status as ReceiptStatus,
+      })),
+    );
 
-    // Display receipts: newest first, then filtered
     const displayReceipts = useMemo(() => {
-      let filtered = [...data.receipts].sort((a, b) => b.date.localeCompare(a.date));
+      let filtered = [...receipts].sort((a, b) => b.date.localeCompare(a.date));
       if (statusFilter !== 'all') {
         filtered = filtered.filter((r) => r.status === statusFilter);
       }
@@ -205,7 +246,18 @@ export const ReceiptCardView = memo(
         filtered = filtered.filter((r) => (r.categoryId ?? '') === categoryFilter);
       }
       return filtered;
-    }, [data.receipts, statusFilter, categoryFilter]);
+    }, [receipts, statusFilter, categoryFilter]);
+
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="space-y-2 text-center">
+            <div className="h-6 w-32 rounded bg-muted/40 animate-pulse mx-auto" />
+            <p className="text-[12px] text-muted-foreground">Loading receipts...</p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
@@ -245,8 +297,8 @@ export const ReceiptCardView = memo(
               Currency
             </label>
             <select
-              value={data.currency}
-              onChange={(e) => update({ currency: e.target.value as SupportedCurrency })}
+              value={viewConfig.currency}
+              onChange={(e) => updateView({ currency: e.target.value as SupportedCurrency })}
               className={cn(inputClass, 'w-48')}
             >
               {SUPPORTED_CURRENCIES.map((c) => (
@@ -285,16 +337,16 @@ export const ReceiptCardView = memo(
               </button>
             </div>
 
-            {data.categories.length > 0 && (
+            {categories.length > 0 && (
               <div className="space-y-2">
-                {data.categories.map((cat) => (
+                {categories.map((cat) => (
                   <div key={cat.id} className="flex items-center gap-2">
                     <div className="flex gap-1">
                       {RECEIPT_CATEGORY_COLORS.map((color) => (
                         <button
                           key={color}
                           type="button"
-                          onClick={() => updateCategory(cat.id, { color })}
+                          onClick={() => handleCategoryColorChange(cat.id, color)}
                           className={cn(
                             'size-5 rounded-full border-2 transition-all',
                             cat.color === color
@@ -307,8 +359,8 @@ export const ReceiptCardView = memo(
                     </div>
                     <input
                       type="text"
-                      value={cat.name}
-                      onChange={(e) => updateCategory(cat.id, { name: e.target.value })}
+                      defaultValue={cat.name}
+                      onBlur={(e) => handleCategoryNameBlur(cat.id, e.target.value)}
                       placeholder="Category name"
                       className="flex-1 border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                     />
@@ -411,7 +463,7 @@ export const ReceiptCardView = memo(
                   ))}
                 </select>
               </div>
-              {data.categories.length > 0 && (
+              {categories.length > 0 && (
                 <div className="space-y-1">
                   <label className="text-[11px] text-muted-foreground">Category</label>
                   <select
@@ -420,7 +472,7 @@ export const ReceiptCardView = memo(
                     className={cn(inputClass, 'w-[120px]')}
                   >
                     <option value="">None</option>
-                    {data.categories.map((c) => (
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name || 'Unnamed'}
                       </option>
@@ -457,14 +509,14 @@ export const ReceiptCardView = memo(
                 </button>
               ))}
             </div>
-            {data.categories.length > 0 && (
+            {categories.length > 0 && (
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className={cn(inputClass, 'w-auto')}
               >
                 <option value="all">All categories</option>
-                {data.categories.map((c) => (
+                {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name || 'Unnamed'}
                   </option>
@@ -512,9 +564,9 @@ export const ReceiptCardView = memo(
                 </div>
               ) : (
                 displayReceipts.map((receipt) => {
-                  const cat = data.categories.find((c) => c.id === receipt.categoryId);
-                  const statusStyle = STATUS_COLORS[receipt.status];
-                  const isImage = receipt.linkedFileId != null;
+                  const cat = categories.find((c) => c.id === receipt.categoryId);
+                  const statusStyle = STATUS_COLORS[receipt.status as ReceiptStatus];
+                  const hasEvidence = receipt.linkedFileId != null;
                   return (
                     <div
                       key={receipt.id}
@@ -522,14 +574,14 @@ export const ReceiptCardView = memo(
                     >
                       <input
                         type="date"
-                        value={receipt.date}
-                        onChange={(e) => updateReceipt(receipt.id, { date: e.target.value })}
+                        defaultValue={receipt.date}
+                        onBlur={(e) => handleReceiptBlur(receipt.id, 'date', e.target.value)}
                         className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
                       />
                       <input
                         type="text"
-                        value={receipt.merchant}
-                        onChange={(e) => updateReceipt(receipt.id, { merchant: e.target.value })}
+                        defaultValue={receipt.merchant}
+                        onBlur={(e) => handleReceiptBlur(receipt.id, 'merchant', e.target.value)}
                         placeholder="Merchant"
                         className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
                       />
@@ -552,9 +604,9 @@ export const ReceiptCardView = memo(
                         type="number"
                         min={0}
                         step={0.01}
-                        value={receipt.amount}
-                        onChange={(e) =>
-                          updateReceipt(receipt.id, { amount: Number(e.target.value) || 0 })
+                        defaultValue={receipt.amount}
+                        onBlur={(e) =>
+                          handleReceiptBlur(receipt.id, 'amount', Number(e.target.value) || 0)
                         }
                         className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
                       />
@@ -562,17 +614,18 @@ export const ReceiptCardView = memo(
                         type="number"
                         min={0}
                         step={0.01}
-                        value={receipt.tax}
-                        onChange={(e) =>
-                          updateReceipt(receipt.id, { tax: Number(e.target.value) || 0 })
+                        defaultValue={receipt.tax}
+                        onBlur={(e) =>
+                          handleReceiptBlur(receipt.id, 'tax', Number(e.target.value) || 0)
                         }
                         className="border-0 bg-transparent text-[12px] text-right text-muted-foreground focus:outline-none tabular-nums w-full"
                       />
                       <select
                         value={receipt.paymentMethod}
                         onChange={(e) =>
-                          updateReceipt(receipt.id, {
-                            paymentMethod: e.target.value as PaymentMethod,
+                          updateReceipt.mutate({
+                            id: receipt.id,
+                            data: { paymentMethod: e.target.value as 'cash' | 'card' | 'check' | 'transfer' | 'other' },
                           })
                         }
                         className="border-0 bg-transparent text-[11px] text-muted-foreground focus:outline-none cursor-pointer"
@@ -586,7 +639,7 @@ export const ReceiptCardView = memo(
                       <button
                         type="button"
                         onClick={() =>
-                          updateReceipt(receipt.id, { status: cycleStatus(receipt.status) })
+                          handleStatusCycle(receipt.id, receipt.status as ReceiptStatus)
                         }
                         className={cn(
                           'px-2 py-0.5 rounded-full text-[10px] font-medium capitalize transition-colors cursor-pointer',
@@ -597,7 +650,7 @@ export const ReceiptCardView = memo(
                         {receipt.status}
                       </button>
                       <div className="flex items-center justify-center">
-                        {isImage ? (
+                        {hasEvidence ? (
                           <img
                             src={getFileUrl(receipt.linkedFileId!)}
                             alt="Evidence"
@@ -661,19 +714,19 @@ export const ReceiptCardView = memo(
                 Total Amount
               </p>
               <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {formatCurrency(totalAmount, data.currency)}
+                {formatCurrency(totalAmount, viewConfig.currency)}
               </p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Tax</p>
               <p className="text-[16px] font-bold text-muted-foreground tabular-nums">
-                {formatCurrency(totalTax, data.currency)}
+                {formatCurrency(totalTax, viewConfig.currency)}
               </p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Receipts</p>
               <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {data.receipts.length}
+                {receipts.length}
               </p>
             </div>
             <div>
@@ -694,7 +747,7 @@ export const ReceiptCardView = memo(
                     {byStatus.reimbursed}D
                   </span>
                 )}
-                {data.receipts.length === 0 && (
+                {receipts.length === 0 && (
                   <span className="text-[11px] text-muted-foreground">&mdash;</span>
                 )}
               </div>
@@ -707,8 +760,8 @@ export const ReceiptCardView = memo(
               Notes
             </label>
             <textarea
-              value={data.notes}
-              onChange={(e) => update({ notes: e.target.value })}
+              value={viewConfig.notes}
+              onChange={(e) => updateView({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
               className={cn(inputClass, 'resize-none')}

@@ -13,7 +13,13 @@ export interface InvoiceParty {
   email: string;
 }
 
+/** View config stored in item.data — actual invoice data lives in DB */
 export interface InvoiceCardData {
+  invoiceId: string;
+}
+
+/** Full invoice shape used for PDF export (constructed from DB data) */
+export interface InvoiceExportData {
   invoiceNumber: string;
   date: string;
   dueDate: string;
@@ -26,21 +32,7 @@ export interface InvoiceCardData {
 }
 
 export function createDefaultInvoiceData(): InvoiceCardData {
-  const today = new Date();
-  const due = new Date();
-  due.setDate(due.getDate() + 30);
-
-  return {
-    invoiceNumber: 'INV-001',
-    date: today.toISOString().slice(0, 10),
-    dueDate: due.toISOString().slice(0, 10),
-    from: { name: '', address: '', email: '' },
-    to: { name: '', address: '', email: '' },
-    items: [{ id: crypto.randomUUID(), description: '', quantity: 1, unitPrice: 0 }],
-    taxRate: 0,
-    notes: '',
-    status: 'draft',
-  };
+  return { invoiceId: '' };
 }
 
 export function computeSubtotal(items: InvoiceLineItem[]): number {
@@ -59,7 +51,7 @@ export function formatCurrency(value: number): string {
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
-export async function exportInvoicePdf(data: InvoiceCardData, itemName: string): Promise<void> {
+export async function exportInvoicePdf(data: InvoiceExportData, itemName: string): Promise<void> {
   const { default: jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
 

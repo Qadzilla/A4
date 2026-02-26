@@ -2,27 +2,20 @@ import type { SupportedCurrency } from './currency-utils';
 
 export type LedgerEntryType = 'income' | 'expense';
 
-export interface LedgerCategory {
-  id: string;
-  name: string;
-  color: string;
-}
-
 export interface LedgerEntry {
   id: string;
   date: string; // YYYY-MM-DD
   description: string;
   amount: number; // always positive
   type: LedgerEntryType;
-  categoryId?: string;
-  notes: string;
+  categoryId?: string | null;
+  notes: string | null;
 }
 
+/** View config only — entries and categories live in DB via tRPC. */
 export interface LedgerCardData {
   startingBalance: number;
   currency: SupportedCurrency;
-  categories: LedgerCategory[];
-  entries: LedgerEntry[];
   notes: string;
 }
 
@@ -38,13 +31,7 @@ export const LEDGER_CATEGORY_COLORS = [
 ];
 
 export function createDefaultLedgerData(): LedgerCardData {
-  return {
-    startingBalance: 0,
-    currency: 'USD',
-    categories: [],
-    entries: [],
-    notes: '',
-  };
+  return { startingBalance: 0, currency: 'USD', notes: '' };
 }
 
 export function computeLedgerTotals(entries: LedgerEntry[]) {

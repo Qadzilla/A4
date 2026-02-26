@@ -1,14 +1,18 @@
 import type {
+  accountTypeSchema,
   aggregateBarSchema,
   aggregateInputSchema,
   assetClassSchema,
+  categoryTypeSchema,
   conversationSchema,
+  createAccountGroupSchema,
+  createAccountSchema,
+  createCategorySchema,
   createConversationSchema,
   createFolderSchema,
+  createTransactionSchema,
   createWorkspaceSchema,
   currencySchema,
-  financialFilterSchema,
-  financialSummarySchema,
   folderSchema,
   messageRoleSchema,
   messageSchema,
@@ -20,10 +24,14 @@ import type {
   tickerSearchInputSchema,
   tickerSnapshotSchema,
   timespanSchema,
-  transactionSchema,
+  transactionFilterSchema,
   transactionTypeSchema,
+  updateAccountGroupSchema,
+  updateAccountSchema,
+  updateCategorySchema,
   updateFolderSchema,
   updateProfileSchema,
+  updateTransactionSchema,
   updateWorkspaceSchema,
   userProfileSchema,
   workspaceSchema,
@@ -50,11 +58,23 @@ export type CreateConversation = z.infer<typeof createConversationSchema>;
 export type SendMessage = z.infer<typeof sendMessageSchema>;
 
 // Financial types
-export type Transaction = z.infer<typeof transactionSchema>;
+export type CreateTransaction = z.infer<typeof createTransactionSchema>;
+export type UpdateTransaction = z.infer<typeof updateTransactionSchema>;
+export type TransactionFilter = z.infer<typeof transactionFilterSchema>;
 export type TransactionType = z.infer<typeof transactionTypeSchema>;
 export type Currency = z.infer<typeof currencySchema>;
-export type FinancialSummary = z.infer<typeof financialSummarySchema>;
-export type FinancialFilter = z.infer<typeof financialFilterSchema>;
+
+// Category types
+export type CategoryType = z.infer<typeof categoryTypeSchema>;
+export type CreateCategory = z.infer<typeof createCategorySchema>;
+export type UpdateCategory = z.infer<typeof updateCategorySchema>;
+
+// Account types
+export type AccountType = z.infer<typeof accountTypeSchema>;
+export type CreateAccount = z.infer<typeof createAccountSchema>;
+export type UpdateAccount = z.infer<typeof updateAccountSchema>;
+export type CreateAccountGroup = z.infer<typeof createAccountGroupSchema>;
+export type UpdateAccountGroup = z.infer<typeof updateAccountGroupSchema>;
 
 // User types
 export type UserProfile = z.infer<typeof userProfileSchema>;

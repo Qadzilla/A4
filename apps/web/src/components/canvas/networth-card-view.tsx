@@ -1,10 +1,11 @@
 import { cn } from '@a4/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { SUPPORTED_CURRENCIES, formatCurrency } from '../../lib/currency-utils';
 import type { SupportedCurrency } from '../../lib/currency-utils';
 import {
-  DEFAULT_CATEGORIES,
   computeNetWorth,
+  createDefaultNetWorthData,
   getNetWorthHealthColor,
 } from '../../lib/networth-utils';
 import type {
@@ -13,28 +14,23 @@ import type {
   NetWorthCategoryKind,
   NetWorthEntry,
 } from '../../lib/networth-utils';
+import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
 const inputClass =
   'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
 
-function defaultData(): NetWorthCardData {
-  return {
-    currency: 'USD',
-    categories: [...DEFAULT_CATEGORIES],
-    entries: [],
-    notes: '',
-  };
-}
-
 export const NetWorthCardView = memo(
-  function NetWorthCardView({ item }: { item: CanvasItem }) {
+  function NetWorthCardView({ item, workspaceId }: { item: CanvasItem; workspaceId: string }) {
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
     const updateItemData = useCanvasStore((s) => s.updateItemData);
 
-    const [data, setData] = useState<NetWorthCardData>(() => {
+    // ── View config (persisted in item.data) ──
+    const [viewConfig, setViewConfig] = useState<NetWorthCardData>(() => {
       const d = item.data as NetWorthCardData | undefined;
-      return d?.currency ? { ...defaultData(), ...d } : defaultData();
+      return d?.currency ? { ...createDefaultNetWorthData(), ...d } : createDefaultNetWorthData();
     });
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -53,25 +49,25 @@ export const NetWorthCardView = memo(
     // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on item.id only
     useEffect(() => {
       const d = item.data as NetWorthCardData | undefined;
-      setData(d?.currency ? { ...defaultData(), ...d } : defaultData());
+      setViewConfig(
+        d?.currency ? { ...createDefaultNetWorthData(), ...d } : createDefaultNetWorthData(),
+      );
       dirtyRef.current = false;
     }, [item.id]);
 
-    // Auto-save (debounced 800ms)
+    // Auto-save view config (debounced 800ms)
     useEffect(() => {
       if (!dirtyRef.current) return;
-
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         setSaveStatus('saving');
-        updateItemData(item.id, data as unknown as Record<string, unknown>);
+        updateItemData(item.id, viewConfig as unknown as Record<string, unknown>);
         setSaveStatus('saved');
         clearTimeout(savedIndicatorRef.current);
         savedIndicatorRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
       }, 800);
-
       return () => clearTimeout(saveTimerRef.current);
-    }, [data, item.id, updateItemData]);
+    }, [viewConfig, item.id, updateItemData]);
 
     useEffect(() => {
       return () => {
@@ -80,89 +76,167 @@ export const NetWorthCardView = memo(
       };
     }, []);
 
-    const update = (patch: Partial<NetWorthCardData>) => {
+    const updateConfig = (patch: Partial<NetWorthCardData>) => {
       dirtyRef.current = true;
-      setData((prev) => ({ ...prev, ...patch }));
+      setViewConfig((prev) => ({ ...prev, ...patch }));
     };
 
-    // Entry mutations
+    // ── tRPC queries ──
+    const { data: dbCategories = [], isLoading: catLoading } = useQuery(
+      trpc.networth.listCategories.queryOptions({ workspaceId }),
+    );
+    const { data: dbEntries = [], isLoading: entryLoading } = useQuery(
+      trpc.networth.listEntries.queryOptions({ workspaceId }),
+    );
+
+    const isLoading = catLoading || entryLoading;
+
+    // ── Seed defaults on mount if empty ──
+    const seedDefaults = useMutation(
+      trpc.networth.seedDefaults.mutationOptions({
+        onSuccess: (result) => {
+          if (result.seeded) {
+            queryClient.invalidateQueries({ queryKey: catQueryKey });
+          }
+        },
+      }),
+    );
+    const seededRef = useRef(false);
+
+    useEffect(() => {
+      if (!catLoading && dbCategories.length === 0 && !seededRef.current) {
+        seededRef.current = true;
+        seedDefaults.mutate({ workspaceId });
+      }
+    }, [catLoading, dbCategories.length, workspaceId, seedDefaults]);
+
+    // ── tRPC mutations ──
+    const catQueryKey = trpc.networth.listCategories.queryKey();
+    const entryQueryKey = trpc.networth.listEntries.queryKey();
+    const summaryQueryKey = trpc.networth.getSummary.queryKey();
+
+    const invalidateAll = () => {
+      queryClient.invalidateQueries({ queryKey: catQueryKey });
+      queryClient.invalidateQueries({ queryKey: entryQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+    };
+
+    const invalidateEntries = () => {
+      queryClient.invalidateQueries({ queryKey: entryQueryKey });
+      queryClient.invalidateQueries({ queryKey: summaryQueryKey });
+    };
+
+    const createCategory = useMutation(
+      trpc.networth.createCategory.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+    const updateCategory = useMutation(
+      trpc.networth.updateCategory.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: catQueryKey }),
+      }),
+    );
+    const deleteCategory = useMutation(
+      trpc.networth.deleteCategory.mutationOptions({ onSuccess: invalidateAll }),
+    );
+    const createEntry = useMutation(
+      trpc.networth.createEntry.mutationOptions({ onSuccess: invalidateEntries }),
+    );
+    const updateEntry = useMutation(
+      trpc.networth.updateEntry.mutationOptions({ onSuccess: invalidateEntries }),
+    );
+    const deleteEntry = useMutation(
+      trpc.networth.deleteEntry.mutationOptions({ onSuccess: invalidateEntries }),
+    );
+
+    // ── Entry mutations ──
     const addEntry = () => {
       const value = Number(newEntry.value);
       if (!newEntry.name.trim() || !newEntry.categoryId || Number.isNaN(value) || value < 0) return;
-      const entry: NetWorthEntry = {
-        id: crypto.randomUUID(),
+      createEntry.mutate({
+        workspaceId,
         name: newEntry.name.trim(),
         categoryId: newEntry.categoryId,
         value,
-        notes: '',
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, entries: [...prev.entries, entry] }));
+      });
       setNewEntry({ name: '', categoryId: '', value: '' });
     };
 
     const removeEntry = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, entries: prev.entries.filter((e) => e.id !== id) }));
+      deleteEntry.mutate({ id });
     };
 
-    const updateEntry = (id: string, patch: Partial<NetWorthEntry>) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        entries: prev.entries.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-      }));
+    const handleEntryBlur = (id: string, field: string, value: string | number) => {
+      const existing = dbEntries.find((e) => e.id === id);
+      if (!existing) return;
+      const current = existing[field as keyof typeof existing];
+      if (current === value) return;
+      updateEntry.mutate({ id, data: { [field]: value } });
     };
 
-    // Category mutations
+    // ── Category mutations ──
     const addCategory = () => {
       if (!newCatName.trim()) return;
-      const cat: NetWorthCategory = {
-        id: crypto.randomUUID(),
+      createCategory.mutate({
+        workspaceId,
         name: newCatName.trim(),
         kind: newCatKind,
-        isDefault: false,
-      };
-      dirtyRef.current = true;
-      setData((prev) => ({ ...prev, categories: [...prev.categories, cat] }));
+      });
       setNewCatName('');
       setShowAddCategory(false);
     };
 
     const removeCategory = (id: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        categories: prev.categories.filter((c) => c.id !== id),
-        entries: prev.entries.filter((e) => e.categoryId !== id),
-      }));
+      deleteCategory.mutate({ id });
     };
 
-    const renameCategory = (id: string, name: string) => {
-      dirtyRef.current = true;
-      setData((prev) => ({
-        ...prev,
-        categories: prev.categories.map((c) => (c.id === id ? { ...c, name } : c)),
-      }));
+    const handleCategoryNameBlur = (id: string, name: string) => {
+      const existing = dbCategories.find((c) => c.id === id);
+      if (!existing || existing.name === name) return;
+      updateCategory.mutate({ id, data: { name: name.trim() || existing.name } });
     };
 
-    // Computed
-    const result = computeNetWorth(data);
+    // ── Map DB data to local types ──
+    const categories: NetWorthCategory[] = useMemo(
+      () =>
+        dbCategories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          kind: c.kind as NetWorthCategoryKind,
+          isDefault: !!c.isDefault,
+        })),
+      [dbCategories],
+    );
+
+    const entries: NetWorthEntry[] = useMemo(
+      () =>
+        dbEntries.map((e) => ({
+          id: e.id,
+          name: e.name,
+          categoryId: e.categoryId,
+          value: e.value,
+          notes: e.notes ?? '',
+        })),
+      [dbEntries],
+    );
+
+    // ── Computed ──
+    const result = computeNetWorth(categories, entries);
     const healthColor = getNetWorthHealthColor(result.netWorth);
 
     const assetCategories = useMemo(
-      () => data.categories.filter((c) => c.kind === 'asset'),
-      [data.categories],
+      () => categories.filter((c) => c.kind === 'asset'),
+      [categories],
     );
     const liabilityCategories = useMemo(
-      () => data.categories.filter((c) => c.kind === 'liability'),
-      [data.categories],
+      () => categories.filter((c) => c.kind === 'liability'),
+      [categories],
     );
 
-    // Group entries by section (asset/liability) then by category, sorted by value desc
+    // Group entries by section (asset/liability) then by category
     const groupedAssets = useMemo(() => {
-      const assetEntries = data.entries.filter((e) => {
-        const cat = data.categories.find((c) => c.id === e.categoryId);
+      const assetEntries = entries.filter((e) => {
+        const cat = categories.find((c) => c.id === e.categoryId);
         return cat?.kind === 'asset';
       });
       const groups = new Map<string, NetWorthEntry[]>();
@@ -171,16 +245,15 @@ export const NetWorthCardView = memo(
         arr.push(e);
         groups.set(e.categoryId, arr);
       }
-      // Sort entries within each group by value desc
       for (const arr of groups.values()) {
         arr.sort((a, b) => b.value - a.value);
       }
       return groups;
-    }, [data.entries, data.categories]);
+    }, [entries, categories]);
 
     const groupedLiabilities = useMemo(() => {
-      const liabEntries = data.entries.filter((e) => {
-        const cat = data.categories.find((c) => c.id === e.categoryId);
+      const liabEntries = entries.filter((e) => {
+        const cat = categories.find((c) => c.id === e.categoryId);
         return cat?.kind === 'liability';
       });
       const groups = new Map<string, NetWorthEntry[]>();
@@ -193,16 +266,16 @@ export const NetWorthCardView = memo(
         arr.sort((a, b) => b.value - a.value);
       }
       return groups;
-    }, [data.entries, data.categories]);
+    }, [entries, categories]);
 
     const renderEntryGroup = (
       catId: string,
-      entries: NetWorthEntry[],
+      groupEntries: NetWorthEntry[],
       kind: NetWorthCategoryKind,
     ) => {
-      const cat = data.categories.find((c) => c.id === catId);
+      const cat = categories.find((c) => c.id === catId);
       if (!cat) return null;
-      const subtotal = entries.reduce((s, e) => s + e.value, 0);
+      const subtotal = groupEntries.reduce((s, e) => s + e.value, 0);
       return (
         <div key={catId} className="space-y-1">
           <div className="flex items-center justify-between px-3 py-1 bg-muted/20 rounded-md">
@@ -217,24 +290,24 @@ export const NetWorthCardView = memo(
                   : 'text-red-600 dark:text-red-400',
               )}
             >
-              {formatCurrency(subtotal, data.currency)}
+              {formatCurrency(subtotal, viewConfig.currency)}
             </span>
           </div>
-          {entries.map((entry) => (
+          {groupEntries.map((entry) => (
             <div
               key={entry.id}
               className="grid grid-cols-[1fr_140px_100px_32px] gap-2 px-3 py-1 items-center"
             >
               <input
                 type="text"
-                value={entry.name}
-                onChange={(e) => updateEntry(entry.id, { name: e.target.value })}
+                defaultValue={entry.name}
+                onBlur={(e) => handleEntryBlur(entry.id, 'name', e.target.value)}
                 placeholder="Name"
                 className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
               />
               <select
-                value={entry.categoryId}
-                onChange={(e) => updateEntry(entry.id, { categoryId: e.target.value })}
+                defaultValue={entry.categoryId}
+                onChange={(e) => handleEntryBlur(entry.id, 'categoryId', e.target.value)}
                 className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
               >
                 <optgroup label="Assets">
@@ -256,8 +329,8 @@ export const NetWorthCardView = memo(
                 type="number"
                 min={0}
                 step={0.01}
-                value={entry.value}
-                onChange={(e) => updateEntry(entry.id, { value: Number(e.target.value) || 0 })}
+                defaultValue={entry.value}
+                onBlur={(e) => handleEntryBlur(entry.id, 'value', Number(e.target.value) || 0)}
                 className={cn(
                   'border-0 bg-transparent text-[13px] text-right focus:outline-none tabular-nums w-full',
                   kind === 'asset'
@@ -289,6 +362,14 @@ export const NetWorthCardView = memo(
         </div>
       );
     };
+
+    if (isLoading) {
+      return (
+        <div className="flex-1 flex items-center justify-center bg-muted/30">
+          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      );
+    }
 
     return (
       <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
@@ -331,8 +412,8 @@ export const NetWorthCardView = memo(
               Currency
             </label>
             <select
-              value={data.currency}
-              onChange={(e) => update({ currency: e.target.value as SupportedCurrency })}
+              value={viewConfig.currency}
+              onChange={(e) => updateConfig({ currency: e.target.value as SupportedCurrency })}
               className={cn(inputClass, 'w-[200px]')}
             >
               {SUPPORTED_CURRENCIES.map((c) => (
@@ -458,8 +539,8 @@ export const NetWorthCardView = memo(
                   ) : (
                     <input
                       type="text"
-                      value={cat.name}
-                      onChange={(e) => renameCategory(cat.id, e.target.value)}
+                      defaultValue={cat.name}
+                      onBlur={(e) => handleCategoryNameBlur(cat.id, e.target.value)}
                       className="flex-1 border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
                     />
                   )}
@@ -517,8 +598,8 @@ export const NetWorthCardView = memo(
                   ) : (
                     <input
                       type="text"
-                      value={cat.name}
-                      onChange={(e) => renameCategory(cat.id, e.target.value)}
+                      defaultValue={cat.name}
+                      onBlur={(e) => handleCategoryNameBlur(cat.id, e.target.value)}
                       className="flex-1 border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
                     />
                   )}
@@ -619,7 +700,13 @@ export const NetWorthCardView = memo(
           {/* Entry list — Assets */}
           <div className="space-y-2">
             <p className="text-[12px] font-semibold uppercase tracking-wider text-green-600 dark:text-green-400">
-              Assets ({data.entries.filter((e) => data.categories.find((c) => c.id === e.categoryId)?.kind === 'asset').length})
+              Assets (
+              {
+                entries.filter(
+                  (e) => categories.find((c) => c.id === e.categoryId)?.kind === 'asset',
+                ).length
+              }
+              )
             </p>
             <div className="rounded-lg border border-border overflow-hidden">
               {groupedAssets.size === 0 ? (
@@ -627,8 +714,8 @@ export const NetWorthCardView = memo(
                   No assets yet
                 </div>
               ) : (
-                Array.from(groupedAssets.entries()).map(([catId, entries]) =>
-                  renderEntryGroup(catId, entries, 'asset'),
+                Array.from(groupedAssets.entries()).map(([catId, catEntries]) =>
+                  renderEntryGroup(catId, catEntries, 'asset'),
                 )
               )}
             </div>
@@ -637,7 +724,13 @@ export const NetWorthCardView = memo(
           {/* Entry list — Liabilities */}
           <div className="space-y-2">
             <p className="text-[12px] font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">
-              Liabilities ({data.entries.filter((e) => data.categories.find((c) => c.id === e.categoryId)?.kind === 'liability').length})
+              Liabilities (
+              {
+                entries.filter(
+                  (e) => categories.find((c) => c.id === e.categoryId)?.kind === 'liability',
+                ).length
+              }
+              )
             </p>
             <div className="rounded-lg border border-border overflow-hidden">
               {groupedLiabilities.size === 0 ? (
@@ -645,8 +738,8 @@ export const NetWorthCardView = memo(
                   No liabilities yet
                 </div>
               ) : (
-                Array.from(groupedLiabilities.entries()).map(([catId, entries]) =>
-                  renderEntryGroup(catId, entries, 'liability'),
+                Array.from(groupedLiabilities.entries()).map(([catId, catEntries]) =>
+                  renderEntryGroup(catId, catEntries, 'liability'),
                 )
               )}
             </div>
@@ -659,7 +752,7 @@ export const NetWorthCardView = memo(
                 Total Assets
               </p>
               <p className="text-[16px] font-bold text-green-600 dark:text-green-400 tabular-nums">
-                {formatCurrency(result.totalAssets, data.currency)}
+                {formatCurrency(result.totalAssets, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -667,7 +760,7 @@ export const NetWorthCardView = memo(
                 Total Liabilities
               </p>
               <p className="text-[16px] font-bold text-red-600 dark:text-red-400 tabular-nums">
-                {formatCurrency(result.totalLiabilities, data.currency)}
+                {formatCurrency(result.totalLiabilities, viewConfig.currency)}
               </p>
             </div>
             <div>
@@ -680,14 +773,12 @@ export const NetWorthCardView = memo(
                     : 'text-red-600 dark:text-red-400',
                 )}
               >
-                {formatCurrency(result.netWorth, data.currency)}
+                {formatCurrency(result.netWorth, viewConfig.currency)}
               </p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Entries</p>
-              <p className="text-[16px] font-bold text-foreground tabular-nums">
-                {data.entries.length}
-              </p>
+              <p className="text-[16px] font-bold text-foreground tabular-nums">{entries.length}</p>
             </div>
           </div>
 
@@ -697,8 +788,8 @@ export const NetWorthCardView = memo(
               Notes
             </label>
             <textarea
-              value={data.notes}
-              onChange={(e) => update({ notes: e.target.value })}
+              value={viewConfig.notes}
+              onChange={(e) => updateConfig({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
               className={cn(inputClass, 'resize-none')}
@@ -708,5 +799,5 @@ export const NetWorthCardView = memo(
       </div>
     );
   },
-  (prev, next) => prev.item.id === next.item.id,
+  (prev, next) => prev.item.id === next.item.id && prev.workspaceId === next.workspaceId,
 );
