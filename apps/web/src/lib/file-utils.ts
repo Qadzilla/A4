@@ -77,6 +77,92 @@ export function getFileTypeLabel(mimeType: string): string {
   return map[mimeType] ?? 'File';
 }
 
+// ── Full file parsing (for transaction import) ──
+
+export function parseFullCsv(file: File): Promise<{ headers: string[]; rows: string[][] }> {
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      header: false,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const grid = results.data as string[][];
+        if (grid.length === 0) {
+          resolve({ headers: [], rows: [] });
+          return;
+        }
+        const headers = (grid[0] ?? []).map(String);
+        const rows = grid.slice(1).filter((row) => row.some((cell) => cell.trim()));
+        resolve({ headers, rows });
+      },
+      error: (err: Error) => reject(err),
+    });
+  });
+}
+
+export async function parseFullExcel(file: File): Promise<{ headers: string[]; rows: string[][] }> {
+  const arrayBuffer = await file.arrayBuffer();
+  const { unzipSync } = await import('fflate');
+  const decompressed = unzipSync(new Uint8Array(arrayBuffer));
+
+  const decoder = new TextDecoder();
+  const sharedStrings: string[] = [];
+  const ssData = decompressed['xl/sharedStrings.xml'];
+  if (ssData) {
+    const ssXml = decoder.decode(ssData);
+    for (const siMatch of ssXml.matchAll(/<si>([\s\S]*?)<\/si>/g)) {
+      let text = '';
+      for (const tMatch of (siMatch[1] ?? '').matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)) {
+        text += tMatch[1];
+      }
+      sharedStrings.push(text);
+    }
+  }
+
+  const sheetData = decompressed['xl/worksheets/sheet1.xml'];
+  if (!sheetData) return { headers: [], rows: [] };
+  const sheetXml = decoder.decode(sheetData);
+
+  // Parse column reference (e.g. "A1" → 0, "B2" → 1, "AA3" → 26)
+  function colIndex(ref: string): number {
+    const letters = ref.replace(/\d+/g, '');
+    let idx = 0;
+    for (let i = 0; i < letters.length; i++) {
+      idx = idx * 26 + (letters.charCodeAt(i) - 64);
+    }
+    return idx - 1;
+  }
+
+  const grid: string[][] = [];
+  for (const rowMatch of sheetXml.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)) {
+    const cells: [number, string][] = [];
+    for (const cellMatch of (rowMatch[1] ?? '').matchAll(/<c\s([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const attrs = cellMatch[1] ?? '';
+      const inner = cellMatch[2] ?? '';
+      const refMatch = attrs.match(/r="([A-Z]+)\d+"/);
+      const ci = refMatch?.[1] ? colIndex(refMatch[1]) : cells.length;
+      const vMatch = inner.match(/<v>([\s\S]*?)<\/v>/);
+      const val = vMatch?.[1] ?? '';
+      if (attrs.includes('t="s"') && val) {
+        cells.push([ci, sharedStrings[Number(val)] ?? val]);
+      } else {
+        cells.push([ci, val]);
+      }
+    }
+    // Convert sparse cells to dense row
+    const maxCol = cells.reduce((m, [ci]) => Math.max(m, ci), 0);
+    const row: string[] = Array(maxCol + 1).fill('');
+    for (const [ci, val] of cells) row[ci] = val;
+    grid.push(row);
+  }
+
+  if (grid.length === 0) return { headers: [], rows: [] };
+  const headers = (grid[0] ?? []).map(String);
+  const rows = grid.slice(1).filter((row) => row.some((cell) => cell.trim()));
+  return { headers, rows };
+}
+
+// ── Preview generation (existing, limited to 6 rows) ──
+
 function generateCsvPreview(file: File): Promise<FileTablePreview | undefined> {
   return new Promise((resolve) => {
     Papa.parse(file, {

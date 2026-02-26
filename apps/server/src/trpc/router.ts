@@ -2,6 +2,7 @@ import { accountRouter } from './routers/account';
 import { billingRouter } from './routers/billing';
 import { budgetRouter } from './routers/budget';
 import { canvasRouter } from './routers/canvas';
+import { categorizationRuleRouter } from './routers/categorization-rule';
 import { categoryRouter } from './routers/category';
 import { chatRouter } from './routers/chat';
 import { debtRouter } from './routers/debt';
@@ -22,6 +23,7 @@ import { router } from './trpc';
 export const appRouter = router({
   account: accountRouter,
   budget: budgetRouter,
+  categorizationRule: categorizationRuleRouter,
   debt: debtRouter,
   health: healthRouter,
   holding: holdingRouter,

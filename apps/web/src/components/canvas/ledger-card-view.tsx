@@ -13,6 +13,7 @@ import type { LedgerCardData, LedgerEntry, LedgerEntryType } from '../../lib/led
 import { useTRPC } from '../../lib/trpc';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
+import { TransactionImportModal } from './transaction-import-modal';
 
 const inputClass =
   'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
@@ -40,6 +41,14 @@ export const LedgerCardView = memo(
     // Filter state (view-only, not persisted)
     const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
+
+    // Import modal state
+    const [importOpen, setImportOpen] = useState(false);
+
+    // Rules panel state
+    const [showRules, setShowRules] = useState(false);
+    const [newRulePattern, setNewRulePattern] = useState('');
+    const [newRuleCategoryId, setNewRuleCategoryId] = useState('');
 
     // New entry form state
     const [newEntry, setNewEntry] = useState({
@@ -129,6 +138,23 @@ export const LedgerCardView = memo(
       }),
     );
 
+    // ── Categorization rules queries + mutations ──
+    const { data: catRules = [] } = useQuery(
+      trpc.categorizationRule.list.queryOptions({ workspaceId }),
+    );
+    const ruleQueryKey = trpc.categorizationRule.list.queryKey();
+
+    const createRule = useMutation(
+      trpc.categorizationRule.create.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ruleQueryKey }),
+      }),
+    );
+    const deleteRule = useMutation(
+      trpc.categorizationRule.delete.mutationOptions({
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ruleQueryKey }),
+      }),
+    );
+
     // ── Entry mutations ──
     const addEntry = () => {
       const amount = Number(newEntry.amount);
@@ -189,6 +215,17 @@ export const LedgerCardView = memo(
       if (!existing || existing.name === name) return;
       if (!name.trim()) return; // name is required (min 1)
       updateCat.mutate({ id, data: { name: name.trim() } });
+    };
+
+    const addRule = () => {
+      if (!newRulePattern.trim() || !newRuleCategoryId) return;
+      createRule.mutate({
+        workspaceId,
+        pattern: newRulePattern.trim(),
+        categoryId: newRuleCategoryId,
+      });
+      setNewRulePattern('');
+      setNewRuleCategoryId('');
     };
 
     // ── Computed values ──
@@ -271,11 +308,59 @@ export const LedgerCardView = memo(
               <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
               <p className="text-[11px] text-black/60 dark:text-zinc-300">Ledger</p>
             </div>
-            {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
-                {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {saveStatus !== 'idle' && (
+                <span className="text-[11px] text-black/60 dark:text-zinc-300">
+                  {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowRules((v) => !v)}
+                title="Categorization rules"
+                className={cn(
+                  'flex items-center justify-center size-8 rounded-lg transition-colors',
+                  showRules
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-4"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-3.5"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Import
+              </button>
+            </div>
           </div>
 
           {/* Starting balance + Currency */}
@@ -684,6 +769,107 @@ export const LedgerCardView = memo(
             </div>
           </div>
 
+          {/* Categorization rules panel */}
+          {showRules && (
+            <div className="space-y-2">
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+                Categorization Rules
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Rules auto-assign categories to imported transactions when the description contains
+                the pattern.
+              </p>
+
+              {catRules.length > 0 && (
+                <div className="space-y-1.5">
+                  {catRules.map((rule) => (
+                    <div
+                      key={rule.id}
+                      className="flex items-center gap-2 rounded-md border border-border/40 px-2.5 py-1.5"
+                    >
+                      <span className="text-[12px] font-mono text-foreground flex-1 truncate">
+                        {rule.pattern}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground mx-1">&rarr;</span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        {rule.categoryColor && (
+                          <span
+                            className="size-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: rule.categoryColor }}
+                          />
+                        )}
+                        <span className="text-[11px] text-muted-foreground">
+                          {rule.categoryName || 'Unknown'}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => deleteRule.mutate({ id: rule.id })}
+                        className="flex items-center justify-center size-5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="size-3"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add rule form */}
+              {categories.length > 0 && (
+                <div className="flex items-end gap-2">
+                  <div className="flex-1 space-y-1">
+                    <label className="text-[11px] text-muted-foreground">Pattern</label>
+                    <input
+                      type="text"
+                      value={newRulePattern}
+                      onChange={(e) => setNewRulePattern(e.target.value)}
+                      placeholder="e.g. starbucks"
+                      className={inputClass}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') addRule();
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-muted-foreground">Category</label>
+                    <select
+                      value={newRuleCategoryId}
+                      onChange={(e) => setNewRuleCategoryId(e.target.value)}
+                      className={cn(inputClass, 'w-[140px]')}
+                    >
+                      <option value="">Select...</option>
+                      {categories.map((c: { id: string; name: string }) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name || 'Unnamed'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addRule}
+                    disabled={!newRulePattern.trim() || !newRuleCategoryId || createRule.isPending}
+                    className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    Add Rule
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Notes */}
           <div className="space-y-1.5">
             <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
@@ -698,6 +884,13 @@ export const LedgerCardView = memo(
             />
           </div>
         </div>
+
+        {/* Import modal */}
+        <TransactionImportModal
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          workspaceId={workspaceId}
+        />
       </div>
     );
   },

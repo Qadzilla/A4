@@ -14,3 +14,4 @@ export * from './networth';
 export * from './user';
 export * from './market-data';
 export * from './canvas';
+export * from './categorization-rule';

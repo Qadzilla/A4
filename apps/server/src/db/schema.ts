@@ -345,6 +345,21 @@ export const networthCategories = sqliteTable('networth_categories', {
     .$defaultFn(() => new Date()),
 });
 
+// Categorization rules for auto-assigning categories during import
+export const categorizationRules = sqliteTable('categorization_rules', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  pattern: text('pattern').notNull(), // case-insensitive substring match
+  categoryId: text('category_id').notNull(), // FK to categories
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // Net worth entries (workspace-level)
 export const networthEntries = sqliteTable('networth_entries', {
   id: text('id').primaryKey(),
