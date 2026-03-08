@@ -16,14 +16,14 @@ export const updateNetworthCategorySchema = z.object({
 
 export const createNetworthEntrySchema = z.object({
   workspaceId: z.string().uuid(),
-  name: z.string().min(1).max(200),
+  name: z.string().max(200),
   categoryId: z.string().uuid(),
   value: z.number().min(0),
   notes: z.string().max(2000).nullable().optional(),
 });
 
 export const updateNetworthEntrySchema = z.object({
-  name: z.string().min(1).max(200).optional(),
+  name: z.string().max(200).optional(),
   categoryId: z.string().uuid().optional(),
   value: z.number().min(0).optional(),
   notes: z.string().max(2000).nullable().optional(),

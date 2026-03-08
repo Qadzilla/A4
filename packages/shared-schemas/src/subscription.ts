@@ -11,7 +11,7 @@ export const subscriptionStatusSchema = z.enum(['active', 'paused', 'cancelled']
 
 export const createSubscriptionSchema = z.object({
   workspaceId: z.string().uuid(),
-  name: z.string().min(1).max(200),
+  name: z.string().max(200),
   amount: z.number(),
   frequency: subscriptionFrequencySchema,
   startDate: z.string().min(1), // YYYY-MM-DD
@@ -22,7 +22,7 @@ export const createSubscriptionSchema = z.object({
 });
 
 export const updateSubscriptionSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
+  name: z.string().max(200).optional(),
   amount: z.number().optional(),
   frequency: subscriptionFrequencySchema.optional(),
   startDate: z.string().min(1).optional(),

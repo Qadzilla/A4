@@ -29,6 +29,7 @@ export const ITEM_DEFAULTS: Record<string, { width: number; height: number }> = 
   'debt-planner-card': { width: 340, height: 300 },
   'rent-vs-buy-card': { width: 340, height: 300 },
   'portfolio-card': { width: 340, height: 280 },
+  'header-card': { width: 300, height: 50 },
 };
 
 interface DragState {

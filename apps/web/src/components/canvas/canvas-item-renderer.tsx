@@ -15,25 +15,26 @@ import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { AccountCardContent } from './account-card-content';
 import { BalanceSheetCardContent } from './balance-sheet-card-content';
+import { BreakevenCardContent } from './breakeven-card-content';
 import { BudgetCardContent } from './budget-card-content';
 import { CashFlowCardContent } from './cash-flow-card-content';
 import { ChartCardContent } from './chart-card-content';
+import { DebtPlannerCardContent } from './debt-planner-card-content';
+import { DepreciationCardContent } from './depreciation-card-content';
 import { EmbedCardContent } from './embed-card-content';
 import { FileCardContent } from './file-card-content';
+import { HeaderCardContent } from './header-card-content';
 import { InvoiceCardContent } from './invoice-card-content';
 import { KpiCardContent } from './kpi-card-content';
 import { LedgerCardContent } from './ledger-card-content';
-import { BreakevenCardContent } from './breakeven-card-content';
-import { DepreciationCardContent } from './depreciation-card-content';
 import { LoanCalculatorCardContent } from './loan-calculator-card-content';
-import { DebtPlannerCardContent } from './debt-planner-card-content';
 import { NetWorthCardContent } from './networth-card-content';
-import { RentVsBuyCardContent } from './rent-vs-buy-card-content';
 import { NoteCardContent } from './note-card-content';
+import { PnlCardContent } from './pnl-card-content';
 import { PortfolioCardContent } from './portfolio-card-content';
 import { ProjectionCardContent } from './projection-card-content';
-import { PnlCardContent } from './pnl-card-content';
 import { ReceiptCardContent } from './receipt-card-content';
+import { RentVsBuyCardContent } from './rent-vs-buy-card-content';
 import { SecretCardContent } from './secret-card-content';
 import { SubscriptionCardContent } from './subscription-card-content';
 import { TableCardContent } from './table-card-content';
@@ -281,7 +282,8 @@ export const CanvasItemRenderer = memo(
           item.type === 'networth-card' ||
           item.type === 'debt-planner-card' ||
           item.type === 'rent-vs-buy-card' ||
-          item.type === 'portfolio-card';
+          item.type === 'portfolio-card' ||
+          item.type === 'header-card';
 
         let newW: number;
         let newH: number;
@@ -431,7 +433,14 @@ export const CanvasItemRenderer = memo(
       <div
         className={cn(
           'absolute group',
-          isSelected && !isHighlighted && 'ring-2 ring-primary ring-offset-1',
+          isSelected &&
+            !isHighlighted &&
+            item.type === 'header-card' &&
+            'ring-1 ring-primary/40 ring-dashed rounded-sm',
+          isSelected &&
+            !isHighlighted &&
+            item.type !== 'header-card' &&
+            'ring-2 ring-primary ring-offset-1',
           isHighlighted && 'ring-2 ring-primary rounded-sm',
         )}
         style={{ left, top, width, height, zIndex: item.zIndex }}
@@ -445,7 +454,7 @@ export const CanvasItemRenderer = memo(
           onMouseDown={handleBodyMouseDown}
           onDoubleClick={(e) => {
             e.stopPropagation();
-            if (item.type === 'note') {
+            if (item.type === 'note' || item.type === 'header-card') {
               setIsEditingNote(true);
             } else {
               onOpen(item.id);
@@ -464,6 +473,13 @@ export const CanvasItemRenderer = memo(
               <SecretCardContent item={item} onRequestUnlock={onRequestUnlock ?? (() => {})} />
             ) : item.type === 'note' ? (
               <NoteCardContent
+                item={item}
+                isEditing={isEditingNote}
+                onStartEdit={() => setIsEditingNote(true)}
+                onStopEdit={() => setIsEditingNote(false)}
+              />
+            ) : item.type === 'header-card' ? (
+              <HeaderCardContent
                 item={item}
                 isEditing={isEditingNote}
                 onStartEdit={() => setIsEditingNote(true)}
@@ -659,34 +675,36 @@ export const CanvasItemRenderer = memo(
           </DropdownMenu>
         </div>
 
-        {/* Floating name label / inline rename — above top-left */}
-        <div
-          className="absolute left-0 z-10 pointer-events-none"
-          style={{ bottom: height + 4 }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          {isRenaming ? (
-            <input
-              ref={renameInputRef}
-              type="text"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitRename();
-                if (e.key === 'Escape') {
-                  setRenameValue(item.name);
-                  setIsRenaming(false);
-                }
-              }}
-              className="pointer-events-auto w-44 rounded-md border border-border bg-background px-2 py-1 text-[12px] text-primary font-medium shadow-md outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
-            />
-          ) : (
-            <span className="text-[12px] font-medium text-foreground truncate max-w-[200px] block">
-              {item.name}
-            </span>
-          )}
-        </div>
+        {/* Floating name label / inline rename — above top-left (hidden for header-card) */}
+        {item.type !== 'header-card' && (
+          <div
+            className="absolute left-0 z-10 pointer-events-none"
+            style={{ bottom: height + 4 }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {isRenaming ? (
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitRename();
+                  if (e.key === 'Escape') {
+                    setRenameValue(item.name);
+                    setIsRenaming(false);
+                  }
+                }}
+                className="pointer-events-auto w-44 rounded-md border border-border bg-background px-2 py-1 text-[12px] text-primary font-medium shadow-md outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+              />
+            ) : (
+              <span className="text-[12px] font-medium text-foreground truncate max-w-[200px] block">
+                {item.name}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Resize handles — only when selected in grab mode */}
         {isSelected &&

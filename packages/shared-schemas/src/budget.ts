@@ -2,18 +2,18 @@ import { z } from 'zod';
 
 export const createBudgetGroupSchema = z.object({
   workspaceId: z.string().uuid(),
-  name: z.string().min(1).max(100),
+  name: z.string().max(100),
   color: z.string().min(1),
 });
 
 export const updateBudgetGroupSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().max(100).optional(),
   color: z.string().min(1).optional(),
 });
 
 export const createBudgetCategorySchema = z.object({
   workspaceId: z.string().uuid(),
-  name: z.string().min(1).max(200),
+  name: z.string().max(200),
   budgeted: z.number(),
   actual: z.number(),
   source: z.string().max(1000).nullable().optional(), // JSON string
@@ -22,7 +22,7 @@ export const createBudgetCategorySchema = z.object({
 });
 
 export const updateBudgetCategorySchema = z.object({
-  name: z.string().min(1).max(200).optional(),
+  name: z.string().max(200).optional(),
   budgeted: z.number().optional(),
   actual: z.number().optional(),
   source: z.string().max(1000).nullable().optional(),

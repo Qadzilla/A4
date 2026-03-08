@@ -53,7 +53,29 @@ import {
 import type { FileCardData } from '../../../../lib/file-utils';
 import { useTRPC } from '../../../../lib/trpc';
 import { getCachedKey } from '../../../../lib/vault-crypto';
+import type { CanvasItem } from '../../../../stores/canvas-store';
 import { useCanvasStore } from '../../../../stores/canvas-store';
+
+/** Save canvas state using fetch with keepalive — survives page unload / refresh. */
+function saveCanvasKeepalive(
+  workspaceId: string,
+  items: CanvasItem[],
+  connections: CanvasConnection[],
+  token: string | null,
+) {
+  const payload = JSON.stringify({
+    '0': { json: { workspaceId, items, connections } },
+  });
+  fetch('/trpc/canvas.save?batch=1', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: payload,
+    keepalive: true,
+  });
+}
 
 const BASE_GRID = 24;
 const MIN_ZOOM = 0.25;
@@ -219,6 +241,16 @@ export default function WorkspaceDetailPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const getToken = useAuthToken();
+
+  // Cache auth token synchronously for use in beforeunload / cleanup
+  const authTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => getToken().then((t) => { if (alive) authTokenRef.current = t; });
+    refresh();
+    const interval = setInterval(refresh, 30_000);
+    return () => { alive = false; clearInterval(interval); };
+  }, [getToken]);
 
   // Canvas zoom & pan
   const [zoom, setZoom] = useState(1);
@@ -404,13 +436,24 @@ export default function WorkspaceDetailPage() {
       }
     });
 
-    return () => {
-      unsubscribe();
+    // Save on page refresh / close — keepalive fetch survives unload
+    const onBeforeUnload = () => {
       clearTimeout(saveTimer);
-      // Flush final state on cleanup
       const s = useCanvasStore.getState();
       if (s.items.length > 0) {
-        saveMutation.mutate({ workspaceId: id, items: s.items, connections: s.connections });
+        saveCanvasKeepalive(id, s.items, s.connections, authTokenRef.current);
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      unsubscribe();
+      clearTimeout(saveTimer);
+      // Flush final state on cleanup (keepalive survives unmount + navigation)
+      const s = useCanvasStore.getState();
+      if (s.items.length > 0) {
+        saveCanvasKeepalive(id, s.items, s.connections, authTokenRef.current);
       }
       loadItems([]);
     };

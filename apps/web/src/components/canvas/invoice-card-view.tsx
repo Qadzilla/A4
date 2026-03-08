@@ -395,7 +395,7 @@ export const InvoiceCardView = memo(
                       defaultValue={li.description}
                       onBlur={(e) => handleLineItemBlur(li.id, 'description', e.target.value)}
                       placeholder="Item description"
-                      className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+                      className="rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 hover:border-border hover:bg-muted/30 focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
                     />
                     <input
                       type="number"
@@ -404,7 +404,7 @@ export const InvoiceCardView = memo(
                       onBlur={(e) =>
                         handleLineItemBlur(li.id, 'quantity', Number(e.target.value) || 0)
                       }
-                      className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums"
+                      className="rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-[13px] text-right text-black dark:text-zinc-100 tabular-nums hover:border-border hover:bg-muted/30 focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
                     />
                     <input
                       type="number"
@@ -414,7 +414,7 @@ export const InvoiceCardView = memo(
                       onBlur={(e) =>
                         handleLineItemBlur(li.id, 'unitPrice', Number(e.target.value) || 0)
                       }
-                      className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums"
+                      className="rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-[13px] text-right text-black dark:text-zinc-100 tabular-nums hover:border-border hover:bg-muted/30 focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
                     />
                     <span className="text-[13px] text-right text-black/70 dark:text-zinc-300 tabular-nums">
                       {formatCurrency(amount)}
@@ -546,5 +546,8 @@ export const InvoiceCardView = memo(
       </div>
     );
   },
-  (prev, next) => prev.item.id === next.item.id && prev.workspaceId === next.workspaceId,
+  (prev, next) =>
+    prev.item.id === next.item.id &&
+    prev.item.data === next.item.data &&
+    prev.workspaceId === next.workspaceId,
 );

@@ -35,14 +35,14 @@ export const updateInvoiceSchema = z.object({
 
 export const createInvoiceLineItemSchema = z.object({
   invoiceId: z.string().uuid(),
-  description: z.string().min(1).max(500),
+  description: z.string().max(500),
   quantity: z.number(),
   unitPrice: z.number(),
   sortOrder: z.number().int(),
 });
 
 export const updateInvoiceLineItemSchema = z.object({
-  description: z.string().min(1).max(500).optional(),
+  description: z.string().max(500).optional(),
   quantity: z.number().optional(),
   unitPrice: z.number().optional(),
   sortOrder: z.number().int().optional(),

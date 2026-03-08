@@ -18,7 +18,7 @@ export const transactionTypeSchema = z.enum(['income', 'expense']);
 export const createTransactionSchema = z.object({
   workspaceId: z.string().uuid(),
   date: z.string().min(1), // YYYY-MM-DD
-  description: z.string().min(1).max(500),
+  description: z.string().max(500),
   amount: z.number().nonnegative(),
   type: transactionTypeSchema,
   categoryId: z.string().uuid().nullable().optional(),
@@ -27,7 +27,7 @@ export const createTransactionSchema = z.object({
 
 export const updateTransactionSchema = z.object({
   date: z.string().min(1).optional(),
-  description: z.string().min(1).max(500).optional(),
+  description: z.string().max(500).optional(),
   amount: z.number().nonnegative().optional(),
   type: transactionTypeSchema.optional(),
   categoryId: z.string().uuid().nullable().optional(),

@@ -71,6 +71,7 @@ const defaultNames: Record<string, string> = {
   'debt-planner-card': 'Debt Paydown Planner',
   'rent-vs-buy-card': 'Rent vs Buy',
   'portfolio-card': 'Untitled Portfolio',
+  'header-card': 'Header',
 };
 
 interface CanvasState {

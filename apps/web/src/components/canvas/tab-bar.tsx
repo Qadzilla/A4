@@ -483,6 +483,21 @@ export const TabBar = memo(function TabBar({
                 <polyline points="9 22 9 12 15 12 15 22" />
                 <path d="M1 12h3M20 12h3" />
               </svg>
+            ) : tab.type === 'header-card' ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5 shrink-0"
+              >
+                <polyline points="4 7 4 4 20 4 20 7" />
+                <line x1="9" y1="20" x2="15" y2="20" />
+                <line x1="12" y1="4" x2="12" y2="20" />
+              </svg>
             ) : tab.type === 'embed-card' ? (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
