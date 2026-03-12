@@ -5,6 +5,9 @@ import type { ProjectionCardData } from '../../lib/projection-utils';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
+const selectClass =
+  'rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:14px_14px] bg-[position:right_6px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-7 cursor-pointer';
+
 function makeData(d: ProjectionCardData | undefined): ProjectionCardData {
   return {
     startingAmount: d?.startingAmount ?? 10000,
@@ -66,15 +69,15 @@ export const ProjectionCardView = memo(function ProjectionCardView({
   const result = computeProjection(data);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
-      {/* Settings row */}
-      <div className="flex items-center gap-3 border-b border-border/60 px-4 py-2 flex-wrap">
-        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden bg-muted/30">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 border-b border-border/60 bg-card px-4 sm:px-6 py-2 flex-wrap">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           Years
           <select
             value={data.projectionYears}
             onChange={(e) => update({ projectionYears: Number(e.target.value) })}
-            className="rounded border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+            className={selectClass}
           >
             {[1, 3, 5, 10, 15, 20, 25, 30, 40, 50].map((y) => (
               <option key={y} value={y}>
@@ -99,7 +102,7 @@ export const ProjectionCardView = memo(function ProjectionCardView({
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-3xl mx-auto p-4 space-y-1">
+        <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-1">
           {/* ── INPUTS ── */}
           <SectionHeader label="Projection Inputs" />
           <FieldRow
@@ -150,7 +153,7 @@ export const ProjectionCardView = memo(function ProjectionCardView({
 
           {/* ── METRICS ── */}
           <div className="pt-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <MetricBox label="Final Balance" value={formatProjectionCurrency(result.finalBalance)} />
               <MetricBox
                 label="Total Contributions"
@@ -171,34 +174,34 @@ export const ProjectionCardView = memo(function ProjectionCardView({
                 Year-by-Year Schedule
               </span>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-border/40">
+            <div className="overflow-x-auto rounded-lg border border-border/60 bg-background">
               <table className="w-full text-[11px]">
                 <thead>
-                  <tr className="bg-muted/20 text-muted-foreground">
-                    <th className="text-left py-1.5 px-2 font-medium">Year</th>
-                    <th className="text-right py-1.5 px-2 font-medium">Contributions</th>
-                    <th className="text-right py-1.5 px-2 font-medium">Growth</th>
-                    <th className="text-right py-1.5 px-2 font-medium">Balance</th>
+                  <tr className="bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    <th className="text-left py-1.5 px-2">Year</th>
+                    <th className="text-right py-1.5 px-2">Contributions</th>
+                    <th className="text-right py-1.5 px-2">Growth</th>
+                    <th className="text-right py-1.5 px-2">Balance</th>
                     {data.inflationRate > 0 && (
-                      <th className="text-right py-1.5 px-2 font-medium">Real Value</th>
+                      <th className="text-right py-1.5 px-2">Real Value</th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
                   {result.schedule.map((row) => (
-                    <tr key={row.year} className="border-t border-border/20 hover:bg-muted/10">
-                      <td className="py-1 px-2 text-muted-foreground">{row.year}</td>
-                      <td className="py-1 px-2 text-right font-mono">
+                    <tr key={row.year} className="border-t border-border/40 hover:bg-muted/20 transition-colors">
+                      <td className="py-1 px-2 text-muted-foreground tabular-nums">{row.year}</td>
+                      <td className="py-1 px-2 text-right font-mono tabular-nums">
                         {formatProjectionCurrency(row.contributionsThisYear)}
                       </td>
-                      <td className="py-1 px-2 text-right font-mono text-green-600 dark:text-green-400">
+                      <td className="py-1 px-2 text-right font-mono tabular-nums text-green-600 dark:text-green-400">
                         {formatProjectionCurrency(row.growthThisYear)}
                       </td>
-                      <td className="py-1 px-2 text-right font-mono font-medium">
+                      <td className="py-1 px-2 text-right font-mono tabular-nums font-medium">
                         {formatProjectionCurrency(row.nominalBalance)}
                       </td>
                       {data.inflationRate > 0 && (
-                        <td className="py-1 px-2 text-right font-mono text-muted-foreground">
+                        <td className="py-1 px-2 text-right font-mono tabular-nums text-muted-foreground">
                           {formatProjectionCurrency(row.realBalance)}
                         </td>
                       )}
@@ -237,7 +240,7 @@ function FieldRow({
   isPercent,
 }: { label: string; value: number; onChange: (v: number) => void; isPercent?: boolean }) {
   return (
-    <div className="flex items-center hover:bg-muted/20 py-0.5 px-3">
+    <div className="flex items-center hover:bg-muted/20 py-0.5 px-3 transition-colors">
       <span className="flex-1 text-[12px] text-foreground">{label}</span>
       {isPercent ? (
         <PercentInput value={value} onChange={onChange} />
@@ -261,7 +264,7 @@ function ComputedRow({ label, value, sub }: { label: string; value: string; sub?
       </span>
       <span
         className={cn(
-          'w-40 text-right font-mono text-[12px]',
+          'w-40 text-right font-mono tabular-nums text-[12px]',
           sub ? 'text-muted-foreground' : 'font-semibold text-foreground',
         )}
       >
@@ -301,7 +304,7 @@ function AmountInput({ value, onChange }: { value: number; onChange: (v: number)
         const num = Number(text.replace(/,/g, ''));
         if (!Number.isNaN(num)) onChange(num);
       }}
-      className="w-40 text-right font-mono text-[13px] text-foreground bg-transparent border border-transparent rounded px-1 py-0.5 outline-none hover:border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+      className="w-40 text-right font-mono tabular-nums text-[13px] text-foreground border border-border bg-muted/20 rounded-md px-1 py-0.5 outline-none focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/30 transition-all"
     />
   );
 }
@@ -336,7 +339,7 @@ function PercentInput({ value, onChange }: { value: number; onChange: (v: number
         const num = Number(text);
         if (!Number.isNaN(num) && num >= 0 && num <= 100) onChange(num);
       }}
-      className="w-20 text-right font-mono text-[13px] text-foreground bg-transparent border border-transparent rounded px-1 py-0.5 outline-none hover:border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+      className="w-20 text-right font-mono tabular-nums text-[13px] text-foreground border border-border bg-muted/20 rounded-md px-1 py-0.5 outline-none focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/30 transition-all"
     />
   );
 }
@@ -347,11 +350,11 @@ function MetricBox({
   color,
 }: { label: string; value: string; color?: 'green' | 'red' }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card px-4 py-3">
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+    <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-sm">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
       <p
         className={cn(
-          'text-[16px] font-bold mt-0.5',
+          'text-[16px] font-semibold font-mono tabular-nums mt-1',
           color === 'green' && 'text-green-600 dark:text-green-400',
           color === 'red' && 'text-red-600 dark:text-red-400',
           !color && 'text-foreground',

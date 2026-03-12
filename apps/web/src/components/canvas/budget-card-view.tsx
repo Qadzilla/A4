@@ -42,9 +42,31 @@ const PERIOD_TYPES: { value: BudgetPeriodType; label: string }[] = [
 ];
 
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
+
+const inputClass =
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground transition-all font-sans focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+
+const selectClass =
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:16px_16px] bg-[position:right_8px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-8';
+
+const inlineSelectClass =
+  'w-full rounded-md border border-border bg-muted/20 px-2 py-1 pr-7 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:14px_14px] bg-[position:right_6px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")]';
+
+const numberInputSpinner =
+  '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
 function ProgressBar({ percent }: { percent: number }) {
   const health = getBudgetHealthColor(percent);
@@ -70,10 +92,7 @@ function defaultViewConfig(): BudgetCardData {
 }
 
 export const BudgetCardView = memo(
-  function BudgetCardView({
-    item,
-    workspaceId,
-  }: { item: CanvasItem; workspaceId: string }) {
+  function BudgetCardView({ item, workspaceId }: { item: CanvasItem; workspaceId: string }) {
     const trpc = useTRPC();
     const queryClient = useQueryClient();
     const updateItemData = useCanvasStore((s) => s.updateItemData);
@@ -118,7 +137,9 @@ export const BudgetCardView = memo(
       };
     }, []);
 
-    const markDirty = () => { dirtyRef.current = true; };
+    const markDirty = () => {
+      dirtyRef.current = true;
+    };
 
     const updatePeriod = (patch: Partial<BudgetPeriod>) => {
       markDirty();
@@ -150,12 +171,24 @@ export const BudgetCardView = memo(
       queryClient.invalidateQueries({ queryKey: summaryQueryKey });
     };
 
-    const createCat = useMutation(trpc.budget.createCategory.mutationOptions({ onSuccess: invalidateCats }));
-    const updateCat = useMutation(trpc.budget.updateCategory.mutationOptions({ onSuccess: invalidateCats }));
-    const deleteCat = useMutation(trpc.budget.deleteCategory.mutationOptions({ onSuccess: invalidateCats }));
-    const createGrp = useMutation(trpc.budget.createGroup.mutationOptions({ onSuccess: invalidateGroups }));
-    const updateGrp = useMutation(trpc.budget.updateGroup.mutationOptions({ onSuccess: invalidateGroups }));
-    const deleteGrp = useMutation(trpc.budget.deleteGroup.mutationOptions({ onSuccess: invalidateGroups }));
+    const createCat = useMutation(
+      trpc.budget.createCategory.mutationOptions({ onSuccess: invalidateCats }),
+    );
+    const updateCat = useMutation(
+      trpc.budget.updateCategory.mutationOptions({ onSuccess: invalidateCats }),
+    );
+    const deleteCat = useMutation(
+      trpc.budget.deleteCategory.mutationOptions({ onSuccess: invalidateCats }),
+    );
+    const createGrp = useMutation(
+      trpc.budget.createGroup.mutationOptions({ onSuccess: invalidateGroups }),
+    );
+    const updateGrp = useMutation(
+      trpc.budget.updateGroup.mutationOptions({ onSuccess: invalidateGroups }),
+    );
+    const deleteGrp = useMutation(
+      trpc.budget.deleteGroup.mutationOptions({ onSuccess: invalidateGroups }),
+    );
 
     // ── Category actions ──
     const addCategory = (groupId?: string) => {
@@ -247,7 +280,8 @@ export const BudgetCardView = memo(
       totalActual += resolveCategoryActual(cat, canvasItems);
     }
     const remaining = totalBudgeted - totalActual;
-    const percent = totalBudgeted === 0 ? (totalActual === 0 ? 0 : 100) : (totalActual / totalBudgeted) * 100;
+    const percent =
+      totalBudgeted === 0 ? (totalActual === 0 ? 0 : 100) : (totalActual / totalBudgeted) * 100;
 
     // Group categories by group
     const groupedCategories = new Map<string | undefined, BudgetCategory[]>();
@@ -269,23 +303,36 @@ export const BudgetCardView = memo(
     }
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-3xl space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-3xl space-y-8 bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-5 text-primary">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-5 text-primary"
+              >
                 <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
                 <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
                 <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">{formatBudgetPeriod(viewConfig.period)}</p>
+              <h2 className="text-base font-semibold text-foreground tracking-tight">
+                {item.name}
+              </h2>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">
+                {formatBudgetPeriod(viewConfig.period)}
+              </p>
             </div>
             {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
+              <span className="text-[11px] text-muted-foreground">
                 {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
               </span>
             )}
@@ -293,67 +340,174 @@ export const BudgetCardView = memo(
 
           {/* Period selector */}
           <div className="space-y-3">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">Period</label>
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+              Period
+            </label>
             <div className="flex gap-1">
               {PERIOD_TYPES.map((pt) => (
-                <button key={pt.value} type="button" onClick={() => updatePeriod({ type: pt.value })} className={cn('flex-1 rounded-md border py-1.5 text-[12px] font-medium transition-colors', viewConfig.period.type === pt.value ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground hover:bg-muted/40')}>
+                <button
+                  key={pt.value}
+                  type="button"
+                  onClick={() => updatePeriod({ type: pt.value })}
+                  className={cn(
+                    'flex-1 rounded-md border py-1.5 text-[12px] font-medium transition-colors',
+                    viewConfig.period.type === pt.value
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-muted/20 text-muted-foreground hover:bg-muted/40',
+                  )}
+                >
                   {pt.label}
                 </button>
               ))}
             </div>
             <div className="flex gap-2">
               {viewConfig.period.type === 'monthly' && (
-                <select value={viewConfig.period.month ?? 1} onChange={(e) => updatePeriod({ month: Number(e.target.value) })} className="flex-1 rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50">
-                  {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                <select
+                  value={viewConfig.period.month ?? 1}
+                  onChange={(e) => updatePeriod({ month: Number(e.target.value) })}
+                  className={cn(selectClass, 'flex-1')}
+                >
+                  {MONTHS.map((m, i) => (
+                    <option key={m} value={i + 1}>
+                      {m}
+                    </option>
+                  ))}
                 </select>
               )}
               {viewConfig.period.type === 'quarterly' && (
                 <div className="flex gap-1 flex-1">
                   {[1, 2, 3, 4].map((q) => (
-                    <button key={q} type="button" onClick={() => updatePeriod({ quarter: q })} className={cn('flex-1 rounded-md border py-1.5 text-[12px] font-medium transition-colors', viewConfig.period.quarter === q ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground hover:bg-muted/40')}>Q{q}</button>
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => updatePeriod({ quarter: q })}
+                      className={cn(
+                        'flex-1 rounded-md border py-1.5 text-[12px] font-medium transition-colors',
+                        viewConfig.period.quarter === q
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-muted/20 text-muted-foreground hover:bg-muted/40',
+                      )}
+                    >
+                      Q{q}
+                    </button>
                   ))}
                 </div>
               )}
               {viewConfig.period.type === 'custom' && (
                 <>
-                  <input type="date" value={viewConfig.period.startDate ?? ''} onChange={(e) => updatePeriod({ startDate: e.target.value })} className="flex-1 rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50" />
-                  <input type="date" value={viewConfig.period.endDate ?? ''} onChange={(e) => updatePeriod({ endDate: e.target.value })} className="flex-1 rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50" />
+                  <input
+                    type="date"
+                    value={viewConfig.period.startDate ?? ''}
+                    onChange={(e) => updatePeriod({ startDate: e.target.value })}
+                    className={cn(inputClass, 'flex-1')}
+                  />
+                  <input
+                    type="date"
+                    value={viewConfig.period.endDate ?? ''}
+                    onChange={(e) => updatePeriod({ endDate: e.target.value })}
+                    className={cn(inputClass, 'flex-1')}
+                  />
                 </>
               )}
-              {(viewConfig.period.type === 'monthly' || viewConfig.period.type === 'quarterly' || viewConfig.period.type === 'yearly') && (
-                <input type="number" value={viewConfig.period.year} onChange={(e) => updatePeriod({ year: Number(e.target.value) })} className="w-24 rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50" />
+              {(viewConfig.period.type === 'monthly' ||
+                viewConfig.period.type === 'quarterly' ||
+                viewConfig.period.type === 'yearly') && (
+                <input
+                  type="number"
+                  value={viewConfig.period.year}
+                  onChange={(e) => updatePeriod({ year: Number(e.target.value) })}
+                  className={cn(inputClass, 'w-24', numberInputSpinner)}
+                />
               )}
             </div>
           </div>
 
           {/* Currency selector */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">Currency</label>
-            <select value={viewConfig.currency} onChange={(e) => { markDirty(); setViewConfig((prev) => ({ ...prev, currency: e.target.value as BudgetCurrency })); }} className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50">
-              {BUDGET_CURRENCIES.map((c) => <option key={c.value} value={c.value}>{c.symbol} — {c.label} ({c.value})</option>)}
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+              Currency
+            </label>
+            <select
+              value={viewConfig.currency}
+              onChange={(e) => {
+                markDirty();
+                setViewConfig((prev) => ({ ...prev, currency: e.target.value as BudgetCurrency }));
+              }}
+              className={selectClass}
+            >
+              {BUDGET_CURRENCIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.symbol} — {c.label} ({c.value})
+                </option>
+              ))}
             </select>
           </div>
 
           {/* Groups management */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">Groups</label>
-              <button type="button" onClick={addGroup} className="text-[11px] font-medium text-primary hover:underline">+ Add group</button>
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Groups
+              </label>
+              <button
+                type="button"
+                onClick={addGroup}
+                className="flex items-center gap-1.5 text-[12px] text-primary/80 hover:text-primary font-medium transition-colors"
+              >
+                + Add group
+              </button>
             </div>
             {dbGroups.length === 0 ? (
               <p className="text-[12px] text-muted-foreground/70 italic">No groups yet</p>
             ) : (
               <div className="space-y-2">
                 {dbGroups.map((group) => (
-                  <div key={group.id} className="flex items-center gap-2 rounded-lg border border-border/60 bg-background p-2">
+                  <div
+                    key={group.id}
+                    className="flex items-center gap-2 rounded-lg border border-border/60 bg-background p-2"
+                  >
                     <div className="flex gap-1">
                       {BUDGET_GROUP_COLORS.map((color) => (
-                        <button key={color} type="button" onClick={() => handleGroupColorChange(group.id, color)} className={cn('size-5 rounded-full border-2 transition-all', group.color === color ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : 'hover:scale-110')} style={{ backgroundColor: color, borderColor: color }} />
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => handleGroupColorChange(group.id, color)}
+                          className={cn(
+                            'size-5 rounded-full border-2 transition-all',
+                            group.color === color
+                              ? 'ring-2 ring-primary/20 shadow-sm scale-110'
+                              : 'hover:scale-110',
+                          )}
+                          style={{ backgroundColor: color, borderColor: color }}
+                        />
                       ))}
                     </div>
-                    <input type="text" defaultValue={group.name} onBlur={(e) => handleGroupNameBlur(group.id, e.target.value)} placeholder="Group name" className="flex-1 rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50" />
-                    <button type="button" onClick={() => removeGroup(group.id)} className="p-1 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Delete group (categories move to ungrouped)">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    <input
+                      type="text"
+                      defaultValue={group.name}
+                      onBlur={(e) => handleGroupNameBlur(group.id, e.target.value)}
+                      placeholder="Group name"
+                      className="flex-1 rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeGroup(group.id)}
+                      className="p-1 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      title="Delete group (categories move to ungrouped)"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="size-3.5"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
                     </button>
                   </div>
                 ))}
@@ -363,21 +517,44 @@ export const BudgetCardView = memo(
 
           {/* Categories table */}
           <div className="space-y-3">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">Categories</label>
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Categories
+            </label>
 
             {dbGroups.map((group) => {
               const cats = groupedCategories.get(group.id) ?? [];
               return (
                 <div key={group.id} className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-1 h-5 rounded-full" style={{ backgroundColor: group.color }} />
-                    <span className="text-[12px] font-semibold text-foreground">{group.name || 'Unnamed group'}</span>
+                    <div
+                      className="w-1 h-5 rounded-full"
+                      style={{ backgroundColor: group.color }}
+                    />
+                    <span className="text-[12px] font-semibold text-foreground">
+                      {group.name || 'Unnamed group'}
+                    </span>
                     <span className="text-[10px] text-muted-foreground">({cats.length})</span>
                   </div>
                   {cats.map((cat) => (
-                    <CategoryRow key={cat.id} category={cat} currency={viewConfig.currency} items={canvasItems} tableItems={tableItems} onFieldBlur={handleCategoryFieldBlur} onUpdateSource={(patch) => updateCategorySource(cat.id, patch)} onToggleLinked={() => toggleCategoryLinked(cat.id)} onRemove={() => removeCategory(cat.id)} />
+                    <CategoryRow
+                      key={cat.id}
+                      category={cat}
+                      currency={viewConfig.currency}
+                      items={canvasItems}
+                      tableItems={tableItems}
+                      onFieldBlur={handleCategoryFieldBlur}
+                      onUpdateSource={(patch) => updateCategorySource(cat.id, patch)}
+                      onToggleLinked={() => toggleCategoryLinked(cat.id)}
+                      onRemove={() => removeCategory(cat.id)}
+                    />
                   ))}
-                  <button type="button" onClick={() => addCategory(group.id)} className="text-[11px] font-medium text-primary hover:underline ml-3">+ Add category</button>
+                  <button
+                    type="button"
+                    onClick={() => addCategory(group.id)}
+                    className="flex items-center gap-1.5 text-[12px] text-primary/80 hover:text-primary font-medium transition-colors ml-3"
+                  >
+                    + Add category
+                  </button>
                 </div>
               );
             })}
@@ -391,14 +568,34 @@ export const BudgetCardView = memo(
                   {dbGroups.length > 0 && (
                     <div className="flex items-center gap-2">
                       <div className="w-1 h-5 rounded-full bg-muted-foreground/30" />
-                      <span className="text-[12px] font-semibold text-muted-foreground">Ungrouped</span>
-                      <span className="text-[10px] text-muted-foreground">({ungrouped.length})</span>
+                      <span className="text-[12px] font-semibold text-muted-foreground">
+                        Ungrouped
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        ({ungrouped.length})
+                      </span>
                     </div>
                   )}
                   {ungrouped.map((cat) => (
-                    <CategoryRow key={cat.id} category={cat} currency={viewConfig.currency} items={canvasItems} tableItems={tableItems} onFieldBlur={handleCategoryFieldBlur} onUpdateSource={(patch) => updateCategorySource(cat.id, patch)} onToggleLinked={() => toggleCategoryLinked(cat.id)} onRemove={() => removeCategory(cat.id)} />
+                    <CategoryRow
+                      key={cat.id}
+                      category={cat}
+                      currency={viewConfig.currency}
+                      items={canvasItems}
+                      tableItems={tableItems}
+                      onFieldBlur={handleCategoryFieldBlur}
+                      onUpdateSource={(patch) => updateCategorySource(cat.id, patch)}
+                      onToggleLinked={() => toggleCategoryLinked(cat.id)}
+                      onRemove={() => removeCategory(cat.id)}
+                    />
                   ))}
-                  <button type="button" onClick={() => addCategory(undefined)} className="text-[11px] font-medium text-primary hover:underline ml-3">+ Add category</button>
+                  <button
+                    type="button"
+                    onClick={() => addCategory(undefined)}
+                    className="flex items-center gap-1.5 text-[12px] text-primary/80 hover:text-primary font-medium transition-colors ml-3"
+                  >
+                    + Add category
+                  </button>
                 </div>
               );
             })()}
@@ -406,26 +603,59 @@ export const BudgetCardView = memo(
 
           {/* Summary */}
           <div className="rounded-lg border border-border/60 bg-background p-4 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between px-1">
               <span className="text-[12px] font-medium text-muted-foreground">Total Budgeted</span>
-              <span className="text-[14px] font-bold text-foreground">{formatBudgetCurrency(totalBudgeted, viewConfig.currency)}</span>
+              <span className="text-[14px] font-semibold text-foreground font-mono tabular-nums">
+                {formatBudgetCurrency(totalBudgeted, viewConfig.currency)}
+              </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between px-1">
               <span className="text-[12px] font-medium text-muted-foreground">Total Actual</span>
-              <span className="text-[14px] font-bold text-foreground">{formatBudgetCurrency(totalActual, viewConfig.currency)}</span>
+              <span className="text-[14px] font-semibold text-foreground font-mono tabular-nums">
+                {formatBudgetCurrency(totalActual, viewConfig.currency)}
+              </span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between px-1">
               <span className="text-[12px] font-medium text-muted-foreground">Remaining</span>
-              <span className={cn('text-[14px] font-bold', remaining >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>{formatBudgetCurrency(remaining, viewConfig.currency)}</span>
+              <span
+                className={cn(
+                  'text-[14px] font-semibold font-mono tabular-nums',
+                  remaining >= 0
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400',
+                )}
+              >
+                {formatBudgetCurrency(remaining, viewConfig.currency)}
+              </span>
             </div>
             <ProgressBar percent={percent} />
-            <p className={cn('text-[11px] font-medium text-right', getBudgetHealthColor(percent) === 'green' && 'text-green-600 dark:text-green-400', getBudgetHealthColor(percent) === 'yellow' && 'text-amber-600 dark:text-amber-400', getBudgetHealthColor(percent) === 'red' && 'text-red-600 dark:text-red-400')}>{Math.round(percent)}% spent</p>
+            <p
+              className={cn(
+                'text-[11px] font-medium text-right font-mono',
+                getBudgetHealthColor(percent) === 'green' && 'text-green-600 dark:text-green-400',
+                getBudgetHealthColor(percent) === 'yellow' && 'text-amber-600 dark:text-amber-400',
+                getBudgetHealthColor(percent) === 'red' && 'text-red-600 dark:text-red-400',
+              )}
+            >
+              {Math.round(percent)}% spent
+            </p>
           </div>
 
           {/* Notes */}
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">Notes</label>
-            <textarea value={viewConfig.notes} onChange={(e) => { markDirty(); setViewConfig((prev) => ({ ...prev, notes: e.target.value })); }} placeholder="Budget notes..." rows={3} className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 resize-none focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50" />
+          <div className="space-y-1.5 pt-4 border-t border-border/40">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+              Notes
+            </label>
+            <textarea
+              value={viewConfig.notes}
+              onChange={(e) => {
+                markDirty();
+                setViewConfig((prev) => ({ ...prev, notes: e.target.value }));
+              }}
+              placeholder="Budget notes..."
+              rows={3}
+              className={cn(inputClass, 'resize-none py-2')}
+            />
           </div>
         </div>
       </div>
@@ -447,34 +677,96 @@ interface CategoryRowProps {
   onRemove: () => void;
 }
 
-function CategoryRow({ category, currency, items, tableItems, onFieldBlur, onUpdateSource, onToggleLinked, onRemove }: CategoryRowProps) {
+function CategoryRow({
+  category,
+  currency,
+  items,
+  tableItems,
+  onFieldBlur,
+  onUpdateSource,
+  onToggleLinked,
+  onRemove,
+}: CategoryRowProps) {
   const linked = !!category.source;
   const resolvedActual = resolveCategoryActual(category, items);
   const remaining = computeCategoryRemaining(category.budgeted, resolvedActual);
   const percent = computeCategoryPercent(category.budgeted, resolvedActual);
   const health = getBudgetHealthColor(percent);
 
-  const selectedTable = category.source?.tableItemId ? items.find((i) => i.id === category.source?.tableItemId) : undefined;
+  const selectedTable = category.source?.tableItemId
+    ? items.find((i) => i.id === category.source?.tableItemId)
+    : undefined;
   const selectedTableData = selectedTable?.data as TableCardData | undefined;
   const columns = selectedTableData?.columns ?? [];
 
   return (
-    <div className="rounded-lg border border-border/60 bg-background p-3 space-y-2">
+    <div className="group rounded-lg border border-border/60 bg-background p-3 space-y-2 transition-colors hover:bg-muted/20">
       <div className="flex items-center gap-2">
-        <input type="text" defaultValue={category.name} onBlur={(e) => onFieldBlur(category.id, 'name', e.target.value)} placeholder="Category name" className="flex-1 rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50" />
+        <input
+          type="text"
+          defaultValue={category.name}
+          onBlur={(e) => onFieldBlur(category.id, 'name', e.target.value)}
+          placeholder="Category name"
+          className="flex-1 rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+        />
         <div className="flex items-center gap-1">
           <span className="text-[11px] text-muted-foreground">Budget:</span>
-          <input type="number" defaultValue={category.budgeted || ''} onBlur={(e) => onFieldBlur(category.id, 'budgeted', Number(e.target.value) || 0)} placeholder="0" className="w-24 rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] font-mono text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50" />
+          <input
+            type="number"
+            defaultValue={category.budgeted || ''}
+            onBlur={(e) => onFieldBlur(category.id, 'budgeted', Number(e.target.value) || 0)}
+            placeholder="0"
+            className={cn(
+              'w-24 rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] font-mono text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50',
+              numberInputSpinner,
+            )}
+          />
         </div>
-        <button type="button" onClick={onRemove} className="p-1 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3.5"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="p-1 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-3.5"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
         </button>
       </div>
 
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1.5 cursor-pointer">
-          <button type="button" onClick={onToggleLinked} className={cn('flex size-3.5 items-center justify-center rounded border transition-colors', linked ? 'border-primary bg-primary text-white' : 'border-border bg-background')}>
-            {linked && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="size-2"><polyline points="20 6 9 17 4 12" /></svg>}
+          <button
+            type="button"
+            onClick={onToggleLinked}
+            className={cn(
+              'flex size-3.5 items-center justify-center rounded border transition-colors',
+              linked ? 'border-primary bg-primary text-white' : 'border-border bg-muted/20',
+            )}
+          >
+            {linked && (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-2"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
           </button>
           <span className="text-[11px] text-muted-foreground">Linked</span>
         </label>
@@ -482,13 +774,34 @@ function CategoryRow({ category, currency, items, tableItems, onFieldBlur, onUpd
         {!linked && (
           <div className="flex items-center gap-1">
             <span className="text-[11px] text-muted-foreground">Actual:</span>
-            <input type="number" defaultValue={category.actual || ''} onBlur={(e) => onFieldBlur(category.id, 'actual', Number(e.target.value) || 0)} placeholder="0" className="w-24 rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] font-mono text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50" />
+            <input
+              type="number"
+              defaultValue={category.actual || ''}
+              onBlur={(e) => onFieldBlur(category.id, 'actual', Number(e.target.value) || 0)}
+              placeholder="0"
+              className={cn(
+                'w-24 rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] font-mono text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50',
+                numberInputSpinner,
+              )}
+            />
           </div>
         )}
 
         <div className="ml-auto flex items-center gap-3 text-[11px]">
-          <span className="text-muted-foreground">{formatBudgetCurrency(resolvedActual, currency)} / {formatBudgetCurrency(category.budgeted, currency)}</span>
-          <span className={cn('font-medium', health === 'green' && 'text-green-600 dark:text-green-400', health === 'yellow' && 'text-amber-600 dark:text-amber-400', health === 'red' && 'text-red-600 dark:text-red-400')}>{Math.round(percent)}%</span>
+          <span className="text-muted-foreground font-mono tabular-nums">
+            {formatBudgetCurrency(resolvedActual, currency)} /{' '}
+            {formatBudgetCurrency(category.budgeted, currency)}
+          </span>
+          <span
+            className={cn(
+              'font-medium font-mono',
+              health === 'green' && 'text-green-600 dark:text-green-400',
+              health === 'yellow' && 'text-amber-600 dark:text-amber-400',
+              health === 'red' && 'text-red-600 dark:text-red-400',
+            )}
+          >
+            {Math.round(percent)}%
+          </span>
         </div>
       </div>
 
@@ -500,20 +813,44 @@ function CategoryRow({ category, currency, items, tableItems, onFieldBlur, onUpd
             <div className="flex-1 space-y-1">
               <label className="text-[10px] text-muted-foreground">Table</label>
               {tableItems.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground/70 italic">No tables on this canvas</p>
+                <p className="text-[11px] text-muted-foreground/70 italic">
+                  No tables on this canvas
+                </p>
               ) : (
-                <select value={category.source?.tableItemId ?? ''} onChange={(e) => { const tableId = e.target.value; const table = items.find((i) => i.id === tableId); const td = table?.data as TableCardData | undefined; const firstCol = td?.columns?.[0]; onUpdateSource({ tableItemId: tableId, columnId: firstCol?.id ?? '' }); }} className="w-full rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50">
+                <select
+                  value={category.source?.tableItemId ?? ''}
+                  onChange={(e) => {
+                    const tableId = e.target.value;
+                    const table = items.find((i) => i.id === tableId);
+                    const td = table?.data as TableCardData | undefined;
+                    const firstCol = td?.columns?.[0];
+                    onUpdateSource({ tableItemId: tableId, columnId: firstCol?.id ?? '' });
+                  }}
+                  className={inlineSelectClass}
+                >
                   <option value="">Select table...</option>
-                  {tableItems.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {tableItems.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
                 </select>
               )}
             </div>
             {columns.length > 0 && (
               <div className="flex-1 space-y-1">
                 <label className="text-[10px] text-muted-foreground">Column</label>
-                <select value={category.source?.columnId ?? ''} onChange={(e) => onUpdateSource({ columnId: e.target.value })} className="w-full rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50">
+                <select
+                  value={category.source?.columnId ?? ''}
+                  onChange={(e) => onUpdateSource({ columnId: e.target.value })}
+                  className={inlineSelectClass}
+                >
                   <option value="">Select column...</option>
-                  {columns.map((col) => <option key={col.id} value={col.id}>{col.name}</option>)}
+                  {columns.map((col) => (
+                    <option key={col.id} value={col.id}>
+                      {col.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             )}
@@ -522,13 +859,30 @@ function CategoryRow({ category, currency, items, tableItems, onFieldBlur, onUpd
             <label className="text-[10px] text-muted-foreground">Aggregation</label>
             <div className="flex flex-wrap gap-1">
               {AGGREGATION_OPTIONS.map((opt) => (
-                <button key={opt.value} type="button" onClick={() => onUpdateSource({ aggregation: opt.value })} className={cn('rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors', category.source?.aggregation === opt.value ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground hover:bg-muted/40')}>{opt.label}</button>
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onUpdateSource({ aggregation: opt.value })}
+                  className={cn(
+                    'rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors',
+                    category.source?.aggregation === opt.value
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-muted/20 text-muted-foreground hover:bg-muted/40',
+                  )}
+                >
+                  {opt.label}
+                </button>
               ))}
             </div>
           </div>
           {category.source?.tableItemId && category.source?.columnId && (
             <div className="rounded-md border border-border/40 bg-muted/20 px-2 py-1 text-center">
-              <p className="text-[10px] text-muted-foreground">Resolved: <span className="font-bold text-foreground">{formatBudgetCurrency(resolvedActual, currency)}</span></p>
+              <p className="text-[10px] text-muted-foreground">
+                Resolved:{' '}
+                <span className="font-semibold text-foreground font-mono">
+                  {formatBudgetCurrency(resolvedActual, currency)}
+                </span>
+              </p>
             </div>
           )}
         </div>

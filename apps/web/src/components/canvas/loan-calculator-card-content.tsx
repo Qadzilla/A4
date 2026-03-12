@@ -1,4 +1,3 @@
-import { cn } from '@a4/ui';
 import { memo } from 'react';
 import { computeLoan, formatLoanCurrency } from '../../lib/loan-calculator-utils';
 import type { LoanCalculatorData } from '../../lib/loan-calculator-utils';
@@ -29,65 +28,87 @@ export const LoanCalculatorCardContent = memo(function LoanCalculatorCardContent
     notes: data?.notes ?? '',
   });
 
-  // Interest ratio for visual bar
+  // Donut ring segments
   const piTotal = result.loanAmount + result.totalInterest;
-  const principalPct = piTotal > 0 ? (result.loanAmount / piTotal) * 100 : 100;
+  const principalFraction = piTotal > 0 ? result.loanAmount / piTotal : 1;
+  const circumference = 2 * Math.PI * 32;
+  const principalDash = principalFraction * circumference;
+  const interestDash = (1 - principalFraction) * circumference;
 
   return (
     <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card shadow-md overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5">
-        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-          Loan Calculator
+      {/* Thin header */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          Loan
         </span>
         <span className="text-[10px] text-muted-foreground truncate ml-2">
           {loanTermYears}yr · {annualInterestRate}%
         </span>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 flex flex-col justify-center px-3 py-2 gap-2">
-        <div>
-          <p className="text-[10px] text-muted-foreground">Monthly Payment</p>
-          <p className="text-[20px] font-bold leading-tight text-foreground">
-            {formatLoanCurrency(result.totalMonthlyPayment)}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-[10px] text-muted-foreground">Loan Amount</p>
-          <p className="text-[15px] font-semibold leading-tight text-foreground">
-            {formatLoanCurrency(result.loanAmount)}
-          </p>
-        </div>
-
-        {/* Principal vs Interest bar */}
-        <div className="space-y-0.5">
-          <div className="flex justify-between text-[9px] text-muted-foreground">
-            <span>Principal</span>
-            <span>Interest</span>
-          </div>
-          <div className="flex h-2 rounded-full overflow-hidden bg-muted/30">
-            <div className="bg-primary/70 rounded-l-full" style={{ width: `${principalPct}%` }} />
-            <div
-              className="bg-orange-400/70 rounded-r-full"
-              style={{ width: `${100 - principalPct}%` }}
+      {/* Body with donut */}
+      <div className="flex-1 flex flex-col items-center justify-center px-3 py-2 gap-1.5">
+        {/* SVG donut ring */}
+        <div className="relative">
+          <svg viewBox="0 0 80 80" className="size-[72px] -rotate-90">
+            {/* Principal segment */}
+            <circle
+              cx="40"
+              cy="40"
+              r="32"
+              fill="none"
+              strokeWidth="10"
+              className="text-primary"
+              stroke="currentColor"
+              strokeDasharray={`${principalDash} ${circumference}`}
+              strokeLinecap="round"
             />
+            {/* Interest segment */}
+            <circle
+              cx="40"
+              cy="40"
+              r="32"
+              fill="none"
+              strokeWidth="10"
+              className="text-orange-400"
+              stroke="currentColor"
+              strokeDasharray={`${interestDash} ${circumference}`}
+              strokeDashoffset={-principalDash}
+              strokeLinecap="round"
+            />
+          </svg>
+          {/* Monthly payment centered in ring */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-[11px] font-mono tabular-nums font-bold text-foreground">
+              {formatLoanCurrency(result.totalMonthlyPayment)}
+            </span>
           </div>
         </div>
 
-        {result.withExtra && (
-          <p className={cn('text-[10px] font-medium text-green-600 dark:text-green-400')}>
-            Save {formatLoanCurrency(result.withExtra.interestSaved)} ·{' '}
-            {result.withExtra.monthsSaved}mo earlier
-          </p>
-        )}
+        <span className="text-[9px] text-muted-foreground">per month</span>
+
+        {/* Legend */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <span className="size-2 rounded-full bg-primary" />
+            <span className="text-[9px] text-muted-foreground font-mono tabular-nums">
+              {formatLoanCurrency(result.loanAmount)}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="size-2 rounded-full bg-orange-400" />
+            <span className="text-[9px] text-muted-foreground font-mono tabular-nums">
+              {formatLoanCurrency(result.totalInterest)}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-muted/20">
-        <span className="text-[10px] text-muted-foreground">
-          Total Interest: {formatLoanCurrency(result.totalInterest)}
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-muted/10">
+        <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+          Total: {formatLoanCurrency(result.totalCost)}
         </span>
       </div>
     </div>

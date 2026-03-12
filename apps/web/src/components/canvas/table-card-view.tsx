@@ -221,7 +221,7 @@ export const TableCardView = memo(
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-muted/30">
         {/* Toolbar */}
-        <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 bg-background/80 shrink-0">
+        <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 bg-card shrink-0">
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -238,7 +238,7 @@ export const TableCardView = memo(
               <line x1="3" y1="15" x2="21" y2="15" />
               <line x1="9" y1="3" x2="9" y2="21" />
             </svg>
-            <span className="text-[13px] font-semibold text-black dark:text-zinc-100 truncate">
+            <span className="text-[13px] font-semibold text-foreground truncate">
               {item.name}
             </span>
           </div>
@@ -285,11 +285,14 @@ export const TableCardView = memo(
             Row
           </button>
 
-          {saveStatus !== 'idle' && (
-            <span className="text-[11px] text-black/60 dark:text-zinc-300 shrink-0">
-              {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-            </span>
-          )}
+          <span
+            className={cn(
+              'text-[11px] text-muted-foreground shrink-0 transition-opacity duration-300',
+              saveStatus === 'idle' ? 'opacity-0' : 'opacity-100',
+            )}
+          >
+            {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+          </span>
         </div>
 
         {/* Table */}
@@ -303,11 +306,11 @@ export const TableCardView = memo(
           ) : (
             <table className="w-full border-collapse text-[13px]">
               <thead className="sticky top-0 z-10">
-                <tr className="bg-muted/60 border-b border-border/60">
+                <tr className="bg-muted/40 border-b border-border/60">
                   {columns.map((col) => (
                     <th
                       key={col.id}
-                      className="relative px-3 py-2 text-left font-medium text-black dark:text-zinc-100 border-r border-border/30 min-w-[120px]"
+                      className="relative px-3 py-2 text-left font-medium text-foreground border-r border-border/30 min-w-[120px]"
                     >
                       <div className="flex items-center gap-1.5">
                         {editingHeader === col.id ? (
@@ -377,12 +380,12 @@ export const TableCardView = memo(
                     </th>
                   ))}
                   {/* Action column header */}
-                  <th className="w-8 bg-muted/60 border-b border-border/60" />
+                  <th className="w-8 bg-muted/40 border-b border-border/60" />
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-b border-border/20 hover:bg-muted/20">
+                  <tr key={row.id} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
                     {columns.map((col) => {
                       const isEditing =
                         editingCell?.rowId === row.id && editingCell?.colId === col.id;
@@ -404,10 +407,10 @@ export const TableCardView = memo(
                               onChange={(e) => setEditValue(e.target.value)}
                               onBlur={commitEdit}
                               onKeyDown={handleCellKeyDown}
-                              className="w-full h-full px-3 py-2 text-[13px] text-black dark:text-zinc-100 bg-primary/5 outline-none ring-2 ring-inset ring-primary/40"
+                              className="w-full h-full px-3 py-2 text-[13px] text-foreground bg-primary/5 outline-none ring-2 ring-inset ring-primary/40"
                             />
                           ) : (
-                            <div className="px-3 py-2 text-[13px] text-black dark:text-zinc-100 truncate min-h-[36px] cursor-text">
+                            <div className="px-3 py-2 text-[13px] text-foreground truncate min-h-[36px] cursor-text">
                               {formatCellValue(raw, col.type) || '\u00A0'}
                             </div>
                           )}

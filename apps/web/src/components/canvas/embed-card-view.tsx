@@ -60,7 +60,7 @@ export const EmbedCardView = memo(
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <div className="flex items-center gap-2 border-b border-border/60 bg-muted/30 px-4 py-2">
+        <div className="flex items-center gap-2 border-b border-border/60 bg-card px-4 py-2">
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -82,14 +82,14 @@ export const EmbedCardView = memo(
             value={data.title}
             onChange={(e) => update({ title: e.target.value })}
             placeholder="Title (optional)"
-            className="w-32 shrink-0 rounded-md border border-border bg-background px-2 py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+            className="w-32 shrink-0 rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
           />
           <input
             type="text"
             value={data.url}
             onChange={(e) => update({ url: e.target.value })}
             placeholder="https://..."
-            className="flex-1 min-w-0 rounded-md border border-border bg-background px-2.5 py-1 text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+            className="flex-1 min-w-0 rounded-md border border-border bg-muted/20 px-2.5 py-1 text-[12px] text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
           />
           {valid && (
             <a

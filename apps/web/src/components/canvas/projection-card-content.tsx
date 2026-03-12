@@ -19,15 +19,41 @@ export const ProjectionCardContent = memo(function ProjectionCardContent({
 
   const result = computeProjection(d);
 
-  // Stacked bar proportions
-  const total = result.totalContributions + result.totalGrowth;
-  const contribPct = total > 0 ? (result.totalContributions / total) * 100 : 100;
+  // Build SVG curve from schedule
+  const schedule = result.schedule;
+  const lastRow = schedule[schedule.length - 1];
+  const maxBalance = lastRow ? lastRow.nominalBalance : 1;
+  const width = 200;
+  const height = 60;
+  const padding = 2;
+
+  let pathD = '';
+  let areaD = '';
+  if (schedule.length > 1) {
+    const points = schedule.map((row, i) => ({
+      x: padding + (i / (schedule.length - 1)) * (width - padding * 2),
+      y: padding + (1 - row.nominalBalance / maxBalance) * (height - padding * 2),
+    }));
+
+    const first = points[0]!;
+    const last = points[points.length - 1]!;
+
+    // Build smooth curve
+    pathD = `M${first.x},${first.y}`;
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1]!;
+      const curr = points[i]!;
+      const cpx = (prev.x + curr.x) / 2;
+      pathD += ` C${cpx},${prev.y} ${cpx},${curr.y} ${curr.x},${curr.y}`;
+    }
+    areaD = `${pathD} L${last.x},${height} L${first.x},${height} Z`;
+  }
 
   return (
     <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card shadow-md overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5">
-        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+      {/* Thin header */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
           Projection
         </span>
         <span className="text-[10px] text-muted-foreground truncate ml-2">
@@ -35,56 +61,34 @@ export const ProjectionCardContent = memo(function ProjectionCardContent({
         </span>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 flex flex-col justify-center px-3 py-2 gap-2">
-        <div>
-          <p className="text-[10px] text-muted-foreground">Final Balance</p>
-          <p className="text-[20px] font-bold leading-tight text-foreground">
-            {formatProjectionCurrency(result.finalBalance)}
-          </p>
-        </div>
-
-        <div className="flex gap-4">
-          <div>
-            <p className="text-[10px] text-muted-foreground">Contributions</p>
-            <p className="text-[13px] font-semibold leading-tight text-blue-600 dark:text-blue-400">
-              {formatProjectionCurrency(result.totalContributions)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground">Growth</p>
-            <p className="text-[13px] font-semibold leading-tight text-green-600 dark:text-green-400">
-              {formatProjectionCurrency(result.totalGrowth)}
-            </p>
-          </div>
-        </div>
-
-        {/* Stacked bar */}
-        <div className="space-y-0.5">
-          <div className="flex justify-between text-[9px] text-muted-foreground">
-            <span>Contributions</span>
-            <span>Growth</span>
-          </div>
-          <div className="flex h-2 rounded-full overflow-hidden bg-muted/30">
-            <div className="bg-blue-500/70 rounded-l-full" style={{ width: `${contribPct}%` }} />
-            <div
-              className="bg-green-500/70 rounded-r-full"
-              style={{ width: `${100 - contribPct}%` }}
-            />
-          </div>
-        </div>
-
-        {d.inflationRate > 0 && (
-          <p className="text-[10px] text-muted-foreground">
-            Real value: {formatProjectionCurrency(result.realFinalBalance)}
-          </p>
+      {/* Body with growth curve */}
+      <div className="flex-1 flex flex-col justify-center px-3 py-2 gap-1.5">
+        {/* SVG area chart */}
+        {schedule.length > 1 && (
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[52px]" preserveAspectRatio="none">
+            <path d={areaD} className="fill-primary/10" />
+            <path d={pathD} className="stroke-primary" fill="none" strokeWidth="1.5" />
+          </svg>
         )}
+
+        {/* Start → End values */}
+        <div className="flex items-baseline justify-between">
+          <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+            {formatProjectionCurrency(d.startingAmount)}
+          </span>
+          <span className="text-[16px] font-mono tabular-nums font-bold text-foreground">
+            {formatProjectionCurrency(result.finalBalance)}
+          </span>
+        </div>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-muted/20">
-        <span className="text-[10px] text-muted-foreground">
-          Monthly: {formatProjectionCurrency(d.monthlyContribution)}
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-muted/10">
+        <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+          {formatProjectionCurrency(d.monthlyContribution)}/mo
+        </span>
+        <span className="text-[10px] font-mono tabular-nums text-green-600 dark:text-green-400">
+          +{formatProjectionCurrency(result.totalGrowth)} growth
         </span>
       </div>
     </div>

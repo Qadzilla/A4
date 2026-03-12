@@ -30,7 +30,7 @@ export const DocumentView = memo(
     }, [item.id, editor, updateItemData]);
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
         <div
           className="bg-white dark:bg-zinc-50 shadow-lg border border-border/40 rounded-sm"
           style={{ width: 816, minHeight: 1056 }}

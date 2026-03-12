@@ -26,7 +26,7 @@ export const TableCardContent = memo(function TableCardContent({ item }: TableCa
   return (
     <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
       {/* Header bar */}
-      <div className="flex items-center gap-1.5 border-b border-border/40 bg-muted/30 px-3 py-2 shrink-0">
+      <div className="flex items-center gap-1.5 border-b border-border/40 bg-muted/20 px-3 py-1.5 shrink-0">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -47,10 +47,10 @@ export const TableCardContent = memo(function TableCardContent({ item }: TableCa
 
       {/* Table */}
       {columns.length > 0 && (
-        <div className="flex-1 overflow-hidden">
+        <div className="relative flex-1 overflow-hidden">
           <table className="w-full border-collapse text-[10px]">
             <thead>
-              <tr className="border-b border-border/40">
+              <tr className="border-b border-border/40 bg-muted/30">
                 {columns.map((col) => (
                   <th
                     key={col.id}
@@ -74,9 +74,7 @@ export const TableCardContent = memo(function TableCardContent({ item }: TableCa
             </tbody>
           </table>
           {overflow > 0 && (
-            <div className="px-2 py-1 text-[10px] text-muted-foreground">
-              + {overflow} more row{overflow > 1 ? 's' : ''}
-            </div>
+            <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-card to-transparent pointer-events-none" />
           )}
         </div>
       )}

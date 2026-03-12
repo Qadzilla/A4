@@ -137,7 +137,7 @@ export const SecretCardView = memo(function SecretCardView({
   if (!loaded) {
     return (
       <div className="flex-1 flex items-center justify-center bg-muted/30">
-        <p className="text-[13px] text-black dark:text-zinc-100">Loading...</p>
+        <p className="text-[13px] text-foreground">Loading...</p>
       </div>
     );
   }
@@ -147,7 +147,7 @@ export const SecretCardView = memo(function SecretCardView({
     return (
       <div className="flex-1 flex items-center justify-center bg-muted/30">
         <div className="text-center space-y-3">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 mx-auto">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 mx-auto">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -162,7 +162,7 @@ export const SecretCardView = memo(function SecretCardView({
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <p className="text-[13px] text-black dark:text-zinc-100">
+          <p className="text-[13px] text-foreground">
             Vault is locked. Unlock to view or edit encrypted fields.
           </p>
           <Button size="sm" onClick={onRequestUnlock}>
@@ -174,11 +174,11 @@ export const SecretCardView = memo(function SecretCardView({
   }
 
   return (
-    <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-      <div className="w-full max-w-lg space-y-6">
+    <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+      <div className="w-full max-w-lg bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -194,17 +194,20 @@ export const SecretCardView = memo(function SecretCardView({
             </svg>
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-            <p className="text-[11px] text-black/60 dark:text-zinc-300">
+            <h2 className="text-base font-semibold text-foreground">{item.name}</h2>
+            <p className="text-[11px] text-muted-foreground">
               Sensitive values are encrypted before saving
             </p>
           </div>
           {/* Auto-save indicator */}
-          {saveStatus !== 'idle' && (
-            <span className="text-[11px] text-black/60 dark:text-zinc-300">
-              {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-            </span>
-          )}
+          <span
+            className={cn(
+              'text-[11px] text-muted-foreground transition-opacity duration-300',
+              saveStatus === 'idle' ? 'opacity-0' : 'opacity-100',
+            )}
+          >
+            {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+          </span>
         </div>
 
         {/* Fields */}
@@ -217,12 +220,12 @@ export const SecretCardView = memo(function SecretCardView({
                   value={field.label}
                   onChange={(e) => updateField(i, 'label', e.target.value)}
                   placeholder="Label (e.g. Password)"
-                  className="flex-1 rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                  className="flex-1 rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => removeField(i)}
-                  className="p-1.5 rounded-md text-black/50 dark:text-zinc-400 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  className="p-1.5 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
                   title="Remove field"
                 >
                   <svg
@@ -246,7 +249,7 @@ export const SecretCardView = memo(function SecretCardView({
                 value={field.value}
                 onChange={(e) => updateField(i, 'value', e.target.value)}
                 placeholder={field.sensitive ? 'Sensitive value (encrypted)' : 'Value (plaintext)'}
-                className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] font-mono text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
               />
 
               <label className="flex items-center gap-2 cursor-pointer">
@@ -257,7 +260,7 @@ export const SecretCardView = memo(function SecretCardView({
                     'flex size-4 items-center justify-center rounded border transition-colors',
                     field.sensitive
                       ? 'border-amber-500 bg-amber-500 text-white'
-                      : 'border-border bg-background',
+                      : 'border-border bg-muted/20',
                   )}
                 >
                   {field.sensitive && (
@@ -275,7 +278,7 @@ export const SecretCardView = memo(function SecretCardView({
                     </svg>
                   )}
                 </button>
-                <span className="text-[12px] text-black/70 dark:text-zinc-200">
+                <span className="text-[12px] text-muted-foreground">
                   Sensitive (encrypt this value)
                 </span>
               </label>
@@ -288,7 +291,7 @@ export const SecretCardView = memo(function SecretCardView({
           <button
             type="button"
             onClick={addField}
-            className="flex items-center gap-1.5 text-[13px] text-primary hover:underline"
+            className="flex items-center gap-1.5 text-[13px] text-primary/80 hover:text-primary transition-colors"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

@@ -10,7 +10,13 @@ import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
 const inputClass =
-  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground transition-all font-sans focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+
+const selectClass =
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:16px_16px] bg-[position:right_8px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-8';
+
+const numberInputSpinner =
+  '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
 export const DebtPlannerCardView = memo(
   function DebtPlannerCardView({ item, workspaceId }: { item: CanvasItem; workspaceId: string }) {
@@ -153,18 +159,21 @@ export const DebtPlannerCardView = memo(
 
     if (isLoading) {
       return (
-        <div className="flex-1 flex items-center justify-center bg-muted/30">
-          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="space-y-2 text-center">
+            <div className="h-6 w-32 rounded bg-muted/40 animate-pulse mx-auto" />
+            <p className="text-[12px] text-muted-foreground">Loading debts...</p>
+          </div>
         </div>
       );
     }
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-3xl space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-3xl space-y-8 bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -181,27 +190,27 @@ export const DebtPlannerCardView = memo(
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">Debt Paydown Planner</p>
+              <h2 className="text-base font-semibold text-foreground tracking-tight">{item.name}</h2>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">Debt Paydown Planner</p>
             </div>
             {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
+              <span className="text-[11px] text-muted-foreground">
                 {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
               </span>
             )}
           </div>
 
           {/* Settings 2x2 grid */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Currency */}
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Currency
               </label>
               <select
                 value={viewConfig.currency}
                 onChange={(e) => updateConfig({ currency: e.target.value as SupportedCurrency })}
-                className={inputClass}
+                className={cn(selectClass, 'w-full sm:w-[200px]')}
               >
                 {SUPPORTED_CURRENCIES.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -213,7 +222,7 @@ export const DebtPlannerCardView = memo(
 
             {/* Start date */}
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Start Date
               </label>
               <input
@@ -226,10 +235,10 @@ export const DebtPlannerCardView = memo(
 
             {/* Strategy toggle */}
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Strategy
               </label>
-              <div className="flex rounded-lg border border-border overflow-hidden">
+              <div className="flex rounded-md border border-border overflow-hidden">
                 <button
                   type="button"
                   onClick={() => updateConfig({ strategy: 'avalanche' })}
@@ -264,7 +273,7 @@ export const DebtPlannerCardView = memo(
 
             {/* Extra monthly budget */}
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Extra Monthly Budget
               </label>
               <input
@@ -275,20 +284,20 @@ export const DebtPlannerCardView = memo(
                 onChange={(e) =>
                   updateConfig({ extraMonthlyBudget: Math.max(0, Number(e.target.value) || 0) })
                 }
-                className={inputClass}
+                className={cn(inputClass, 'font-mono tabular-nums', numberInputSpinner)}
               />
               <p className="text-[10px] text-muted-foreground">On top of minimum payments</p>
             </div>
           </div>
 
           {/* Add debt form */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Add Debt
             </p>
-            <div className="flex items-end gap-2">
-              <div className="flex-1 space-y-1">
-                <label className="text-[11px] text-muted-foreground">Name</label>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+              <div className="flex-1 space-y-1.5">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Name</label>
                 <input
                   type="text"
                   value={newDebt.name}
@@ -300,8 +309,8 @@ export const DebtPlannerCardView = memo(
                   }}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground">Balance</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Balance</label>
                 <input
                   type="number"
                   min={0}
@@ -309,14 +318,14 @@ export const DebtPlannerCardView = memo(
                   value={newDebt.balance}
                   onChange={(e) => setNewDebt((p) => ({ ...p, balance: e.target.value }))}
                   placeholder="0.00"
-                  className={cn(inputClass, 'w-[110px]')}
+                  className={cn(inputClass, 'sm:w-[110px] font-mono tabular-nums', numberInputSpinner)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') addDebt();
                   }}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground">Rate %</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Rate %</label>
                 <input
                   type="number"
                   min={0}
@@ -324,14 +333,14 @@ export const DebtPlannerCardView = memo(
                   value={newDebt.rate}
                   onChange={(e) => setNewDebt((p) => ({ ...p, rate: e.target.value }))}
                   placeholder="0.0"
-                  className={cn(inputClass, 'w-[80px]')}
+                  className={cn(inputClass, 'sm:w-[80px] font-mono tabular-nums', numberInputSpinner)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') addDebt();
                   }}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground">Min Payment</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Min Payment</label>
                 <input
                   type="number"
                   min={0}
@@ -339,7 +348,7 @@ export const DebtPlannerCardView = memo(
                   value={newDebt.minPayment}
                   onChange={(e) => setNewDebt((p) => ({ ...p, minPayment: e.target.value }))}
                   placeholder="0"
-                  className={cn(inputClass, 'w-[100px]')}
+                  className={cn(inputClass, 'sm:w-[100px] font-mono tabular-nums', numberInputSpinner)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') addDebt();
                   }}
@@ -348,7 +357,7 @@ export const DebtPlannerCardView = memo(
               <button
                 type="button"
                 onClick={addDebt}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 Add
               </button>
@@ -356,11 +365,11 @@ export const DebtPlannerCardView = memo(
           </div>
 
           {/* Debt list table */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Debts ({debts.length})
             </p>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
               {debts.length === 0 ? (
                 <div className="px-3 py-6 text-center text-[12px] text-muted-foreground">
                   No debts yet
@@ -368,25 +377,13 @@ export const DebtPlannerCardView = memo(
               ) : (
                 <>
                   {/* Header */}
-                  <div className="grid grid-cols-[1fr_100px_70px_90px_80px_80px_32px] gap-2 px-3 py-1.5 bg-muted/30 border-b border-border/40">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase">
-                      Name
-                    </span>
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase text-right">
-                      Balance
-                    </span>
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase text-right">
-                      Rate
-                    </span>
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase text-right">
-                      Min Pay
-                    </span>
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase text-right">
-                      Payoff
-                    </span>
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase text-right">
-                      Interest
-                    </span>
+                  <div className="hidden sm:grid grid-cols-[1fr_100px_70px_90px_80px_80px_32px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    <span>Name</span>
+                    <span className="text-right">Balance</span>
+                    <span className="text-right">Rate</span>
+                    <span className="text-right">Min Pay</span>
+                    <span className="text-right">Payoff</span>
+                    <span className="text-right">Interest</span>
                     <span />
                   </div>
                   {debts.map((debt) => {
@@ -394,13 +391,14 @@ export const DebtPlannerCardView = memo(
                     return (
                       <div
                         key={debt.id}
-                        className="grid grid-cols-[1fr_100px_70px_90px_80px_80px_32px] gap-2 px-3 py-1 items-center border-b border-border/20 last:border-b-0"
+                        className="group grid grid-cols-1 sm:grid-cols-[1fr_100px_70px_90px_80px_80px_32px] gap-2 px-3 py-2 items-center border-t border-border/40 transition-colors hover:bg-muted/20"
                       >
                         <input
                           type="text"
                           defaultValue={debt.name}
                           onBlur={(e) => handleDebtBlur(debt.id, 'name', e.target.value)}
-                          className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 focus:outline-none"
+                          placeholder="Name"
+                          className="rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all w-full focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
                         />
                         <input
                           type="number"
@@ -410,7 +408,10 @@ export const DebtPlannerCardView = memo(
                           onBlur={(e) =>
                             handleDebtBlur(debt.id, 'balance', Number(e.target.value) || 0)
                           }
-                          className="border-0 bg-transparent text-[13px] text-right text-red-600 dark:text-red-400 focus:outline-none tabular-nums w-full"
+                          className={cn(
+                            'rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-left sm:text-right text-red-600 dark:text-red-400 font-mono tabular-nums transition-all w-full focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50',
+                            numberInputSpinner,
+                          )}
                         />
                         <input
                           type="number"
@@ -424,7 +425,10 @@ export const DebtPlannerCardView = memo(
                               Number(e.target.value) || 0,
                             )
                           }
-                          className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
+                          className={cn(
+                            'rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-left sm:text-right text-foreground font-mono tabular-nums transition-all w-full focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50',
+                            numberInputSpinner,
+                          )}
                         />
                         <input
                           type="number"
@@ -434,18 +438,21 @@ export const DebtPlannerCardView = memo(
                           onBlur={(e) =>
                             handleDebtBlur(debt.id, 'minimumPayment', Number(e.target.value) || 0)
                           }
-                          className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
+                          className={cn(
+                            'rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-left sm:text-right text-foreground font-mono tabular-nums transition-all w-full focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50',
+                            numberInputSpinner,
+                          )}
                         />
-                        <span className="text-[12px] text-right text-muted-foreground tabular-nums">
+                        <span className="text-[12px] text-left sm:text-right text-muted-foreground font-mono tabular-nums py-1">
                           {dr && dr.payoffMonth > 0 ? `Mo ${dr.payoffMonth}` : '—'}
                         </span>
-                        <span className="text-[12px] text-right text-red-600 dark:text-red-400 tabular-nums">
+                        <span className="text-[12px] text-left sm:text-right text-red-600 dark:text-red-400 font-mono tabular-nums py-1">
                           {dr ? formatCurrency(dr.totalInterest, viewConfig.currency) : '—'}
                         </span>
                         <button
                           type="button"
                           onClick={() => removeDebt(debt.id)}
-                          className="flex items-center justify-center size-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          className="hidden sm:flex items-center justify-center size-6 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -455,7 +462,7 @@ export const DebtPlannerCardView = memo(
                             strokeWidth="2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            className="size-3"
+                            className="size-3.5"
                           >
                             <line x1="18" y1="6" x2="6" y2="18" />
                             <line x1="6" y1="6" x2="18" y2="18" />
@@ -471,11 +478,11 @@ export const DebtPlannerCardView = memo(
 
           {/* Payoff Schedule (collapsible) */}
           {debts.length > 0 && result.schedule.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <button
                 type="button"
                 onClick={() => setShowSchedule((p) => !p)}
-                className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400 hover:text-foreground transition-colors"
+                className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -493,48 +500,48 @@ export const DebtPlannerCardView = memo(
               </button>
 
               {showSchedule && (
-                <div className="rounded-lg border border-border overflow-hidden">
+                <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
                   <div className="max-h-[400px] overflow-auto">
                     <table className="w-full text-[12px]">
                       <thead className="sticky top-0 bg-muted/50 backdrop-blur-sm">
-                        <tr className="border-b border-border/40">
-                          <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-muted-foreground uppercase">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                             Month
                           </th>
-                          <th className="px-3 py-1.5 text-right text-[10px] font-semibold text-muted-foreground uppercase">
+                          <th className="px-3 py-2 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                             Payment
                           </th>
-                          <th className="px-3 py-1.5 text-right text-[10px] font-semibold text-muted-foreground uppercase">
+                          <th className="px-3 py-2 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                             Interest
                           </th>
-                          <th className="px-3 py-1.5 text-right text-[10px] font-semibold text-muted-foreground uppercase">
+                          <th className="px-3 py-2 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                             Principal
                           </th>
-                          <th className="px-3 py-1.5 text-right text-[10px] font-semibold text-muted-foreground uppercase">
+                          <th className="px-3 py-2 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                             Balance
                           </th>
-                          <th className="px-3 py-1.5 text-right text-[10px] font-semibold text-muted-foreground uppercase">
+                          <th className="px-3 py-2 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                             Left
                           </th>
                         </tr>
                       </thead>
                       <tbody>
                         {result.schedule.map((row) => (
-                          <tr key={row.month} className="border-b border-border/10 last:border-b-0">
-                            <td className="px-3 py-1 text-muted-foreground">{row.date}</td>
-                            <td className="px-3 py-1 text-right tabular-nums">
+                          <tr key={row.month} className="border-t border-border/40 transition-colors hover:bg-muted/20">
+                            <td className="px-3 py-1.5 text-muted-foreground">{row.date}</td>
+                            <td className="px-3 py-1.5 text-right font-mono tabular-nums text-foreground">
                               {formatCurrency(row.totalPayment, viewConfig.currency)}
                             </td>
-                            <td className="px-3 py-1 text-right tabular-nums text-red-600 dark:text-red-400">
+                            <td className="px-3 py-1.5 text-right font-mono tabular-nums text-red-600 dark:text-red-400">
                               {formatCurrency(row.totalInterest, viewConfig.currency)}
                             </td>
-                            <td className="px-3 py-1 text-right tabular-nums text-green-600 dark:text-green-400">
+                            <td className="px-3 py-1.5 text-right font-mono tabular-nums text-green-600 dark:text-green-400">
                               {formatCurrency(row.totalPrincipal, viewConfig.currency)}
                             </td>
-                            <td className="px-3 py-1 text-right tabular-nums">
+                            <td className="px-3 py-1.5 text-right font-mono tabular-nums text-foreground">
                               {formatCurrency(row.totalBalance, viewConfig.currency)}
                             </td>
-                            <td className="px-3 py-1 text-right tabular-nums text-muted-foreground">
+                            <td className="px-3 py-1.5 text-right font-mono tabular-nums text-muted-foreground">
                               {row.debtsRemaining}
                             </td>
                           </tr>
@@ -548,44 +555,44 @@ export const DebtPlannerCardView = memo(
           )}
 
           {/* Summary footer */}
-          <div className="grid grid-cols-4 gap-4 rounded-lg border border-border bg-muted/20 p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-lg border border-border/60 bg-muted/20 p-4">
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Total Debt
               </p>
-              <p className="text-[16px] font-bold text-red-600 dark:text-red-400 tabular-nums">
+              <p className="text-[16px] font-semibold text-red-600 dark:text-red-400 font-mono tabular-nums mt-1">
                 {formatCurrency(totalDebt, viewConfig.currency)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Debt-Free Date
               </p>
-              <p className="text-[16px] font-bold text-foreground tabular-nums">
+              <p className="text-[16px] font-semibold text-foreground font-mono tabular-nums mt-1">
                 {debts.length > 0 ? result.debtFreeDate : '—'}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Total Interest
               </p>
-              <p className="text-[16px] font-bold text-red-600 dark:text-red-400 tabular-nums">
+              <p className="text-[16px] font-semibold text-red-600 dark:text-red-400 font-mono tabular-nums mt-1">
                 {formatCurrency(result.totalInterest, viewConfig.currency)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Interest Saved
               </p>
-              <p className="text-[16px] font-bold text-green-600 dark:text-green-400 tabular-nums">
+              <p className="text-[16px] font-semibold text-green-600 dark:text-green-400 font-mono tabular-nums mt-1">
                 {formatCurrency(result.interestSaved, viewConfig.currency)}
               </p>
             </div>
           </div>
 
           {/* Notes */}
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+          <div className="space-y-1.5 pt-4 border-t border-border/40">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Notes
             </label>
             <textarea
@@ -593,7 +600,7 @@ export const DebtPlannerCardView = memo(
               onChange={(e) => updateConfig({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
-              className={cn(inputClass, 'resize-none')}
+              className={cn(inputClass, 'resize-none py-2')}
             />
           </div>
         </div>

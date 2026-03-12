@@ -20,16 +20,25 @@ import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
 const inputClass =
-  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground transition-all font-sans focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+
+const selectClass =
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:16px_16px] bg-[position:right_8px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-8';
+
+const inlineSelectClass =
+  'rounded-md border border-border bg-muted/20 px-1.5 py-1 pr-6 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:12px_12px] bg-[position:right_4px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] cursor-pointer';
+
+const numberInputSpinner =
+  '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
 function defaultViewConfig(): SubscriptionCardData {
   return { currency: 'USD', notes: '' };
 }
 
 const statusStyles: Record<SubscriptionStatus, string> = {
-  active: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  paused: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
-  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+  active: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-300 dark:border-green-800',
+  paused: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-300 dark:border-red-800',
 };
 
 export const SubscriptionCardView = memo(
@@ -257,11 +266,11 @@ export const SubscriptionCardView = memo(
     }
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-3xl space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-3xl space-y-8 bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -278,11 +287,11 @@ export const SubscriptionCardView = memo(
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">Subscriptions</p>
+              <h2 className="text-base font-semibold text-foreground tracking-tight">{item.name}</h2>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">Subscriptions</p>
             </div>
             {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
+              <span className="text-[11px] text-muted-foreground">
                 {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
               </span>
             )}
@@ -290,13 +299,13 @@ export const SubscriptionCardView = memo(
 
           {/* Currency */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Currency
             </label>
             <select
               value={viewConfig.currency}
               onChange={(e) => updateView({ currency: e.target.value as SupportedCurrency })}
-              className={cn(inputClass, 'w-[200px]')}
+              className={cn(selectClass, 'w-[200px]')}
             >
               {SUPPORTED_CURRENCIES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -309,13 +318,13 @@ export const SubscriptionCardView = memo(
           {/* Categories management */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Categories
               </p>
               <button
                 type="button"
                 onClick={addCategory}
-                className="flex items-center gap-1 text-[12px] text-primary hover:text-primary/80 font-medium transition-colors"
+                className="flex items-center gap-1 text-[12px] text-primary/80 hover:text-primary font-medium transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -337,7 +346,7 @@ export const SubscriptionCardView = memo(
             {categories.length > 0 && (
               <div className="space-y-2">
                 {categories.map((cat) => (
-                  <div key={cat.id} className="flex items-center gap-2">
+                  <div key={cat.id} className="group flex items-center gap-2">
                     <div className="flex gap-1">
                       {SUBSCRIPTION_CATEGORY_COLORS.map((color) => (
                         <button
@@ -347,7 +356,7 @@ export const SubscriptionCardView = memo(
                           className={cn(
                             'size-5 rounded-full border-2 transition-all',
                             cat.color === color
-                              ? 'border-foreground scale-110'
+                              ? 'ring-2 ring-primary/20 shadow-sm scale-110'
                               : 'border-transparent hover:border-muted-foreground/40',
                           )}
                           style={{ backgroundColor: color }}
@@ -359,12 +368,12 @@ export const SubscriptionCardView = memo(
                       defaultValue={cat.name}
                       onBlur={(e) => handleCategoryNameBlur(cat.id, e.target.value)}
                       placeholder="Category name"
-                      className="flex-1 border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+                      className="flex-1 rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                     />
                     <button
                       type="button"
                       onClick={() => removeCategory(cat.id)}
-                      className="flex items-center justify-center size-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      className="flex items-center justify-center size-6 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -374,7 +383,7 @@ export const SubscriptionCardView = memo(
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="size-3"
+                        className="size-3.5"
                       >
                         <line x1="18" y1="6" x2="6" y2="18" />
                         <line x1="6" y1="6" x2="18" y2="18" />
@@ -387,12 +396,12 @@ export const SubscriptionCardView = memo(
           </div>
 
           {/* Add subscription form */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Add Subscription
             </p>
-            <div className="flex items-end gap-2">
-              <div className="flex-1 space-y-1">
+            <div className="flex items-end gap-2 flex-wrap">
+              <div className="flex-1 min-w-[120px] space-y-1">
                 <label className="text-[11px] text-muted-foreground">Name</label>
                 <input
                   type="text"
@@ -414,7 +423,7 @@ export const SubscriptionCardView = memo(
                   value={newSub.amount}
                   onChange={(e) => setNewSub((p) => ({ ...p, amount: e.target.value }))}
                   placeholder="0.00"
-                  className={cn(inputClass, 'w-[90px]')}
+                  className={cn(inputClass, 'w-[90px] font-mono', numberInputSpinner)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') addSubscription();
                   }}
@@ -427,7 +436,7 @@ export const SubscriptionCardView = memo(
                   onChange={(e) =>
                     setNewSub((p) => ({ ...p, frequency: e.target.value as SubscriptionFrequency }))
                   }
-                  className={cn(inputClass, 'w-[110px]')}
+                  className={cn(selectClass, 'w-[110px]')}
                 >
                   {SUBSCRIPTION_FREQUENCIES.map((f) => (
                     <option key={f.value} value={f.value}>
@@ -451,7 +460,7 @@ export const SubscriptionCardView = memo(
                   <select
                     value={newSub.categoryId}
                     onChange={(e) => setNewSub((p) => ({ ...p, categoryId: e.target.value }))}
-                    className={cn(inputClass, 'w-[120px]')}
+                    className={cn(selectClass, 'w-[120px]')}
                   >
                     <option value="">None</option>
                     {categories.map((c) => (
@@ -465,7 +474,7 @@ export const SubscriptionCardView = memo(
               <button
                 type="button"
                 onClick={addSubscription}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm active:scale-[0.98]"
               >
                 Add
               </button>
@@ -495,7 +504,7 @@ export const SubscriptionCardView = memo(
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className={cn(inputClass, 'w-auto')}
+                className={cn(selectClass, 'w-auto')}
               >
                 <option value="all">All categories</option>
                 {categories.map((c) => (
@@ -508,12 +517,12 @@ export const SubscriptionCardView = memo(
           </div>
 
           {/* Subscription list */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Subscriptions ({displaySubscriptions.length})
             </p>
-            <div className="rounded-lg border border-border overflow-hidden">
-              <div className="grid grid-cols-[1fr_90px_100px_100px_90px_80px_32px] gap-2 px-3 py-2 bg-muted/30 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
+              <div className="hidden sm:grid grid-cols-[1fr_90px_100px_100px_90px_80px_32px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                 <span>Name</span>
                 <span className="text-right">Amount</span>
                 <span>Frequency</span>
@@ -534,14 +543,14 @@ export const SubscriptionCardView = memo(
                   return (
                     <div
                       key={sub.id}
-                      className="grid grid-cols-[1fr_90px_100px_100px_90px_80px_32px] gap-2 px-3 py-1.5 border-t border-border/40 items-center"
+                      className="group grid grid-cols-1 sm:grid-cols-[1fr_90px_100px_100px_90px_80px_32px] gap-2 px-3 py-2 border-t border-border/40 items-center transition-colors hover:bg-muted/20"
                     >
                       <input
                         type="text"
                         defaultValue={sub.name}
                         onBlur={(e) => handleSubBlur(sub.id, 'name', e.target.value)}
                         placeholder="Name"
-                        className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+                        className="rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all w-full focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                       />
                       <input
                         type="number"
@@ -551,12 +560,12 @@ export const SubscriptionCardView = memo(
                         onBlur={(e) =>
                           handleSubBlur(sub.id, 'amount', Number(e.target.value) || 0)
                         }
-                        className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
+                        className={cn('rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-left sm:text-right text-foreground font-mono tabular-nums transition-all w-full focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50', numberInputSpinner)}
                       />
                       <select
                         value={sub.frequency}
                         onChange={(e) => handleSubBlur(sub.id, 'frequency', e.target.value)}
-                        className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
+                        className={inlineSelectClass}
                       >
                         {SUBSCRIPTION_FREQUENCIES.map((f) => (
                           <option key={f.value} value={f.value}>
@@ -570,7 +579,7 @@ export const SubscriptionCardView = memo(
                         onBlur={(e) =>
                           handleSubBlur(sub.id, 'nextBillingDate', e.target.value)
                         }
-                        className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
+                        className="rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                       />
                       <div className="flex items-center gap-1.5 min-w-0">
                         {cat ? (
@@ -593,7 +602,7 @@ export const SubscriptionCardView = memo(
                           handleStatusCycle(sub.id, sub.status as SubscriptionStatus)
                         }
                         className={cn(
-                          'px-2 py-0.5 rounded-full text-[11px] font-medium capitalize transition-colors cursor-pointer',
+                          'px-2 py-0.5 rounded-full text-[11px] font-medium capitalize transition-colors cursor-pointer border',
                           statusStyles[sub.status as SubscriptionStatus],
                         )}
                       >
@@ -602,7 +611,7 @@ export const SubscriptionCardView = memo(
                       <button
                         type="button"
                         onClick={() => removeSubscription(sub.id)}
-                        className="flex items-center justify-center size-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        className="hidden sm:flex items-center justify-center size-6 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -612,7 +621,7 @@ export const SubscriptionCardView = memo(
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          className="size-3"
+                          className="size-3.5"
                         >
                           <line x1="18" y1="6" x2="6" y2="18" />
                           <line x1="6" y1="6" x2="18" y2="18" />
@@ -626,38 +635,38 @@ export const SubscriptionCardView = memo(
           </div>
 
           {/* Summary footer */}
-          <div className="grid grid-cols-4 gap-4 rounded-lg border border-border bg-muted/20 p-4">
-            <div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-lg border border-border/60 bg-background p-4">
+            <div className="px-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                 Monthly Cost
               </p>
-              <p className="text-[16px] font-bold text-green-600 dark:text-green-400 tabular-nums">
+              <p className="text-[16px] font-semibold text-green-600 dark:text-green-400 font-mono tabular-nums">
                 {formatCurrency(monthlyCost, viewConfig.currency)}
               </p>
             </div>
-            <div>
+            <div className="px-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                 Annual Cost
               </p>
-              <p className="text-[16px] font-bold text-foreground tabular-nums">
+              <p className="text-[16px] font-semibold text-foreground font-mono tabular-nums">
                 {formatCurrency(annualCost, viewConfig.currency)}
               </p>
             </div>
-            <div>
+            <div className="px-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Active</p>
-              <p className="text-[16px] font-bold text-green-600 dark:text-green-400 tabular-nums">
+              <p className="text-[16px] font-semibold text-green-600 dark:text-green-400 font-mono tabular-nums">
                 {byStatus.active}
               </p>
             </div>
-            <div>
+            <div className="px-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
-              <p className="text-[16px] font-bold text-foreground tabular-nums">{subs.length}</p>
+              <p className="text-[16px] font-semibold text-foreground font-mono tabular-nums">{subs.length}</p>
             </div>
           </div>
 
           {/* Notes */}
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+          <div className="space-y-1.5 pt-4 border-t border-border/40">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Notes
             </label>
             <textarea
@@ -665,7 +674,7 @@ export const SubscriptionCardView = memo(
               onChange={(e) => updateView({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
-              className={cn(inputClass, 'resize-none')}
+              className={cn(inputClass, 'resize-none py-2')}
             />
           </div>
         </div>

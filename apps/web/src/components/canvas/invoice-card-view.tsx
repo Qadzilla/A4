@@ -18,30 +18,30 @@ const statuses: { value: InvoiceStatus; label: string; color: string }[] = [
     value: 'draft',
     label: 'Draft',
     color:
-      'bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600',
+      'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700',
   },
   {
     value: 'sent',
     label: 'Sent',
     color:
-      'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-blue-300 dark:border-blue-700',
+      'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-300 dark:border-blue-800',
   },
   {
     value: 'paid',
     label: 'Paid',
     color:
-      'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-green-300 dark:border-green-700',
+      'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-300 dark:border-green-800',
   },
   {
     value: 'overdue',
     label: 'Overdue',
     color:
-      'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 border-red-300 dark:border-red-700',
+      'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-300 dark:border-red-800',
   },
 ];
 
 const inputClass =
-  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground transition-all font-sans focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
 
 export const InvoiceCardView = memo(
   function InvoiceCardView({
@@ -224,11 +224,11 @@ export const InvoiceCardView = memo(
     const total = computeTotal(subtotal, tax);
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-2xl space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-2xl space-y-8 bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -246,14 +246,14 @@ export const InvoiceCardView = memo(
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">Invoice</p>
+              <h2 className="text-base font-semibold text-foreground tracking-tight">{item.name}</h2>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">Invoice</p>
             </div>
           </div>
 
           {/* Status pills */}
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+          <div className="space-y-2">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Status
             </label>
             <div className="flex items-center gap-2">
@@ -266,7 +266,7 @@ export const InvoiceCardView = memo(
                     'px-3 py-1 rounded-full text-[12px] font-medium border transition-all',
                     s.color,
                     invoice.status === s.value
-                      ? 'ring-2 ring-primary ring-offset-1 ring-offset-background'
+                      ? 'ring-2 ring-primary/20 border-primary/30 bg-primary/5 shadow-sm'
                       : 'opacity-60 hover:opacity-100',
                   )}
                 >
@@ -277,20 +277,20 @@ export const InvoiceCardView = memo(
           </div>
 
           {/* Invoice #, Date, Due Date */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Invoice #
               </label>
               <input
                 type="text"
                 defaultValue={invoice.invoiceNumber}
                 onBlur={(e) => handleFieldBlur('invoiceNumber', e.target.value)}
-                className={inputClass}
+                className={cn(inputClass, 'font-mono text-[12px]')}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Date
               </label>
               <input
@@ -301,7 +301,7 @@ export const InvoiceCardView = memo(
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Due Date
               </label>
               <input
@@ -314,68 +314,72 @@ export const InvoiceCardView = memo(
           </div>
 
           {/* From / To */}
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                 From
               </p>
-              <input
-                type="text"
-                placeholder="Name"
-                defaultValue={invoice.fromName ?? ''}
-                onBlur={(e) => handleFieldBlur('fromName', e.target.value || null)}
-                className={inputClass}
-              />
-              <input
-                type="text"
-                placeholder="Address"
-                defaultValue={invoice.fromAddress ?? ''}
-                onBlur={(e) => handleFieldBlur('fromAddress', e.target.value || null)}
-                className={inputClass}
-              />
-              <input
-                type="email"
-                placeholder="Email"
-                defaultValue={invoice.fromEmail ?? ''}
-                onBlur={(e) => handleFieldBlur('fromEmail', e.target.value || null)}
-                className={inputClass}
-              />
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Name"
+                  defaultValue={invoice.fromName ?? ''}
+                  onBlur={(e) => handleFieldBlur('fromName', e.target.value || null)}
+                  className={inputClass}
+                />
+                <input
+                  type="text"
+                  placeholder="Address"
+                  defaultValue={invoice.fromAddress ?? ''}
+                  onBlur={(e) => handleFieldBlur('fromAddress', e.target.value || null)}
+                  className={inputClass}
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  defaultValue={invoice.fromEmail ?? ''}
+                  onBlur={(e) => handleFieldBlur('fromEmail', e.target.value || null)}
+                  className={inputClass}
+                />
+              </div>
             </div>
-            <div className="space-y-3">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                 Bill To
               </p>
-              <input
-                type="text"
-                placeholder="Name"
-                defaultValue={invoice.toName ?? ''}
-                onBlur={(e) => handleFieldBlur('toName', e.target.value || null)}
-                className={inputClass}
-              />
-              <input
-                type="text"
-                placeholder="Address"
-                defaultValue={invoice.toAddress ?? ''}
-                onBlur={(e) => handleFieldBlur('toAddress', e.target.value || null)}
-                className={inputClass}
-              />
-              <input
-                type="email"
-                placeholder="Email"
-                defaultValue={invoice.toEmail ?? ''}
-                onBlur={(e) => handleFieldBlur('toEmail', e.target.value || null)}
-                className={inputClass}
-              />
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Name"
+                  defaultValue={invoice.toName ?? ''}
+                  onBlur={(e) => handleFieldBlur('toName', e.target.value || null)}
+                  className={inputClass}
+                />
+                <input
+                  type="text"
+                  placeholder="Address"
+                  defaultValue={invoice.toAddress ?? ''}
+                  onBlur={(e) => handleFieldBlur('toAddress', e.target.value || null)}
+                  className={inputClass}
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  defaultValue={invoice.toEmail ?? ''}
+                  onBlur={(e) => handleFieldBlur('toEmail', e.target.value || null)}
+                  className={inputClass}
+                />
+              </div>
             </div>
           </div>
 
           {/* Line items */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Line Items
             </p>
-            <div className="rounded-lg border border-border overflow-hidden">
-              <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-2 px-3 py-2 bg-muted/30 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
+              <div className="hidden sm:grid grid-cols-[1fr_80px_100px_100px_32px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                 <span>Description</span>
                 <span className="text-right">Qty</span>
                 <span className="text-right">Unit Price</span>
@@ -388,14 +392,14 @@ export const InvoiceCardView = memo(
                 return (
                   <div
                     key={li.id}
-                    className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-2 px-3 py-1.5 border-t border-border/40 items-center"
+                    className="group grid grid-cols-1 sm:grid-cols-[1fr_80px_100px_100px_32px] gap-2 px-3 py-2 border-t border-border/40 items-center transition-colors hover:bg-muted/20"
                   >
                     <input
                       type="text"
                       defaultValue={li.description}
                       onBlur={(e) => handleLineItemBlur(li.id, 'description', e.target.value)}
                       placeholder="Item description"
-                      className="rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 hover:border-border hover:bg-muted/30 focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      className="rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all w-full focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
                     />
                     <input
                       type="number"
@@ -404,7 +408,7 @@ export const InvoiceCardView = memo(
                       onBlur={(e) =>
                         handleLineItemBlur(li.id, 'quantity', Number(e.target.value) || 0)
                       }
-                      className="rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-[13px] text-right text-black dark:text-zinc-100 tabular-nums hover:border-border hover:bg-muted/30 focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      className="rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-left sm:text-right text-foreground font-mono tabular-nums transition-all w-full focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <input
                       type="number"
@@ -414,16 +418,16 @@ export const InvoiceCardView = memo(
                       onBlur={(e) =>
                         handleLineItemBlur(li.id, 'unitPrice', Number(e.target.value) || 0)
                       }
-                      className="rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-[13px] text-right text-black dark:text-zinc-100 tabular-nums hover:border-border hover:bg-muted/30 focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      className="rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-left sm:text-right text-foreground font-mono tabular-nums transition-all w-full focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
-                    <span className="text-[13px] text-right text-black/70 dark:text-zinc-300 tabular-nums">
+                    <span className="text-[13px] text-left sm:text-right text-muted-foreground font-mono tabular-nums py-1 pr-1">
                       {formatCurrency(amount)}
                     </span>
                     <button
                       type="button"
                       onClick={() => removeLineItem(li.id)}
                       disabled={lineItems.length <= 1}
-                      className="flex items-center justify-center size-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="hidden sm:flex items-center justify-center size-6 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-30 disabled:cursor-not-allowed opacity-0 group-hover:opacity-100"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -433,7 +437,7 @@ export const InvoiceCardView = memo(
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="size-3"
+                        className="size-3.5"
                       >
                         <line x1="18" y1="6" x2="6" y2="18" />
                         <line x1="6" y1="6" x2="18" y2="18" />
@@ -447,7 +451,7 @@ export const InvoiceCardView = memo(
             <button
               type="button"
               onClick={addLineItem}
-              className="flex items-center gap-1.5 text-[12px] text-primary hover:text-primary/80 font-medium transition-colors"
+              className="flex items-center gap-1.5 text-[12px] text-primary/80 hover:text-primary font-medium transition-colors mt-2 px-1"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -467,38 +471,40 @@ export const InvoiceCardView = memo(
           </div>
 
           {/* Tax + Totals */}
-          <div className="flex justify-end">
-            <div className="w-64 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] text-black/70 dark:text-zinc-300">Subtotal</span>
-                <span className="text-[13px] font-medium text-black dark:text-zinc-100 tabular-nums">
+          <div className="flex sm:justify-end pt-4">
+            <div className="w-full sm:w-64 space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[12px] font-medium text-muted-foreground">Subtotal</span>
+                <span className="text-[13px] font-medium text-foreground font-mono tabular-nums">
                   {formatCurrency(subtotal)}
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 px-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[12px] text-black/70 dark:text-zinc-300">Tax</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.1}
-                    defaultValue={invoice.taxRate}
-                    onBlur={(e) =>
-                      handleFieldBlur('taxRate', Number(e.target.value) || 0)
-                    }
-                    className="w-16 rounded-md border border-border bg-muted/20 px-1.5 py-0.5 text-[12px] text-right text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50"
-                  />
-                  <span className="text-[12px] text-black/60 dark:text-zinc-400">%</span>
+                  <span className="text-[12px] font-medium text-muted-foreground">Tax</span>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.1}
+                      defaultValue={invoice.taxRate}
+                      onBlur={(e) =>
+                        handleFieldBlur('taxRate', Number(e.target.value) || 0)
+                      }
+                      className="w-16 rounded-md border border-border bg-muted/20 px-1.5 py-0.5 text-[12px] text-right text-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all font-mono pr-5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground pointer-events-none">%</span>
+                  </div>
                 </div>
-                <span className="text-[13px] text-black/70 dark:text-zinc-300 tabular-nums">
+                <span className="text-[13px] text-muted-foreground font-mono tabular-nums">
                   {formatCurrency(tax)}
                 </span>
               </div>
-              <div className="border-t border-border pt-2 flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-black dark:text-zinc-100">
+              <div className="border-t border-border/60 pt-3 flex items-center justify-between px-1">
+                <span className="text-[13px] font-semibold text-foreground tracking-wide uppercase">
                   Total
                 </span>
-                <span className="text-[16px] font-bold text-black dark:text-zinc-100 tabular-nums">
+                <span className="text-[16px] font-semibold text-foreground font-mono tabular-nums">
                   {formatCurrency(total)}
                 </span>
               </div>
@@ -506,8 +512,8 @@ export const InvoiceCardView = memo(
           </div>
 
           {/* Notes */}
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+          <div className="space-y-1.5 pt-4 border-t border-border/40">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Notes
             </label>
             <textarea
@@ -515,33 +521,35 @@ export const InvoiceCardView = memo(
               onBlur={(e) => handleFieldBlur('notes', e.target.value || null)}
               placeholder="Payment terms, bank details, thank you note..."
               rows={3}
-              className={cn(inputClass, 'resize-none')}
+              className={cn(inputClass, 'resize-none py-2')}
             />
           </div>
 
           {/* Export PDF */}
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={isExporting}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="size-4"
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={isExporting}
+              className="flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 w-full sm:w-auto shadow-sm active:scale-[0.98]"
             >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            {isExporting ? 'Exporting...' : 'Export PDF'}
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-4"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              {isExporting ? 'Exporting...' : 'Export PDF'}
+            </button>
+          </div>
         </div>
       </div>
     );

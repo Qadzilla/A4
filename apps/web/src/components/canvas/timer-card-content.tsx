@@ -31,11 +31,14 @@ export const TimerCardContent = memo(function TimerCardContent({ item }: { item:
   return (
     <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
       {/* Colored accent bar */}
-      <div className="h-1 shrink-0" style={{ backgroundColor: isPast ? '#ef4444' : color }} />
+      <div
+        className={isPast ? 'h-1 shrink-0 bg-red-500' : 'h-1 shrink-0'}
+        style={isPast ? undefined : { backgroundColor: color }}
+      />
 
       {/* Label */}
       <div className="px-3 pt-2 pb-1">
-        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide truncate block">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate block">
           {label}
         </span>
       </div>
@@ -43,9 +46,9 @@ export const TimerCardContent = memo(function TimerCardContent({ item }: { item:
       {/* Countdown */}
       <div className="flex-1 flex items-center justify-center px-3 pb-2">
         {isPast ? (
-          <span className="text-[18px] font-bold text-red-500">Expired</span>
+          <span className="text-[18px] font-bold text-red-600 dark:text-red-400">Expired</span>
         ) : remaining ? (
-          <span className="text-[18px] font-bold text-foreground tabular-nums">
+          <span className="text-[18px] font-bold text-foreground font-mono tabular-nums">
             {remaining.days}d {pad(remaining.hours)}h {pad(remaining.minutes)}m{' '}
             {pad(remaining.seconds)}s
           </span>

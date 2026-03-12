@@ -23,60 +23,74 @@ export const DepreciationCardContent = memo(function DepreciationCardContent({
   const result = computeDepreciation(d);
   const abbr = getMethodAbbr(d.method);
 
-  // Book value consumed progress bar
-  const consumedPct =
-    d.assetCost > 0 ? (result.totalDepreciation / d.assetCost) * 100 : 0;
+  // Sample up to 5 bars from schedule for the step chart
+  const schedule = result.schedule;
+  const maxBars = 5;
+  let bars: { year: number; bookValue: number }[] = [];
+  if (schedule.length <= maxBars) {
+    bars = schedule.map((r) => ({ year: r.year, bookValue: r.bookValue }));
+  } else {
+    // Sample evenly
+    for (let i = 0; i < maxBars; i++) {
+      const idx = Math.round((i / (maxBars - 1)) * (schedule.length - 1));
+      const row = schedule[idx]!;
+      bars.push({ year: row.year, bookValue: row.bookValue });
+    }
+  }
+  const maxBookValue = d.assetCost || 1;
+  const barHeight = 40; // px
 
   return (
     <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card shadow-md overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5">
-        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-          Depreciation
+      {/* Thin header */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20">
+        <span className="rounded bg-muted/50 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+          {abbr}
         </span>
         <span className="text-[10px] text-muted-foreground truncate ml-2">
-          {abbr} · {d.usefulLifeYears}yr
+          {d.usefulLifeYears}yr life
         </span>
       </div>
 
-      {/* Body */}
+      {/* Body with declining bars */}
       <div className="flex-1 flex flex-col justify-center px-3 py-2 gap-2">
-        <div>
-          <p className="text-[10px] text-muted-foreground">Year 1 Depreciation</p>
-          <p className="text-[20px] font-bold leading-tight text-foreground">
-            {formatDepreciationCurrency(result.annualDepreciation)}
-          </p>
+        {/* Asset cost */}
+        <span className="text-[10px] text-muted-foreground font-mono tabular-nums">
+          {formatDepreciationCurrency(d.assetCost)} cost
+        </span>
+
+        {/* Declining step bars */}
+        <div className="flex items-end gap-1" style={{ height: `${barHeight}px` }}>
+          {bars.map((bar) => (
+            <div
+              key={bar.year}
+              className="flex-1 bg-primary/50 rounded-t-sm min-h-[2px]"
+              style={{ height: `${Math.max((bar.bookValue / maxBookValue) * barHeight, 2)}px` }}
+            />
+          ))}
         </div>
 
-        <div>
-          <p className="text-[10px] text-muted-foreground">
-            {formatDepreciationCurrency(d.assetCost)} → {formatDepreciationCurrency(d.salvageValue)} over{' '}
-            {d.usefulLifeYears}yr
-          </p>
+        {/* Year labels */}
+        <div className="flex gap-1">
+          {bars.map((bar) => (
+            <span key={bar.year} className="flex-1 text-center text-[8px] text-muted-foreground/60">
+              Y{bar.year}
+            </span>
+          ))}
         </div>
 
-        {/* Book value consumed bar */}
-        <div className="space-y-0.5">
-          <div className="flex justify-between text-[9px] text-muted-foreground">
-            <span>Depreciated</span>
-            <span>Remaining</span>
-          </div>
-          <div className="flex h-2 rounded-full overflow-hidden bg-muted/30">
-            <div
-              className="bg-amber-500/70 rounded-l-full"
-              style={{ width: `${consumedPct}%` }}
-            />
-            <div
-              className="bg-primary/70 rounded-r-full"
-              style={{ width: `${100 - consumedPct}%` }}
-            />
-          </div>
+        {/* Current book value (end of life) */}
+        <div className="text-center">
+          <span className="text-[16px] font-mono tabular-nums font-bold text-foreground">
+            {formatDepreciationCurrency(d.salvageValue)}
+          </span>
+          <span className="text-[9px] text-muted-foreground ml-1">salvage</span>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-muted/20">
-        <span className="text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-muted/10">
+        <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
           Total: {formatDepreciationCurrency(result.totalDepreciation)}
         </span>
       </div>

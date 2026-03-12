@@ -17,12 +17,21 @@ import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
 const inputClass =
-  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground transition-all font-sans focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+
+const selectClass =
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:16px_16px] bg-[position:right_8px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-8';
+
+const inlineSelectClass =
+  'rounded-md border border-border bg-muted/20 px-1.5 py-1 pr-6 text-[11px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:12px_12px] bg-[position:right_4px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] cursor-pointer';
+
+const numberInputSpinner =
+  '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
 const STATUS_COLORS: Record<ReceiptStatus, { bg: string; text: string }> = {
-  pending: { bg: 'bg-amber-100 dark:bg-amber-900', text: 'text-amber-700 dark:text-amber-300' },
-  reviewed: { bg: 'bg-blue-100 dark:bg-blue-900', text: 'text-blue-700 dark:text-blue-300' },
-  reimbursed: { bg: 'bg-green-100 dark:bg-green-900', text: 'text-green-700 dark:text-green-300' },
+  pending: { bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-700 dark:text-amber-300' },
+  reviewed: { bg: 'bg-blue-100 dark:bg-blue-900/40', text: 'text-blue-700 dark:text-blue-300' },
+  reimbursed: { bg: 'bg-green-100 dark:bg-green-900/40', text: 'text-green-700 dark:text-green-300' },
 };
 
 function defaultViewConfig(): ReceiptCardData {
@@ -260,11 +269,11 @@ export const ReceiptCardView = memo(
     }
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-3xl space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-3xl space-y-8 bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -281,11 +290,11 @@ export const ReceiptCardView = memo(
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">Receipts</p>
+              <h2 className="text-base font-semibold text-foreground tracking-tight">{item.name}</h2>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">Receipts</p>
             </div>
             {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
+              <span className="text-[11px] text-muted-foreground">
                 {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
               </span>
             )}
@@ -293,13 +302,13 @@ export const ReceiptCardView = memo(
 
           {/* Currency selector */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Currency
             </label>
             <select
               value={viewConfig.currency}
               onChange={(e) => updateView({ currency: e.target.value as SupportedCurrency })}
-              className={cn(inputClass, 'w-48')}
+              className={cn(selectClass, 'w-48')}
             >
               {SUPPORTED_CURRENCIES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -312,13 +321,13 @@ export const ReceiptCardView = memo(
           {/* Categories management */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Categories
               </p>
               <button
                 type="button"
                 onClick={addCategory}
-                className="flex items-center gap-1 text-[12px] text-primary hover:text-primary/80 font-medium transition-colors"
+                className="flex items-center gap-1 text-[12px] text-primary/80 hover:text-primary font-medium transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -340,7 +349,7 @@ export const ReceiptCardView = memo(
             {categories.length > 0 && (
               <div className="space-y-2">
                 {categories.map((cat) => (
-                  <div key={cat.id} className="flex items-center gap-2">
+                  <div key={cat.id} className="group flex items-center gap-2">
                     <div className="flex gap-1">
                       {RECEIPT_CATEGORY_COLORS.map((color) => (
                         <button
@@ -350,7 +359,7 @@ export const ReceiptCardView = memo(
                           className={cn(
                             'size-5 rounded-full border-2 transition-all',
                             cat.color === color
-                              ? 'border-foreground scale-110'
+                              ? 'ring-2 ring-primary/20 shadow-sm scale-110'
                               : 'border-transparent hover:border-muted-foreground/40',
                           )}
                           style={{ backgroundColor: color }}
@@ -362,12 +371,12 @@ export const ReceiptCardView = memo(
                       defaultValue={cat.name}
                       onBlur={(e) => handleCategoryNameBlur(cat.id, e.target.value)}
                       placeholder="Category name"
-                      className="flex-1 border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+                      className="flex-1 rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                     />
                     <button
                       type="button"
                       onClick={() => removeCategory(cat.id)}
-                      className="flex items-center justify-center size-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      className="flex items-center justify-center size-6 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -377,7 +386,7 @@ export const ReceiptCardView = memo(
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="size-3"
+                        className="size-3.5"
                       >
                         <line x1="18" y1="6" x2="6" y2="18" />
                         <line x1="6" y1="6" x2="18" y2="18" />
@@ -390,8 +399,8 @@ export const ReceiptCardView = memo(
           </div>
 
           {/* Add receipt form */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Add Receipt
             </p>
             <div className="flex items-end gap-2 flex-wrap">
@@ -426,7 +435,7 @@ export const ReceiptCardView = memo(
                   value={newReceipt.amount}
                   onChange={(e) => setNewReceipt((p) => ({ ...p, amount: e.target.value }))}
                   placeholder="0.00"
-                  className={cn(inputClass, 'w-[90px]')}
+                  className={cn(inputClass, 'w-[90px] font-mono', numberInputSpinner)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') addReceipt();
                   }}
@@ -441,7 +450,7 @@ export const ReceiptCardView = memo(
                   value={newReceipt.tax}
                   onChange={(e) => setNewReceipt((p) => ({ ...p, tax: e.target.value }))}
                   placeholder="0.00"
-                  className={cn(inputClass, 'w-[80px]')}
+                  className={cn(inputClass, 'w-[80px] font-mono', numberInputSpinner)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') addReceipt();
                   }}
@@ -454,7 +463,7 @@ export const ReceiptCardView = memo(
                   onChange={(e) =>
                     setNewReceipt((p) => ({ ...p, paymentMethod: e.target.value as PaymentMethod }))
                   }
-                  className={cn(inputClass, 'w-[100px]')}
+                  className={cn(selectClass, 'w-[100px]')}
                 >
                   {PAYMENT_METHODS.map((m) => (
                     <option key={m.value} value={m.value}>
@@ -469,7 +478,7 @@ export const ReceiptCardView = memo(
                   <select
                     value={newReceipt.categoryId}
                     onChange={(e) => setNewReceipt((p) => ({ ...p, categoryId: e.target.value }))}
-                    className={cn(inputClass, 'w-[120px]')}
+                    className={cn(selectClass, 'w-[120px]')}
                   >
                     <option value="">None</option>
                     {categories.map((c) => (
@@ -483,7 +492,7 @@ export const ReceiptCardView = memo(
               <button
                 type="button"
                 onClick={addReceipt}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm active:scale-[0.98]"
               >
                 Add
               </button>
@@ -513,7 +522,7 @@ export const ReceiptCardView = memo(
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className={cn(inputClass, 'w-auto')}
+                className={cn(selectClass, 'w-auto')}
               >
                 <option value="all">All categories</option>
                 {categories.map((c) => (
@@ -539,13 +548,13 @@ export const ReceiptCardView = memo(
           />
 
           {/* Receipt list */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Receipts ({displayReceipts.length})
             </p>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
               {/* Header row */}
-              <div className="grid grid-cols-[90px_1fr_90px_90px_80px_80px_90px_60px_32px] gap-2 px-3 py-2 bg-muted/30 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              <div className="hidden sm:grid grid-cols-[90px_1fr_90px_90px_80px_80px_90px_60px_32px] gap-2 px-3 py-2 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                 <span>Date</span>
                 <span>Merchant</span>
                 <span>Category</span>
@@ -570,20 +579,20 @@ export const ReceiptCardView = memo(
                   return (
                     <div
                       key={receipt.id}
-                      className="grid grid-cols-[90px_1fr_90px_90px_80px_80px_90px_60px_32px] gap-2 px-3 py-1.5 border-t border-border/40 items-center"
+                      className="group grid grid-cols-1 sm:grid-cols-[90px_1fr_90px_90px_80px_80px_90px_60px_32px] gap-2 px-3 py-2 border-t border-border/40 items-center transition-colors hover:bg-muted/20"
                     >
                       <input
                         type="date"
                         defaultValue={receipt.date}
                         onBlur={(e) => handleReceiptBlur(receipt.id, 'date', e.target.value)}
-                        className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
+                        className="rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                       />
                       <input
                         type="text"
                         defaultValue={receipt.merchant}
                         onBlur={(e) => handleReceiptBlur(receipt.id, 'merchant', e.target.value)}
                         placeholder="Merchant"
-                        className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+                        className="rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all w-full focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                       />
                       <div className="flex items-center gap-1.5 min-w-0">
                         {cat ? (
@@ -608,7 +617,7 @@ export const ReceiptCardView = memo(
                         onBlur={(e) =>
                           handleReceiptBlur(receipt.id, 'amount', Number(e.target.value) || 0)
                         }
-                        className="border-0 bg-transparent text-[13px] text-right text-black dark:text-zinc-100 focus:outline-none tabular-nums w-full"
+                        className={cn('rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-left sm:text-right text-foreground font-mono tabular-nums transition-all w-full focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50', numberInputSpinner)}
                       />
                       <input
                         type="number"
@@ -618,7 +627,7 @@ export const ReceiptCardView = memo(
                         onBlur={(e) =>
                           handleReceiptBlur(receipt.id, 'tax', Number(e.target.value) || 0)
                         }
-                        className="border-0 bg-transparent text-[12px] text-right text-muted-foreground focus:outline-none tabular-nums w-full"
+                        className={cn('rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[12px] text-left sm:text-right text-muted-foreground font-mono tabular-nums transition-all w-full focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50', numberInputSpinner)}
                       />
                       <select
                         value={receipt.paymentMethod}
@@ -628,7 +637,7 @@ export const ReceiptCardView = memo(
                             data: { paymentMethod: e.target.value as 'cash' | 'card' | 'check' | 'transfer' | 'other' },
                           })
                         }
-                        className="border-0 bg-transparent text-[11px] text-muted-foreground focus:outline-none cursor-pointer"
+                        className={inlineSelectClass}
                       >
                         {PAYMENT_METHODS.map((m) => (
                           <option key={m.value} value={m.value}>
@@ -642,7 +651,7 @@ export const ReceiptCardView = memo(
                           handleStatusCycle(receipt.id, receipt.status as ReceiptStatus)
                         }
                         className={cn(
-                          'px-2 py-0.5 rounded-full text-[10px] font-medium capitalize transition-colors cursor-pointer',
+                          'px-2 py-0.5 rounded-full text-[10px] font-medium capitalize transition-colors cursor-pointer border',
                           statusStyle.bg,
                           statusStyle.text,
                         )}
@@ -684,7 +693,7 @@ export const ReceiptCardView = memo(
                       <button
                         type="button"
                         onClick={() => removeReceipt(receipt.id)}
-                        className="flex items-center justify-center size-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        className="hidden sm:flex items-center justify-center size-6 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -694,7 +703,7 @@ export const ReceiptCardView = memo(
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          className="size-3"
+                          className="size-3.5"
                         >
                           <line x1="18" y1="6" x2="6" y2="18" />
                           <line x1="6" y1="6" x2="18" y2="18" />
@@ -708,42 +717,42 @@ export const ReceiptCardView = memo(
           </div>
 
           {/* Summary footer */}
-          <div className="grid grid-cols-4 gap-4 rounded-lg border border-border bg-muted/20 p-4">
-            <div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-lg border border-border/60 bg-background p-4">
+            <div className="px-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                 Total Amount
               </p>
-              <p className="text-[16px] font-bold text-foreground tabular-nums">
+              <p className="text-[16px] font-semibold text-foreground font-mono tabular-nums">
                 {formatCurrency(totalAmount, viewConfig.currency)}
               </p>
             </div>
-            <div>
+            <div className="px-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Tax</p>
-              <p className="text-[16px] font-bold text-muted-foreground tabular-nums">
+              <p className="text-[16px] font-semibold text-muted-foreground font-mono tabular-nums">
                 {formatCurrency(totalTax, viewConfig.currency)}
               </p>
             </div>
-            <div>
+            <div className="px-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Receipts</p>
-              <p className="text-[16px] font-bold text-foreground tabular-nums">
+              <p className="text-[16px] font-semibold text-foreground font-mono tabular-nums">
                 {receipts.length}
               </p>
             </div>
-            <div>
+            <div className="px-1">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Status</p>
               <div className="flex items-center gap-2 mt-0.5">
                 {byStatus.pending > 0 && (
-                  <span className="text-[11px] text-amber-600 dark:text-amber-400">
+                  <span className="text-[11px] text-amber-600 dark:text-amber-400 font-mono">
                     {byStatus.pending}P
                   </span>
                 )}
                 {byStatus.reviewed > 0 && (
-                  <span className="text-[11px] text-blue-600 dark:text-blue-400">
+                  <span className="text-[11px] text-blue-600 dark:text-blue-400 font-mono">
                     {byStatus.reviewed}R
                   </span>
                 )}
                 {byStatus.reimbursed > 0 && (
-                  <span className="text-[11px] text-green-600 dark:text-green-400">
+                  <span className="text-[11px] text-green-600 dark:text-green-400 font-mono">
                     {byStatus.reimbursed}D
                   </span>
                 )}
@@ -755,8 +764,8 @@ export const ReceiptCardView = memo(
           </div>
 
           {/* Notes */}
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+          <div className="space-y-1.5 pt-4 border-t border-border/40">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Notes
             </label>
             <textarea
@@ -764,7 +773,7 @@ export const ReceiptCardView = memo(
               onChange={(e) => updateView({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
-              className={cn(inputClass, 'resize-none')}
+              className={cn(inputClass, 'resize-none py-2')}
             />
           </div>
         </div>

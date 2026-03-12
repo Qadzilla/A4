@@ -20,7 +20,7 @@ function PreviewTable({ preview }: { preview: FileTablePreview }) {
     <div className="rounded-lg border border-border/60 overflow-auto">
       <table className="w-full text-[12px] border-collapse">
         <thead>
-          <tr className="bg-muted/30">
+          <tr className="bg-muted/40">
             {preview.columns.map((col, i) => (
               <th
                 key={i}
@@ -33,9 +33,9 @@ function PreviewTable({ preview }: { preview: FileTablePreview }) {
         </thead>
         <tbody>
           {preview.rows.map((row, ri) => (
-            <tr key={ri} className="hover:bg-muted/10">
+            <tr key={ri} className="hover:bg-muted/10 transition-colors">
               {row.map((cell, ci) => (
-                <td key={ci} className="border-b border-border/20 px-3 py-1.5 text-foreground">
+                <td key={ci} className="border-b border-border/40 px-3 py-1.5 text-foreground">
                   {cell}
                 </td>
               ))}
@@ -152,7 +152,7 @@ function PdfViewer({ fileId }: { fileId: string }) {
       </div>
 
       {!loading && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-background/90 backdrop-blur-md border border-border/60 rounded-lg px-1.5 py-1 shadow-lg">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-card/90 backdrop-blur-md border border-border/60 rounded-lg px-1.5 py-1 shadow-lg">
           <button
             type="button"
             onClick={zoomOut}
@@ -279,7 +279,7 @@ export const FileCardView = memo(
       return (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Compact toolbar */}
-          <div className="flex items-center gap-3 px-4 py-2 border-b border-border/40 bg-background shrink-0">
+          <div className="flex items-center gap-3 px-4 py-2 border-b border-border/40 bg-card shrink-0">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -366,11 +366,11 @@ export const FileCardView = memo(
 
     // Default layout for non-PDF files
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-lg space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-lg bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -388,8 +388,8 @@ export const FileCardView = memo(
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">
+              <h2 className="text-base font-semibold text-foreground">{item.name}</h2>
+              <p className="text-[11px] text-muted-foreground">
                 {hasFile
                   ? `${getFileTypeLabel(data?.mimeType)} · ${formatFileSize(data?.fileSize)}`
                   : 'No file uploaded'}

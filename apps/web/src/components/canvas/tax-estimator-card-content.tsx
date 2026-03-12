@@ -43,56 +43,94 @@ export const TaxEstimatorCardContent = memo(function TaxEstimatorCardContent({
     notes: data?.notes ?? '',
   });
 
-  const refundColor =
-    result.refundOrOwed >= 0
-      ? 'text-green-600 dark:text-green-400'
-      : 'text-red-600 dark:text-red-400';
-
-  const refundLabel = result.refundOrOwed >= 0 ? 'Refund Expected' : 'Amount Owed';
-  const refundDisplay =
-    result.refundOrOwed >= 0
-      ? `+${formatTaxCurrency(result.refundOrOwed)}`
-      : `-${formatTaxCurrency(Math.abs(result.refundOrOwed))}`;
-
-  const stateLabel = stateCode || 'No state';
-  const statusLabel = FILING_STATUS_LABELS[filingStatus];
+  const isRefund = result.refundOrOwed >= 0;
 
   return (
     <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card shadow-md overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-muted/30 px-3 py-1.5">
-        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-          Tax Estimator
+      {/* Header with year + status pill */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          {taxYear}
         </span>
-        <span className="text-[10px] text-muted-foreground truncate ml-2">
-          {taxYear} · {statusLabel}
+        <span className="rounded-full bg-muted/50 px-2 py-0.5 text-[9px] font-medium text-muted-foreground">
+          {FILING_STATUS_LABELS[filingStatus]}
         </span>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 flex flex-col justify-center px-3 py-2 gap-2">
-        <div>
-          <p className="text-[10px] text-muted-foreground">Estimated Tax</p>
-          <p className="text-[20px] font-bold leading-tight text-foreground">
+      {/* Receipt-style body */}
+      <div className="flex-1 flex flex-col justify-center px-3 py-2 gap-1">
+        {/* Gross Income */}
+        <div className="flex items-baseline justify-between">
+          <span className="text-[10px] text-muted-foreground">Gross Income</span>
+          <span className="text-[11px] font-mono tabular-nums text-foreground">
+            {formatTaxCurrency(result.grossIncome)}
+          </span>
+        </div>
+
+        {/* Adjustments */}
+        {result.adjustments > 0 && (
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10px] text-muted-foreground/70">Adjustments</span>
+            <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+              −{formatTaxCurrency(result.adjustments)}
+            </span>
+          </div>
+        )}
+
+        {/* Taxable Income */}
+        <div className="flex items-baseline justify-between">
+          <span className="text-[10px] text-muted-foreground">Taxable Income</span>
+          <span className="text-[11px] font-mono tabular-nums text-foreground">
+            {formatTaxCurrency(result.taxableIncome)}
+          </span>
+        </div>
+
+        {/* Dashed separator */}
+        <div className="border-t border-dashed border-border/50 my-0.5" />
+
+        {/* Federal Tax */}
+        <div className="flex items-baseline justify-between">
+          <span className="text-[10px] text-muted-foreground">Federal Tax</span>
+          <span className="text-[11px] font-mono tabular-nums text-foreground">
+            {formatTaxCurrency(result.federalTax)}
+          </span>
+        </div>
+
+        {/* State Tax */}
+        {result.stateTax > 0 && (
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10px] text-muted-foreground">State Tax ({stateCode})</span>
+            <span className="text-[11px] font-mono tabular-nums text-foreground">
+              {formatTaxCurrency(result.stateTax)}
+            </span>
+          </div>
+        )}
+
+        {/* Separator */}
+        <div className="border-t border-border/40 my-0.5" />
+
+        {/* Total Tax Due */}
+        <div className="flex items-baseline justify-between">
+          <span className="text-[11px] font-medium text-foreground">Total Tax</span>
+          <span className="text-[15px] font-mono tabular-nums font-bold text-foreground">
             {formatTaxCurrency(result.totalTax)}
-          </p>
+          </span>
         </div>
-
-        <div>
-          <p className="text-[10px] text-muted-foreground">{refundLabel}</p>
-          <p className={cn('text-[15px] font-semibold leading-tight', refundColor)}>
-            {refundDisplay}
-          </p>
-        </div>
-
-        <p className="text-[11px] font-medium text-muted-foreground">
-          Effective Rate: {formatTaxPercent(result.effectiveRate)}
-        </p>
       </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-muted/20">
-        <span className="text-[10px] text-muted-foreground">Federal + {stateLabel}</span>
+      {/* Footer: effective rate + refund/owed */}
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/40 bg-muted/10">
+        <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+          {formatTaxPercent(result.effectiveRate)} eff. rate
+        </span>
+        <span
+          className={cn(
+            'text-[10px] font-mono tabular-nums font-semibold',
+            isRefund ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
+          )}
+        >
+          {isRefund ? `Refund ${formatTaxCurrency(result.refundOrOwed)}` : `Owe ${formatTaxCurrency(Math.abs(result.refundOrOwed))}`}
+        </span>
       </div>
     </div>
   );

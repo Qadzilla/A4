@@ -54,7 +54,7 @@ export const SecretCardContent = memo(function SecretCardContent({
   return (
     <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-border/40 bg-muted/30 px-3 py-2">
+      <div className="flex items-center justify-between gap-2 bg-muted/20 px-3 py-1.5">
         <div className="flex items-center gap-1.5 min-w-0">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -69,7 +69,9 @@ export const SecretCardContent = memo(function SecretCardContent({
             <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <span className="text-[11px] font-medium text-foreground truncate">{item.name}</span>
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+            {item.name}
+          </span>
         </div>
         {fields.some((f) => f.sensitive) && (
           <button

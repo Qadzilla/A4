@@ -12,6 +12,9 @@ import type { TableCardData } from '../../lib/table-utils';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
+const selectClass =
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:16px_16px] bg-[position:right_8px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-8';
+
 const FORMAT_OPTIONS: { value: KpiFormat; label: string }[] = [
   { value: 'currency', label: '$' },
   { value: 'number', label: '#' },
@@ -148,11 +151,11 @@ export const KpiCardView = memo(
     const formatted = formatKpiValue(resolved, data.format);
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-lg space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-lg bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -169,19 +172,22 @@ export const KpiCardView = memo(
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">Single metric display</p>
+              <h2 className="text-base font-semibold text-foreground">{item.name}</h2>
+              <p className="text-[11px] text-muted-foreground">Single metric display</p>
             </div>
-            {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
-                {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-              </span>
-            )}
+            <span
+              className={cn(
+                'text-[11px] text-muted-foreground transition-opacity duration-300',
+                saveStatus === 'idle' ? 'opacity-0' : 'opacity-100',
+              )}
+            >
+              {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+            </span>
           </div>
 
           {/* Label */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Label
             </label>
             <input
@@ -189,13 +195,13 @@ export const KpiCardView = memo(
               value={data.label}
               onChange={(e) => update({ label: e.target.value })}
               placeholder="e.g. Net Worth"
-              className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+              className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
             />
           </div>
 
           {/* Value */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Value
             </label>
             <input
@@ -205,7 +211,7 @@ export const KpiCardView = memo(
               readOnly={linked}
               placeholder="e.g. 1234.50"
               className={cn(
-                'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] font-mono text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50',
+                'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] font-mono text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50',
                 linked && 'opacity-60 cursor-not-allowed',
               )}
             />
@@ -240,7 +246,7 @@ export const KpiCardView = memo(
                 }}
                 className={cn(
                   'flex size-4 items-center justify-center rounded border transition-colors',
-                  linked ? 'border-primary bg-primary text-white' : 'border-border bg-background',
+                  linked ? 'border-primary bg-primary text-white' : 'border-border bg-muted/20',
                 )}
               >
                 {linked && (
@@ -258,7 +264,7 @@ export const KpiCardView = memo(
                   </svg>
                 )}
               </button>
-              <span className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Link to table
               </span>
             </label>
@@ -282,7 +288,7 @@ export const KpiCardView = memo(
                         const firstCol = td?.columns?.[0];
                         updateSource({ tableItemId: tableId, columnId: firstCol?.id ?? '' });
                       }}
-                      className="w-full rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                      className={selectClass}
                     >
                       <option value="">Select a table...</option>
                       {tableItems.map((t) => (
@@ -301,7 +307,7 @@ export const KpiCardView = memo(
                     <select
                       value={data.source?.columnId ?? ''}
                       onChange={(e) => updateSource({ columnId: e.target.value })}
-                      className="w-full rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                      className={selectClass}
                     >
                       <option value="">Select a column...</option>
                       {columns.map((col) => (
@@ -326,7 +332,7 @@ export const KpiCardView = memo(
                           'rounded-md border px-2.5 py-1 text-[12px] font-medium transition-colors',
                           data.source?.aggregation === opt.value
                             ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border bg-background text-muted-foreground hover:bg-muted/40',
+                            : 'border-border bg-muted/20 text-muted-foreground hover:bg-muted/40',
                         )}
                       >
                         {opt.label}
@@ -339,7 +345,7 @@ export const KpiCardView = memo(
                 {data.source?.tableItemId && data.source?.columnId && (
                   <div className="rounded-md border border-border/40 bg-muted/20 px-3 py-2 text-center">
                     <p className="text-[10px] text-muted-foreground mb-0.5">Computed</p>
-                    <p className="text-[16px] font-bold text-foreground">{formatted}</p>
+                    <p className="text-[16px] font-semibold text-foreground">{formatted}</p>
                   </div>
                 )}
               </div>
@@ -348,7 +354,7 @@ export const KpiCardView = memo(
 
           {/* Format selector */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Format
             </label>
             <div className="flex gap-1">
@@ -361,7 +367,7 @@ export const KpiCardView = memo(
                     'flex-1 rounded-md border py-1.5 text-[13px] font-medium transition-colors',
                     data.format === opt.value
                       ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-background text-muted-foreground hover:bg-muted/40',
+                      : 'border-border bg-muted/20 text-muted-foreground hover:bg-muted/40',
                   )}
                 >
                   {opt.label}
@@ -373,7 +379,7 @@ export const KpiCardView = memo(
           {/* Live preview */}
           <div className="rounded-lg border border-border/60 bg-background p-4 text-center">
             <p className="text-[11px] text-muted-foreground mb-1">Preview</p>
-            <p className="text-[24px] font-bold text-foreground">{formatted}</p>
+            <p className="text-[24px] font-semibold text-foreground">{formatted}</p>
           </div>
 
           {/* Trend section */}
@@ -393,9 +399,7 @@ export const KpiCardView = memo(
                 }}
                 className={cn(
                   'flex size-4 items-center justify-center rounded border transition-colors',
-                  showTrend
-                    ? 'border-primary bg-primary text-white'
-                    : 'border-border bg-background',
+                  showTrend ? 'border-primary bg-primary text-white' : 'border-border bg-muted/20',
                 )}
               >
                 {showTrend && (
@@ -413,7 +417,7 @@ export const KpiCardView = memo(
                   </svg>
                 )}
               </button>
-              <span className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Show trend indicator
               </span>
             </label>
@@ -428,7 +432,7 @@ export const KpiCardView = memo(
                       value={data.trend?.value ?? ''}
                       onChange={(e) => updateTrend({ value: e.target.value })}
                       placeholder="+5.2"
-                      className="w-full rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] font-mono text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                      className="w-full rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] font-mono text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                     />
                   </div>
                   <div className="flex-1 space-y-1">
@@ -438,7 +442,7 @@ export const KpiCardView = memo(
                       value={data.trend?.period ?? ''}
                       onChange={(e) => updateTrend({ period: e.target.value })}
                       placeholder="vs last month"
-                      className="w-full rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                      className="w-full rounded-md border border-border bg-muted/20 px-2 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                     />
                   </div>
                 </div>
@@ -458,7 +462,7 @@ export const KpiCardView = memo(
                               : dir === 'down'
                                 ? 'border-red-500 bg-red-500/10 text-red-600'
                                 : 'border-primary bg-primary/10 text-primary'
-                            : 'border-border bg-background text-muted-foreground hover:bg-muted/40',
+                            : 'border-border bg-muted/20 text-muted-foreground hover:bg-muted/40',
                         )}
                       >
                         {dir === 'up' && (
@@ -514,7 +518,7 @@ export const KpiCardView = memo(
 
           {/* Color picker */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Accent color
             </label>
             <div className="flex items-center gap-2">

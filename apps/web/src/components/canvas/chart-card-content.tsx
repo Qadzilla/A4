@@ -38,8 +38,8 @@ export const ChartCardContent = memo(function ChartCardContent({ item }: { item:
   return (
     <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
       {data.title && (
-        <div className="bg-muted/30 px-3 py-1.5 shrink-0">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide truncate block">
+        <div className="bg-muted/20 px-3 py-1.5 shrink-0">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate block">
             {data.title}
           </span>
         </div>

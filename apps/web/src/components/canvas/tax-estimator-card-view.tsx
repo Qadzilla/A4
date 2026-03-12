@@ -16,6 +16,9 @@ import type { TaxEstimatorData } from '../../lib/tax-estimator-utils';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
+const selectClass =
+  'rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:14px_14px] bg-[position:right_6px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-7 cursor-pointer';
+
 export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
   item,
 }: { item: CanvasItem }) {
@@ -123,15 +126,15 @@ export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
       : 'text-red-600 dark:text-red-400';
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden bg-muted/30">
       {/* Settings row */}
-      <div className="flex items-center gap-3 border-b border-border/60 px-4 py-2 flex-wrap">
-        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+      <div className="flex items-center gap-3 border-b border-border/60 bg-card px-4 py-2.5 flex-wrap">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           Tax Year
           <select
             value={data.taxYear}
             onChange={(e) => update({ taxYear: Number(e.target.value) })}
-            className="rounded border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+            className={selectClass}
           >
             {TAX_YEAR_OPTIONS.map((y) => (
               <option key={y} value={y}>
@@ -141,12 +144,12 @@ export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
           </select>
         </label>
 
-        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           Filing Status
           <select
             value={data.filingStatus}
             onChange={(e) => update({ filingStatus: e.target.value as TaxFilingStatus })}
-            className="rounded border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+            className={selectClass}
           >
             {FILING_STATUS_OPTIONS.map((fs) => (
               <option key={fs.value} value={fs.value}>
@@ -156,12 +159,12 @@ export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
           </select>
         </label>
 
-        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           State
           <select
             value={data.stateCode}
             onChange={(e) => update({ stateCode: e.target.value })}
-            className="rounded border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+            className={selectClass}
           >
             {STATE_OPTIONS.map((s) => (
               <option key={s.value} value={s.value}>
@@ -171,17 +174,11 @@ export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
           </select>
         </label>
 
-        <span
-          className={cn(
-            'ml-auto text-[10px] transition-opacity',
-            saveStatus === 'idle' ? 'opacity-0' : 'opacity-100',
-            saveStatus === 'saving'
-              ? 'text-muted-foreground'
-              : 'text-green-600 dark:text-green-400',
-          )}
-        >
-          {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-        </span>
+        {saveStatus !== 'idle' && (
+          <span className="ml-auto text-[11px] text-muted-foreground">
+            {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+          </span>
+        )}
       </div>
 
       {/* Content */}
@@ -326,7 +323,7 @@ export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
 
           {/* ── CREDITS ── */}
           <SectionHeader label="Credits" />
-          <div className="flex items-center py-0.5 px-3">
+          <div className="flex items-center transition-colors hover:bg-muted/20 py-0.5 px-3">
             <span className="flex-1 text-[12px] text-foreground">
               Child Tax Credit ({data.numDependentChildren}{' '}
               {data.numDependentChildren === 1 ? 'child' : 'children'})
@@ -334,7 +331,7 @@ export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
             <select
               value={data.numDependentChildren}
               onChange={(e) => update({ numDependentChildren: Number(e.target.value) })}
-              className="w-16 text-right rounded border border-border bg-background px-2 py-0.5 text-[12px] text-foreground font-mono mr-1"
+              className={cn(selectClass, 'w-16 text-right font-mono mr-1')}
             >
               {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                 <option key={n} value={n}>
@@ -342,7 +339,7 @@ export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
                 </option>
               ))}
             </select>
-            <span className="w-32 text-right font-mono text-[12px] text-muted-foreground">
+            <span className="w-32 text-right font-mono tabular-nums text-[12px] text-muted-foreground">
               -{formatTaxCurrency(result.childTaxCredit)}
             </span>
           </div>
@@ -377,7 +374,7 @@ export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
             <span className="flex-1 text-[13px] font-bold text-foreground uppercase tracking-wide">
               {result.refundOrOwed >= 0 ? 'Refund' : 'Amount Owed'}
             </span>
-            <span className={cn('font-mono text-[16px] font-bold', refundColor)}>
+            <span className={cn('font-mono tabular-nums text-[16px] font-semibold', refundColor)}>
               {result.refundOrOwed >= 0 ? '+' : '-'}
               {formatTaxCurrency(Math.abs(result.refundOrOwed))}
             </span>
@@ -385,7 +382,7 @@ export const TaxEstimatorCardView = memo(function TaxEstimatorCardView({
 
           {/* ── METRICS ── */}
           <div className="pt-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <MetricBox label="Effective Rate" value={formatTaxPercent(result.effectiveRate)} />
               <MetricBox
                 label="Marginal Fed"
@@ -434,7 +431,7 @@ function FieldRow({
   onChange,
 }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <div className="flex items-center hover:bg-muted/20 py-0.5 px-3">
+    <div className="flex items-center transition-colors hover:bg-muted/20 py-0.5 px-3">
       <span className="flex-1 text-[12px] text-foreground">{label}</span>
       <AmountInput value={value} onChange={onChange} />
     </div>
@@ -454,7 +451,7 @@ function ComputedRow({ label, value, sub }: { label: string; value: string; sub?
       </span>
       <span
         className={cn(
-          'w-40 text-right font-mono text-[12px]',
+          'w-40 text-right font-mono tabular-nums text-[12px]',
           sub ? 'text-muted-foreground' : 'font-semibold text-foreground',
         )}
       >
@@ -494,7 +491,7 @@ function AmountInput({ value, onChange }: { value: number; onChange: (v: number)
         const num = Number(text.replace(/,/g, ''));
         if (!Number.isNaN(num)) onChange(num);
       }}
-      className="w-40 text-right font-mono text-[13px] text-foreground bg-transparent border border-transparent rounded px-1 py-0.5 outline-none hover:border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+      className="w-40 text-right font-mono tabular-nums text-[13px] text-foreground border border-border bg-muted/20 rounded-md px-1 py-0.5 outline-none focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/30 transition-all"
     />
   );
 }
@@ -505,11 +502,11 @@ function MetricBox({
   color,
 }: { label: string; value: string; color?: 'green' | 'red' }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card px-4 py-3">
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+    <div className="rounded-xl border border-border/60 bg-card shadow-sm px-4 py-3">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
       <p
         className={cn(
-          'text-[16px] font-bold mt-0.5',
+          'text-[16px] font-semibold font-mono tabular-nums mt-1',
           color === 'green' && 'text-green-600 dark:text-green-400',
           color === 'red' && 'text-red-600 dark:text-red-400',
           !color && 'text-foreground',

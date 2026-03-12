@@ -62,10 +62,10 @@ export const BreakevenCardView = memo(function BreakevenCardView({ item }: { ite
   const result = computeBreakeven(data);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
-      {/* Settings row */}
-      <div className="flex items-center gap-3 border-b border-border/60 px-4 py-2 flex-wrap">
-        <span className="text-[12px] text-muted-foreground">Break-Even Analysis</span>
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden bg-muted/30">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 border-b border-border/60 bg-card px-4 sm:px-6 py-2 flex-wrap">
+        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Break-Even Analysis</span>
         <span
           className={cn(
             'ml-auto text-[10px] transition-opacity',
@@ -81,7 +81,7 @@ export const BreakevenCardView = memo(function BreakevenCardView({ item }: { ite
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-3xl mx-auto p-4 space-y-1">
+        <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-1">
           {/* ── INPUTS ── */}
           <SectionHeader label="Cost & Pricing" />
           <FieldRow
@@ -135,7 +135,7 @@ export const BreakevenCardView = memo(function BreakevenCardView({ item }: { ite
 
           {/* ── METRICS ── */}
           <div className="pt-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <MetricBox
                 label="Margin/Unit"
                 value={formatBreakevenCurrency(result.contributionMargin)}
@@ -159,31 +159,31 @@ export const BreakevenCardView = memo(function BreakevenCardView({ item }: { ite
                 Profit/Loss Schedule
               </span>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-border/40">
+            <div className="overflow-x-auto rounded-lg border border-border/60 bg-background">
               <table className="w-full text-[11px]">
                 <thead>
-                  <tr className="bg-muted/20 text-muted-foreground">
-                    <th className="text-right py-1.5 px-2 font-medium">Units</th>
-                    <th className="text-right py-1.5 px-2 font-medium">Revenue</th>
-                    <th className="text-right py-1.5 px-2 font-medium">Total Costs</th>
-                    <th className="text-right py-1.5 px-2 font-medium">Profit/Loss</th>
+                  <tr className="bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                    <th className="text-right py-1.5 px-2">Units</th>
+                    <th className="text-right py-1.5 px-2">Revenue</th>
+                    <th className="text-right py-1.5 px-2">Total Costs</th>
+                    <th className="text-right py-1.5 px-2">Profit/Loss</th>
                   </tr>
                 </thead>
                 <tbody>
                   {result.schedule.map((row) => (
-                    <tr key={row.units} className="border-t border-border/20 hover:bg-muted/10">
-                      <td className="py-1 px-2 text-right font-mono">
+                    <tr key={row.units} className="border-t border-border/40 hover:bg-muted/20 transition-colors">
+                      <td className="py-1 px-2 text-right font-mono tabular-nums">
                         {row.units.toLocaleString()}
                       </td>
-                      <td className="py-1 px-2 text-right font-mono">
+                      <td className="py-1 px-2 text-right font-mono tabular-nums">
                         {formatBreakevenCurrency(row.revenue)}
                       </td>
-                      <td className="py-1 px-2 text-right font-mono">
+                      <td className="py-1 px-2 text-right font-mono tabular-nums">
                         {formatBreakevenCurrency(row.totalCosts)}
                       </td>
                       <td
                         className={cn(
-                          'py-1 px-2 text-right font-mono font-medium',
+                          'py-1 px-2 text-right font-mono tabular-nums font-medium',
                           row.profitLoss >= 0
                             ? 'text-green-600 dark:text-green-400'
                             : 'text-red-600 dark:text-red-400',
@@ -226,7 +226,7 @@ function FieldRow({
   onChange,
 }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <div className="flex items-center hover:bg-muted/20 py-0.5 px-3">
+    <div className="flex items-center hover:bg-muted/20 py-0.5 px-3 transition-colors">
       <span className="flex-1 text-[12px] text-foreground">{label}</span>
       <AmountInput value={value} onChange={onChange} />
     </div>
@@ -246,7 +246,7 @@ function ComputedRow({ label, value, sub }: { label: string; value: string; sub?
       </span>
       <span
         className={cn(
-          'w-40 text-right font-mono text-[12px]',
+          'w-40 text-right font-mono tabular-nums text-[12px]',
           sub ? 'text-muted-foreground' : 'font-semibold text-foreground',
         )}
       >
@@ -286,7 +286,7 @@ function AmountInput({ value, onChange }: { value: number; onChange: (v: number)
         const num = Number(text.replace(/,/g, ''));
         if (!Number.isNaN(num)) onChange(num);
       }}
-      className="w-40 text-right font-mono text-[13px] text-foreground bg-transparent border border-transparent rounded px-1 py-0.5 outline-none hover:border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+      className="w-40 text-right font-mono tabular-nums text-[13px] text-foreground border border-border bg-muted/20 rounded-md px-1 py-0.5 outline-none focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/30 transition-all"
     />
   );
 }
@@ -297,11 +297,11 @@ function MetricBox({
   color,
 }: { label: string; value: string; color?: 'green' | 'red' }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card px-4 py-3">
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+    <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-sm">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
       <p
         className={cn(
-          'text-[16px] font-bold mt-0.5',
+          'text-[16px] font-semibold font-mono tabular-nums mt-1',
           color === 'green' && 'text-green-600 dark:text-green-400',
           color === 'red' && 'text-red-600 dark:text-red-400',
           !color && 'text-foreground',

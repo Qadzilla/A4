@@ -19,7 +19,16 @@ import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
 const inputClass =
-  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground transition-all font-sans focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50';
+
+const selectClass =
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:16px_16px] bg-[position:right_8px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-8';
+
+const inlineSelectClass =
+  'rounded-md border border-border bg-muted/20 px-1.5 py-1 pr-7 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:14px_14px] bg-[position:right_6px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] cursor-pointer';
+
+const numberInputSpinner =
+  '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
 export const NetWorthCardView = memo(
   function NetWorthCardView({ item, workspaceId }: { item: CanvasItem; workspaceId: string }) {
@@ -278,13 +287,13 @@ export const NetWorthCardView = memo(
       const subtotal = groupEntries.reduce((s, e) => s + e.value, 0);
       return (
         <div key={catId} className="space-y-1">
-          <div className="flex items-center justify-between px-3 py-1 bg-muted/20 rounded-md">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-muted/30 rounded-md">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
               {cat.name}
             </span>
             <span
               className={cn(
-                'text-[11px] font-semibold tabular-nums',
+                'text-[11px] font-semibold font-mono tabular-nums',
                 kind === 'asset'
                   ? 'text-green-600 dark:text-green-400'
                   : 'text-red-600 dark:text-red-400',
@@ -296,19 +305,19 @@ export const NetWorthCardView = memo(
           {groupEntries.map((entry) => (
             <div
               key={entry.id}
-              className="grid grid-cols-[1fr_140px_100px_32px] gap-2 px-3 py-1 items-center"
+              className="group grid grid-cols-1 sm:grid-cols-[1fr_140px_100px_32px] gap-2 px-3 py-2 items-center transition-colors hover:bg-muted/20"
             >
               <input
                 type="text"
                 defaultValue={entry.name}
                 onBlur={(e) => handleEntryBlur(entry.id, 'name', e.target.value)}
                 placeholder="Name"
-                className="border-0 bg-transparent text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
+                className="rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-foreground placeholder:text-muted-foreground transition-all w-full focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
               />
               <select
                 defaultValue={entry.categoryId}
                 onChange={(e) => handleEntryBlur(entry.id, 'categoryId', e.target.value)}
-                className="border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
+                className={cn(inlineSelectClass, 'w-full')}
               >
                 <optgroup label="Assets">
                   {assetCategories.map((c) => (
@@ -332,7 +341,8 @@ export const NetWorthCardView = memo(
                 defaultValue={entry.value}
                 onBlur={(e) => handleEntryBlur(entry.id, 'value', Number(e.target.value) || 0)}
                 className={cn(
-                  'border-0 bg-transparent text-[13px] text-right focus:outline-none tabular-nums w-full',
+                  'rounded-md border border-border bg-muted/20 px-1.5 py-1 text-[13px] text-left sm:text-right font-mono tabular-nums transition-all w-full focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary/50',
+                  numberInputSpinner,
                   kind === 'asset'
                     ? 'text-green-600 dark:text-green-400'
                     : 'text-red-600 dark:text-red-400',
@@ -341,7 +351,7 @@ export const NetWorthCardView = memo(
               <button
                 type="button"
                 onClick={() => removeEntry(entry.id)}
-                className="flex items-center justify-center size-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                className="hidden sm:flex items-center justify-center size-6 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -351,7 +361,7 @@ export const NetWorthCardView = memo(
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="size-3"
+                  className="size-3.5"
                 >
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -365,18 +375,21 @@ export const NetWorthCardView = memo(
 
     if (isLoading) {
       return (
-        <div className="flex-1 flex items-center justify-center bg-muted/30">
-          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="space-y-2 text-center">
+            <div className="h-6 w-32 rounded bg-muted/40 animate-pulse mx-auto" />
+            <p className="text-[12px] text-muted-foreground">Loading net worth...</p>
+          </div>
         </div>
       );
     }
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-3xl space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-3xl space-y-8 bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -396,11 +409,11 @@ export const NetWorthCardView = memo(
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">Net Worth</p>
+              <h2 className="text-base font-semibold text-foreground tracking-tight">{item.name}</h2>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">Net Worth</p>
             </div>
             {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
+              <span className="text-[11px] text-muted-foreground">
                 {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
               </span>
             )}
@@ -408,13 +421,13 @@ export const NetWorthCardView = memo(
 
           {/* Currency */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Currency
             </label>
             <select
               value={viewConfig.currency}
               onChange={(e) => updateConfig({ currency: e.target.value as SupportedCurrency })}
-              className={cn(inputClass, 'w-[200px]')}
+              className={cn(selectClass, 'w-full sm:w-[200px]')}
             >
               {SUPPORTED_CURRENCIES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -425,15 +438,15 @@ export const NetWorthCardView = memo(
           </div>
 
           {/* Category management */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Categories
               </p>
               <button
                 type="button"
                 onClick={() => setShowAddCategory(true)}
-                className="flex items-center gap-1 text-[12px] text-primary hover:text-primary/80 font-medium transition-colors"
+                className="flex items-center gap-1 text-[12px] text-primary/80 hover:text-primary font-medium transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -453,9 +466,9 @@ export const NetWorthCardView = memo(
             </div>
 
             {showAddCategory && (
-              <div className="flex items-end gap-2 p-2 rounded-lg border border-border/60 bg-muted/10">
-                <div className="flex-1 space-y-1">
-                  <label className="text-[11px] text-muted-foreground">Name</label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 p-3 rounded-lg border border-border/60 bg-muted/10">
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Name</label>
                   <input
                     type="text"
                     value={newCatName}
@@ -467,12 +480,12 @@ export const NetWorthCardView = memo(
                     }}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground">Kind</label>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Kind</label>
                   <select
                     value={newCatKind}
                     onChange={(e) => setNewCatKind(e.target.value as NetWorthCategoryKind)}
-                    className={cn(inputClass, 'w-[110px]')}
+                    className={cn(selectClass, 'sm:w-[110px]')}
                   >
                     <option value="asset">Asset</option>
                     <option value="liability">Liability</option>
@@ -481,7 +494,7 @@ export const NetWorthCardView = memo(
                 <button
                   type="button"
                   onClick={addCategory}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   Add
                 </button>
@@ -501,7 +514,7 @@ export const NetWorthCardView = memo(
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="size-3"
+                    className="size-3.5"
                   >
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
@@ -512,11 +525,11 @@ export const NetWorthCardView = memo(
 
             {/* Asset categories */}
             <div className="space-y-1">
-              <p className="text-[10px] font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide px-1">
+              <p className="text-[11px] font-semibold text-green-600 dark:text-green-400 uppercase tracking-wider px-1">
                 Assets
               </p>
               {assetCategories.map((cat) => (
-                <div key={cat.id} className="flex items-center gap-2 px-1">
+                <div key={cat.id} className="group flex items-center gap-2 px-1">
                   {cat.isDefault ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -541,14 +554,14 @@ export const NetWorthCardView = memo(
                       type="text"
                       defaultValue={cat.name}
                       onBlur={(e) => handleCategoryNameBlur(cat.id, e.target.value)}
-                      className="flex-1 border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
+                      className="flex-1 rounded-md border border-border bg-muted/20 px-1.5 py-0.5 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                     />
                   )}
                   {!cat.isDefault && (
                     <button
                       type="button"
                       onClick={() => removeCategory(cat.id)}
-                      className="flex items-center justify-center size-5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      className="flex items-center justify-center size-5 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -571,11 +584,11 @@ export const NetWorthCardView = memo(
 
             {/* Liability categories */}
             <div className="space-y-1">
-              <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide px-1">
+              <p className="text-[11px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider px-1">
                 Liabilities
               </p>
               {liabilityCategories.map((cat) => (
-                <div key={cat.id} className="flex items-center gap-2 px-1">
+                <div key={cat.id} className="group flex items-center gap-2 px-1">
                   {cat.isDefault ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -600,14 +613,14 @@ export const NetWorthCardView = memo(
                       type="text"
                       defaultValue={cat.name}
                       onBlur={(e) => handleCategoryNameBlur(cat.id, e.target.value)}
-                      className="flex-1 border-0 bg-transparent text-[12px] text-black dark:text-zinc-100 focus:outline-none"
+                      className="flex-1 rounded-md border border-border bg-muted/20 px-1.5 py-0.5 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
                     />
                   )}
                   {!cat.isDefault && (
                     <button
                       type="button"
                       onClick={() => removeCategory(cat.id)}
-                      className="flex items-center justify-center size-5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      className="flex items-center justify-center size-5 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -630,13 +643,13 @@ export const NetWorthCardView = memo(
           </div>
 
           {/* Add entry form */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-black/50 dark:text-zinc-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Add Entry
             </p>
-            <div className="flex items-end gap-2">
-              <div className="flex-1 space-y-1">
-                <label className="text-[11px] text-muted-foreground">Name</label>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+              <div className="flex-1 space-y-1.5">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Name</label>
                 <input
                   type="text"
                   value={newEntry.name}
@@ -648,12 +661,12 @@ export const NetWorthCardView = memo(
                   }}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground">Category</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Category</label>
                 <select
                   value={newEntry.categoryId}
                   onChange={(e) => setNewEntry((p) => ({ ...p, categoryId: e.target.value }))}
-                  className={cn(inputClass, 'w-[160px]')}
+                  className={cn(selectClass, 'sm:w-[160px]')}
                 >
                   <option value="">Select...</option>
                   <optgroup label="Assets">
@@ -672,8 +685,8 @@ export const NetWorthCardView = memo(
                   </optgroup>
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground">Value</label>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Value</label>
                 <input
                   type="number"
                   min={0}
@@ -681,7 +694,7 @@ export const NetWorthCardView = memo(
                   value={newEntry.value}
                   onChange={(e) => setNewEntry((p) => ({ ...p, value: e.target.value }))}
                   placeholder="0.00"
-                  className={cn(inputClass, 'w-[110px]')}
+                  className={cn(inputClass, 'sm:w-[110px] font-mono tabular-nums', numberInputSpinner)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') addEntry();
                   }}
@@ -690,7 +703,7 @@ export const NetWorthCardView = memo(
               <button
                 type="button"
                 onClick={addEntry}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 Add
               </button>
@@ -698,8 +711,8 @@ export const NetWorthCardView = memo(
           </div>
 
           {/* Entry list — Assets */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-green-600 dark:text-green-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-green-600 dark:text-green-400">
               Assets (
               {
                 entries.filter(
@@ -708,7 +721,7 @@ export const NetWorthCardView = memo(
               }
               )
             </p>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
               {groupedAssets.size === 0 ? (
                 <div className="px-3 py-6 text-center text-[12px] text-muted-foreground">
                   No assets yet
@@ -722,8 +735,8 @@ export const NetWorthCardView = memo(
           </div>
 
           {/* Entry list — Liabilities */}
-          <div className="space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">
+          <div className="space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">
               Liabilities (
               {
                 entries.filter(
@@ -732,7 +745,7 @@ export const NetWorthCardView = memo(
               }
               )
             </p>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
               {groupedLiabilities.size === 0 ? (
                 <div className="px-3 py-6 text-center text-[12px] text-muted-foreground">
                   No liabilities yet
@@ -746,28 +759,28 @@ export const NetWorthCardView = memo(
           </div>
 
           {/* Summary footer */}
-          <div className="grid grid-cols-4 gap-4 rounded-lg border border-border bg-muted/20 p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 rounded-lg border border-border/60 bg-muted/20 p-4">
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Total Assets
               </p>
-              <p className="text-[16px] font-bold text-green-600 dark:text-green-400 tabular-nums">
+              <p className="text-[16px] font-semibold text-green-600 dark:text-green-400 font-mono tabular-nums mt-1">
                 {formatCurrency(result.totalAssets, viewConfig.currency)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                 Total Liabilities
               </p>
-              <p className="text-[16px] font-bold text-red-600 dark:text-red-400 tabular-nums">
+              <p className="text-[16px] font-semibold text-red-600 dark:text-red-400 font-mono tabular-nums mt-1">
                 {formatCurrency(result.totalLiabilities, viewConfig.currency)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Net Worth</p>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Net Worth</p>
               <p
                 className={cn(
-                  'text-[16px] font-bold tabular-nums',
+                  'text-[16px] font-semibold font-mono tabular-nums mt-1',
                   healthColor === 'green'
                     ? 'text-green-600 dark:text-green-400'
                     : 'text-red-600 dark:text-red-400',
@@ -777,14 +790,14 @@ export const NetWorthCardView = memo(
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Entries</p>
-              <p className="text-[16px] font-bold text-foreground tabular-nums">{entries.length}</p>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Entries</p>
+              <p className="text-[16px] font-semibold text-foreground font-mono tabular-nums mt-1">{entries.length}</p>
             </div>
           </div>
 
           {/* Notes */}
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+          <div className="space-y-1.5 pt-4 border-t border-border/40">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Notes
             </label>
             <textarea
@@ -792,7 +805,7 @@ export const NetWorthCardView = memo(
               onChange={(e) => updateConfig({ notes: e.target.value })}
               placeholder="Notes..."
               rows={3}
-              className={cn(inputClass, 'resize-none')}
+              className={cn(inputClass, 'resize-none py-2')}
             />
           </div>
         </div>

@@ -5,6 +5,9 @@ import type { AmortizationRow, LoanCalculatorData } from '../../lib/loan-calcula
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
+const selectClass =
+  'rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:14px_14px] bg-[position:right_6px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-7 cursor-pointer';
+
 function makeData(d: LoanCalculatorData | undefined): LoanCalculatorData {
   const now = new Date();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -79,15 +82,15 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
   const yearlyGroups = groupByYear(result.schedule);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden bg-muted/30">
       {/* Settings row */}
-      <div className="flex items-center gap-3 border-b border-border/60 px-4 py-2 flex-wrap">
-        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+      <div className="flex items-center gap-3 border-b border-border/60 bg-card px-4 py-2.5 flex-wrap">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           Term
           <select
             value={data.loanTermYears}
             onChange={(e) => update({ loanTermYears: Number(e.target.value) })}
-            className="rounded border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+            className={selectClass}
           >
             <option value={15}>15 yr</option>
             <option value={20}>20 yr</option>
@@ -95,27 +98,21 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
           </select>
         </label>
 
-        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           Start
           <input
             type="month"
             value={data.startDate}
             onChange={(e) => update({ startDate: e.target.value })}
-            className="rounded border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+            className="rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
           />
         </label>
 
-        <span
-          className={cn(
-            'ml-auto text-[10px] transition-opacity',
-            saveStatus === 'idle' ? 'opacity-0' : 'opacity-100',
-            saveStatus === 'saving'
-              ? 'text-muted-foreground'
-              : 'text-green-600 dark:text-green-400',
-          )}
-        >
-          {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-        </span>
+        {saveStatus !== 'idle' && (
+          <span className="ml-auto text-[11px] text-muted-foreground">
+            {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+          </span>
+        )}
       </div>
 
       {/* Content */}
@@ -128,10 +125,10 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
             value={data.homePrice}
             onChange={(v) => update({ homePrice: v })}
           />
-          <div className="flex items-center hover:bg-muted/20 py-0.5 px-3">
+          <div className="flex items-center transition-colors hover:bg-muted/20 py-0.5 px-3">
             <span className="flex-1 text-[12px] text-foreground">Down Payment (%)</span>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground font-mono">
+              <span className="text-[11px] text-muted-foreground font-mono tabular-nums">
                 {formatLoanCurrency(downPaymentDollars)}
               </span>
               <PercentInput
@@ -165,7 +162,7 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
             value={data.monthlyHOA}
             onChange={(v) => update({ monthlyHOA: v })}
           />
-          <div className="flex items-center hover:bg-muted/20 py-0.5 px-3">
+          <div className="flex items-center transition-colors hover:bg-muted/20 py-0.5 px-3">
             <span className="flex-1 text-[12px] text-foreground">
               PMI Rate (%)
               {data.downPaymentPercent >= 20 && (
@@ -215,7 +212,7 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
             <span className="flex-1 text-[13px] font-bold text-foreground uppercase tracking-wide">
               Monthly Payment
             </span>
-            <span className="font-mono text-[16px] font-bold text-foreground">
+            <span className="font-mono tabular-nums text-[16px] font-semibold text-foreground">
               {formatLoanCurrency(result.totalMonthlyPayment)}
             </span>
           </div>
@@ -225,7 +222,7 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
 
           {/* ── METRICS ── */}
           <div className="pt-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <MetricBox label="Total Interest" value={formatLoanCurrency(result.totalInterest)} />
               <MetricBox label="Total Cost" value={formatLoanCurrency(result.totalCost)} />
               <MetricBox label="Payoff Date" value={result.payoffDate} />
@@ -248,7 +245,7 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
           </div>
 
           {/* ── AMORTIZATION SCHEDULE ── */}
-          <div className="pt-6">
+          <div className="pt-8">
             <div className="flex items-center justify-between px-3 pb-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Amortization Schedule
@@ -257,10 +254,10 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
                 <button
                   type="button"
                   className={cn(
-                    'px-2.5 py-0.5 text-[11px] transition-colors',
+                    'px-2.5 py-0.5 text-[11px] font-medium transition-colors',
                     scheduleView === 'yearly'
                       ? 'bg-primary text-primary-foreground'
-                      : 'bg-background text-muted-foreground hover:bg-muted',
+                      : 'text-muted-foreground hover:bg-muted/40',
                   )}
                   onClick={() => setScheduleView('yearly')}
                 >
@@ -269,10 +266,10 @@ export const LoanCalculatorCardView = memo(function LoanCalculatorCardView({
                 <button
                   type="button"
                   className={cn(
-                    'px-2.5 py-0.5 text-[11px] transition-colors',
+                    'px-2.5 py-0.5 text-[11px] font-medium transition-colors',
                     scheduleView === 'monthly'
                       ? 'bg-primary text-primary-foreground'
-                      : 'bg-background text-muted-foreground hover:bg-muted',
+                      : 'text-muted-foreground hover:bg-muted/40',
                   )}
                   onClick={() => setScheduleView('monthly')}
                 >
@@ -318,7 +315,7 @@ function FieldRow({
   isPercent,
 }: { label: string; value: number; onChange: (v: number) => void; isPercent?: boolean }) {
   return (
-    <div className="flex items-center hover:bg-muted/20 py-0.5 px-3">
+    <div className="flex items-center transition-colors hover:bg-muted/20 py-0.5 px-3">
       <span className="flex-1 text-[12px] text-foreground">{label}</span>
       {isPercent ? (
         <PercentInput value={value} onChange={onChange} />
@@ -342,7 +339,7 @@ function ComputedRow({ label, value, sub }: { label: string; value: string; sub?
       </span>
       <span
         className={cn(
-          'w-40 text-right font-mono text-[12px]',
+          'w-40 text-right font-mono tabular-nums text-[12px]',
           sub ? 'text-muted-foreground' : 'font-semibold text-foreground',
         )}
       >
@@ -382,7 +379,7 @@ function AmountInput({ value, onChange }: { value: number; onChange: (v: number)
         const num = Number(text.replace(/,/g, ''));
         if (!Number.isNaN(num)) onChange(num);
       }}
-      className="w-40 text-right font-mono text-[13px] text-foreground bg-transparent border border-transparent rounded px-1 py-0.5 outline-none hover:border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+      className="w-40 text-right font-mono tabular-nums text-[13px] text-foreground border border-border bg-muted/20 rounded-md px-1 py-0.5 outline-none focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/30 transition-all"
     />
   );
 }
@@ -417,7 +414,7 @@ function PercentInput({ value, onChange }: { value: number; onChange: (v: number
         const num = Number(text);
         if (!Number.isNaN(num) && num >= 0 && num <= 100) onChange(num);
       }}
-      className="w-20 text-right font-mono text-[13px] text-foreground bg-transparent border border-transparent rounded px-1 py-0.5 outline-none hover:border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+      className="w-20 text-right font-mono tabular-nums text-[13px] text-foreground border border-border bg-muted/20 rounded-md px-1 py-0.5 outline-none focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/30 transition-all"
     />
   );
 }
@@ -428,11 +425,11 @@ function MetricBox({
   color,
 }: { label: string; value: string; color?: 'green' | 'red' }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card px-4 py-3">
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+    <div className="rounded-xl border border-border/60 bg-card shadow-sm px-4 py-3">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
       <p
         className={cn(
-          'text-[16px] font-bold mt-0.5',
+          'text-[16px] font-semibold font-mono tabular-nums mt-1',
           color === 'green' && 'text-green-600 dark:text-green-400',
           color === 'red' && 'text-red-600 dark:text-red-400',
           !color && 'text-foreground',
@@ -522,37 +519,37 @@ function groupByYear(schedule: AmortizationRow[]): YearGroup[] {
 
 function MonthlyTable({ schedule }: { schedule: AmortizationRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border/40">
+    <div className="overflow-x-auto rounded-lg border border-border/60 bg-background">
       <table className="w-full text-[11px]">
         <thead>
-          <tr className="bg-muted/20 text-muted-foreground">
-            <th className="text-left py-1.5 px-2 font-medium">#</th>
-            <th className="text-left py-1.5 px-2 font-medium">Date</th>
-            <th className="text-right py-1.5 px-2 font-medium">Payment</th>
-            <th className="text-right py-1.5 px-2 font-medium">Principal</th>
-            <th className="text-right py-1.5 px-2 font-medium">Interest</th>
-            <th className="text-right py-1.5 px-2 font-medium">Extra</th>
-            <th className="text-right py-1.5 px-2 font-medium">PMI</th>
-            <th className="text-right py-1.5 px-2 font-medium">Balance</th>
+          <tr className="bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            <th className="text-left py-2 px-2">#</th>
+            <th className="text-left py-2 px-2">Date</th>
+            <th className="text-right py-2 px-2">Payment</th>
+            <th className="text-right py-2 px-2">Principal</th>
+            <th className="text-right py-2 px-2">Interest</th>
+            <th className="text-right py-2 px-2">Extra</th>
+            <th className="text-right py-2 px-2">PMI</th>
+            <th className="text-right py-2 px-2">Balance</th>
           </tr>
         </thead>
         <tbody>
           {schedule.map((row) => (
-            <tr key={row.month} className="border-t border-border/20 hover:bg-muted/10">
+            <tr key={row.month} className="border-t border-border/40 transition-colors hover:bg-muted/20">
               <td className="py-1 px-2 text-muted-foreground">{row.month}</td>
-              <td className="py-1 px-2">{row.date}</td>
-              <td className="py-1 px-2 text-right font-mono">{formatLoanCurrency(row.payment)}</td>
-              <td className="py-1 px-2 text-right font-mono">
+              <td className="py-1 px-2 text-foreground">{row.date}</td>
+              <td className="py-1 px-2 text-right font-mono tabular-nums text-foreground">{formatLoanCurrency(row.payment)}</td>
+              <td className="py-1 px-2 text-right font-mono tabular-nums text-foreground">
                 {formatLoanCurrency(row.principal)}
               </td>
-              <td className="py-1 px-2 text-right font-mono">{formatLoanCurrency(row.interest)}</td>
-              <td className="py-1 px-2 text-right font-mono">
+              <td className="py-1 px-2 text-right font-mono tabular-nums text-foreground">{formatLoanCurrency(row.interest)}</td>
+              <td className="py-1 px-2 text-right font-mono tabular-nums text-foreground">
                 {row.extraPayment > 0 ? formatLoanCurrency(row.extraPayment) : ''}
               </td>
-              <td className="py-1 px-2 text-right font-mono">
+              <td className="py-1 px-2 text-right font-mono tabular-nums text-foreground">
                 {row.pmi > 0 ? formatLoanCurrency(row.pmi) : ''}
               </td>
-              <td className="py-1 px-2 text-right font-mono font-medium">
+              <td className="py-1 px-2 text-right font-mono tabular-nums font-medium text-foreground">
                 {formatLoanCurrency(row.balance)}
               </td>
             </tr>
@@ -576,16 +573,16 @@ function YearlyTable({ groups }: { groups: YearGroup[] }) {
   };
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border/40">
+    <div className="overflow-x-auto rounded-lg border border-border/60 bg-background">
       <table className="w-full text-[11px]">
         <thead>
-          <tr className="bg-muted/20 text-muted-foreground">
-            <th className="text-left py-1.5 px-2 font-medium">Year</th>
-            <th className="text-right py-1.5 px-2 font-medium">Principal</th>
-            <th className="text-right py-1.5 px-2 font-medium">Interest</th>
-            <th className="text-right py-1.5 px-2 font-medium">Extra</th>
-            <th className="text-right py-1.5 px-2 font-medium">PMI</th>
-            <th className="text-right py-1.5 px-2 font-medium">Balance</th>
+          <tr className="bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            <th className="text-left py-2 px-2">Year</th>
+            <th className="text-right py-2 px-2">Principal</th>
+            <th className="text-right py-2 px-2">Interest</th>
+            <th className="text-right py-2 px-2">Extra</th>
+            <th className="text-right py-2 px-2">PMI</th>
+            <th className="text-right py-2 px-2">Balance</th>
           </tr>
         </thead>
         <tbody>
@@ -614,10 +611,10 @@ function YearRow({
   return (
     <>
       <tr
-        className="border-t border-border/20 hover:bg-muted/10 cursor-pointer font-medium"
+        className="border-t border-border/40 transition-colors hover:bg-muted/20 cursor-pointer font-medium"
         onClick={onToggle}
       >
-        <td className="py-1.5 px-2">
+        <td className="py-1.5 px-2 text-foreground">
           <span className="inline-flex items-center gap-1">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -633,19 +630,19 @@ function YearRow({
             {group.year}
           </span>
         </td>
-        <td className="py-1.5 px-2 text-right font-mono">
+        <td className="py-1.5 px-2 text-right font-mono tabular-nums text-foreground">
           {formatLoanCurrency(group.totalPrincipal)}
         </td>
-        <td className="py-1.5 px-2 text-right font-mono">
+        <td className="py-1.5 px-2 text-right font-mono tabular-nums text-foreground">
           {formatLoanCurrency(group.totalInterest)}
         </td>
-        <td className="py-1.5 px-2 text-right font-mono">
+        <td className="py-1.5 px-2 text-right font-mono tabular-nums text-foreground">
           {group.totalExtra > 0 ? formatLoanCurrency(group.totalExtra) : ''}
         </td>
-        <td className="py-1.5 px-2 text-right font-mono">
+        <td className="py-1.5 px-2 text-right font-mono tabular-nums text-foreground">
           {group.totalPMI > 0 ? formatLoanCurrency(group.totalPMI) : ''}
         </td>
-        <td className="py-1.5 px-2 text-right font-mono font-bold">
+        <td className="py-1.5 px-2 text-right font-mono tabular-nums font-semibold text-foreground">
           {formatLoanCurrency(group.endBalance)}
         </td>
       </tr>
@@ -653,20 +650,20 @@ function YearRow({
         group.rows.map((row) => (
           <tr
             key={row.month}
-            className="border-t border-border/10 bg-muted/5 text-muted-foreground"
+            className="border-t border-border/20 bg-muted/5 text-muted-foreground"
           >
             <td className="py-0.5 px-2 pl-6">{row.date}</td>
-            <td className="py-0.5 px-2 text-right font-mono">
+            <td className="py-0.5 px-2 text-right font-mono tabular-nums">
               {formatLoanCurrency(row.principal)}
             </td>
-            <td className="py-0.5 px-2 text-right font-mono">{formatLoanCurrency(row.interest)}</td>
-            <td className="py-0.5 px-2 text-right font-mono">
+            <td className="py-0.5 px-2 text-right font-mono tabular-nums">{formatLoanCurrency(row.interest)}</td>
+            <td className="py-0.5 px-2 text-right font-mono tabular-nums">
               {row.extraPayment > 0 ? formatLoanCurrency(row.extraPayment) : ''}
             </td>
-            <td className="py-0.5 px-2 text-right font-mono">
+            <td className="py-0.5 px-2 text-right font-mono tabular-nums">
               {row.pmi > 0 ? formatLoanCurrency(row.pmi) : ''}
             </td>
-            <td className="py-0.5 px-2 text-right font-mono">{formatLoanCurrency(row.balance)}</td>
+            <td className="py-0.5 px-2 text-right font-mono tabular-nums">{formatLoanCurrency(row.balance)}</td>
           </tr>
         ))}
     </>

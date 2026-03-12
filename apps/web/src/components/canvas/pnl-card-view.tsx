@@ -12,13 +12,18 @@ import {
   formatMarginPct,
   formatPLCurrency,
   getFiscalMonthHeaders,
-  getFiscalYearLabel,
   newLineItem,
   sumLineItemAnnual,
 } from '../../lib/pnl-utils';
 import type { PLCardData, PLSection, PLSectionId } from '../../lib/pnl-utils';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
+
+const selectClass =
+  'rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:14px_14px] bg-[position:right_6px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-7 cursor-pointer';
+
+const numberInputSpinner =
+  '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
 export const PnlCardView = memo(function PnlCardView({ item }: { item: CanvasItem }) {
   const updateItemData = useCanvasStore((s) => s.updateItemData);
@@ -147,13 +152,11 @@ export const PnlCardView = memo(function PnlCardView({ item }: { item: CanvasIte
 
   const totals = computePLTotals(data.sections);
   const monthHeaders = getFiscalMonthHeaders(data.fiscalYearStart, data.fiscalMonthStart);
-  const fyLabel = getFiscalYearLabel(data.fiscalYearStart, data.fiscalMonthStart);
-
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden bg-muted/30">
       {/* Settings row */}
-      <div className="flex items-center gap-3 border-b border-border/60 px-4 py-2 flex-wrap">
-        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+      <div className="flex items-center gap-3 border-b border-border/60 bg-card px-4 py-2.5 flex-wrap">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           Year
           <input
             type="number"
@@ -161,16 +164,19 @@ export const PnlCardView = memo(function PnlCardView({ item }: { item: CanvasIte
             onChange={(e) =>
               update({ fiscalYearStart: Number(e.target.value) || new Date().getFullYear() })
             }
-            className="w-20 rounded border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+            className={cn(
+              'w-20 rounded-md border border-border bg-muted/20 px-2 py-1 text-[12px] text-foreground font-mono tabular-nums transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50',
+              numberInputSpinner,
+            )}
           />
         </label>
 
-        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           Start
           <select
             value={data.fiscalMonthStart}
             onChange={(e) => update({ fiscalMonthStart: Number(e.target.value) })}
-            className="rounded border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+            className={selectClass}
           >
             {MONTH_OPTIONS.map((m) => (
               <option key={m.value} value={m.value}>
@@ -180,12 +186,12 @@ export const PnlCardView = memo(function PnlCardView({ item }: { item: CanvasIte
           </select>
         </label>
 
-        <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
           Currency
           <select
             value={data.currency}
             onChange={(e) => update({ currency: e.target.value as SupportedCurrency })}
-            className="rounded border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+            className={selectClass}
           >
             {SUPPORTED_CURRENCIES.map((c) => (
               <option key={c.value} value={c.value}>
@@ -203,7 +209,7 @@ export const PnlCardView = memo(function PnlCardView({ item }: { item: CanvasIte
               'px-3 py-1 text-[11px] font-medium transition-colors',
               data.viewMode === 'table'
                 ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted',
+                : 'text-muted-foreground hover:bg-muted/40',
             )}
           >
             Table
@@ -215,25 +221,18 @@ export const PnlCardView = memo(function PnlCardView({ item }: { item: CanvasIte
               'px-3 py-1 text-[11px] font-medium transition-colors',
               data.viewMode === 'waterfall'
                 ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted',
+                : 'text-muted-foreground hover:bg-muted/40',
             )}
           >
             Waterfall
           </button>
         </div>
 
-        {/* Save indicator */}
-        <span
-          className={cn(
-            'text-[10px] transition-opacity',
-            saveStatus === 'idle' ? 'opacity-0' : 'opacity-100',
-            saveStatus === 'saving'
-              ? 'text-muted-foreground'
-              : 'text-green-600 dark:text-green-400',
-          )}
-        >
-          {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-        </span>
+        {saveStatus !== 'idle' && (
+          <span className="text-[11px] text-muted-foreground">
+            {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+          </span>
+        )}
       </div>
 
       {/* Content */}
@@ -289,16 +288,16 @@ function PLTable({
         <table className="w-full border-collapse text-[12px]">
           <thead>
             <tr className="border-b border-border/60">
-              <th className="sticky left-0 z-10 bg-background text-left font-medium text-muted-foreground py-2 px-3 min-w-[180px]" />
+              <th className="sticky left-0 z-10 bg-muted/30 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wide py-2 px-3 min-w-[180px]" />
               {monthHeaders.map((h) => (
                 <th
                   key={h}
-                  className="text-right font-medium text-muted-foreground py-2 px-1 min-w-[80px]"
+                  className="text-right text-[11px] font-medium text-muted-foreground py-2 px-1 min-w-[80px]"
                 >
                   {h}
                 </th>
               ))}
-              <th className="text-right font-semibold text-foreground py-2 px-2 min-w-[100px]">
+              <th className="text-right text-[11px] font-semibold text-foreground uppercase tracking-wide py-2 px-2 min-w-[100px]">
                 Total
               </th>
               <th className="w-8" />
@@ -367,13 +366,13 @@ function SectionRows({
   const subtotalAnnual = subtotalArr.reduce((a, b) => a + b, 0);
 
   // Key totals after specific sections
-  const keyTotals = getKeyTotals(sectionId, totals, currency);
+  const keyTotals = getKeyTotals(sectionId, totals);
 
   return (
     <>
       {/* Section header */}
       <tr>
-        <td colSpan={15} className={cn('sticky left-0 z-10 bg-background', !isFirst && 'pt-4')}>
+        <td colSpan={15} className={cn('sticky left-0 z-10 bg-muted/30', !isFirst && 'pt-4')}>
           <div className="flex items-center gap-2 py-1.5 px-3">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               {meta.label}
@@ -381,7 +380,7 @@ function SectionRows({
             <button
               type="button"
               onClick={() => onAddLineItem(sectionId)}
-              className="text-[10px] text-primary hover:text-primary/80 font-medium"
+              className="text-[11px] text-primary/80 hover:text-primary font-medium transition-colors"
             >
               + Add
             </button>
@@ -391,15 +390,15 @@ function SectionRows({
 
       {/* Line items */}
       {lineItems.map((li) => (
-        <tr key={li.id} className="group hover:bg-muted/20">
-          <td className="sticky left-0 z-10 bg-background group-hover:bg-muted/20 py-0.5 px-3">
+        <tr key={li.id} className="group transition-colors hover:bg-muted/20">
+          <td className="sticky left-0 z-10 bg-muted/30 group-hover:bg-muted/20 py-0.5 px-3">
             <div className="flex items-center gap-1.5">
               <input
                 type="text"
                 value={li.name}
                 onChange={(e) => onUpdateName(sectionId, li.id, e.target.value)}
                 placeholder="Line item name"
-                className="w-full bg-transparent text-[12px] text-foreground placeholder:text-muted-foreground/50 outline-none"
+                className="w-full border border-border bg-muted/20 rounded-md px-1.5 py-0.5 text-[12px] text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/30 transition-all"
               />
               {sectionId === 'other' && (
                 <button
@@ -425,14 +424,14 @@ function SectionRows({
               />
             </td>
           ))}
-          <td className="text-right font-mono text-[12px] text-foreground py-0.5 px-2">
+          <td className="text-right font-mono tabular-nums text-[12px] text-foreground py-0.5 px-2">
             {formatPLCurrency(sumLineItemAnnual(li), currency)}
           </td>
           <td className="py-0.5 px-1">
             <button
               type="button"
               onClick={() => onRemoveLineItem(sectionId, li.id)}
-              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+              className="opacity-0 group-hover:opacity-100 flex items-center justify-center size-5 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-all"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -442,7 +441,7 @@ function SectionRows({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="size-3"
+                className="size-3.5"
               >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -454,18 +453,18 @@ function SectionRows({
 
       {/* Section subtotal */}
       <tr className="border-t border-border/40">
-        <td className="sticky left-0 z-10 bg-background text-[12px] font-semibold text-foreground py-1 px-3">
+        <td className="sticky left-0 z-10 bg-muted/30 text-[12px] font-semibold text-foreground py-1 px-3">
           {meta.subtotalLabel}
         </td>
         {subtotalArr.map((v, i) => (
           <td
             key={i}
-            className="text-right font-mono text-[12px] font-semibold text-foreground py-1 px-1"
+            className="text-right font-mono tabular-nums text-[12px] font-semibold text-foreground py-1 px-1"
           >
             {formatPLCurrency(v, currency)}
           </td>
         ))}
-        <td className="text-right font-mono text-[12px] font-bold text-foreground py-1 px-2">
+        <td className="text-right font-mono tabular-nums text-[12px] font-bold text-foreground py-1 px-2">
           {formatPLCurrency(subtotalAnnual, currency)}
         </td>
         <td />
@@ -474,7 +473,7 @@ function SectionRows({
       {/* Key totals (Gross Profit, EBIT, Pre-Tax, Net Income) */}
       {keyTotals.map((kt) => (
         <tr key={kt.label} className="border-t-2 border-foreground/20">
-          <td className="sticky left-0 z-10 bg-background text-[12px] font-bold text-foreground py-1.5 px-3">
+          <td className="sticky left-0 z-10 bg-muted/30 text-[12px] font-bold text-foreground py-1.5 px-3">
             {kt.label}
             {kt.margin && (
               <span
@@ -492,12 +491,12 @@ function SectionRows({
           {kt.values.map((v, i) => (
             <td
               key={i}
-              className="text-right font-mono text-[12px] font-bold text-foreground py-1.5 px-1"
+              className="text-right font-mono tabular-nums text-[12px] font-bold text-foreground py-1.5 px-1"
             >
               {formatPLCurrency(v, currency)}
             </td>
           ))}
-          <td className="text-right font-mono text-[12px] font-bold text-foreground py-1.5 px-2">
+          <td className="text-right font-mono tabular-nums text-[12px] font-bold text-foreground py-1.5 px-2">
             {formatPLCurrency(kt.annual, currency)}
           </td>
           <td />
@@ -536,7 +535,6 @@ interface KeyTotal {
 function getKeyTotals(
   sectionId: PLSectionId,
   totals: ReturnType<typeof computePLTotals>,
-  currency: SupportedCurrency,
 ): KeyTotal[] {
   switch (sectionId) {
     case 'cogs':
@@ -615,7 +613,7 @@ function AmountInput({ value, onChange }: { value: number; onChange: (v: number)
         const num = Number(text.replace(/,/g, ''));
         if (!Number.isNaN(num)) onChange(num);
       }}
-      className="w-20 text-right font-mono text-[12px] text-foreground bg-transparent border border-transparent rounded px-1 py-0.5 outline-none hover:border-border focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+      className="w-20 text-right font-mono tabular-nums text-[12px] text-foreground border border-border bg-muted/20 rounded-md px-1 py-0.5 outline-none focus:border-primary/50 focus:bg-background focus:ring-1 focus:ring-primary/30 transition-all"
     />
   );
 }
@@ -629,9 +627,9 @@ function PLWaterfall({
   const waterfallData = buildWaterfallData(totals);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-8">
       {/* Chart */}
-      <div className="rounded-lg border border-border/60 bg-card p-4">
+      <div className="rounded-xl border border-border/60 bg-card shadow-sm p-4">
         <ResponsiveContainer width="100%" height={400}>
           <BarChart
             data={waterfallData}
@@ -665,7 +663,7 @@ function PLWaterfall({
       </div>
 
       {/* Summary metrics */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <MetricBox
           label="Net Revenue"
           value={formatPLCurrency(totals.annualNetRevenue, currency)}
@@ -702,11 +700,11 @@ function MetricBox({
   color,
 }: { label: string; value: string; color?: 'green' | 'red' }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card px-4 py-3">
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+    <div className="rounded-xl border border-border/60 bg-card shadow-sm px-4 py-3">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
       <p
         className={cn(
-          'text-[16px] font-bold mt-0.5',
+          'text-[16px] font-semibold font-mono tabular-nums mt-1',
           color === 'green' && 'text-green-600 dark:text-green-400',
           color === 'red' && 'text-red-600 dark:text-red-400',
           !color && 'text-foreground',

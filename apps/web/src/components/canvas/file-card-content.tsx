@@ -147,7 +147,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
         <div className="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden">
           <PdfPreview fileId={data.fileId} />
         </div>
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border-t border-border/30">
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/20 border-t border-border/30">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -178,7 +178,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
             className="h-full w-full object-cover"
           />
         </div>
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border-t border-border/30">
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/20 border-t border-border/30">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -202,7 +202,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
   if (data.tablePreview) {
     return (
       <div className="h-full w-full flex flex-col rounded-sm border border-border/40 bg-background overflow-hidden">
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border-b border-border/30">
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/20 border-b border-border/30">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -230,7 +230,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
   if (data.textPreview) {
     return (
       <div className="h-full w-full flex flex-col rounded-sm border border-border/40 bg-background overflow-hidden">
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border-b border-border/30">
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/20 border-b border-border/30">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"

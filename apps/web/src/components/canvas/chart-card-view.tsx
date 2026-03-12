@@ -23,6 +23,9 @@ import type { TableCardData } from '../../lib/table-utils';
 import type { CanvasItem } from '../../stores/canvas-store';
 import { useCanvasStore } from '../../stores/canvas-store';
 
+const selectClass =
+  'w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 appearance-none bg-[length:16px_16px] bg-[position:right_8px_center] bg-no-repeat bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2371717a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%2F%3E%3C%2Fsvg%3E")] pr-8';
+
 const CHART_TYPE_OPTIONS: { value: ChartType; label: string }[] = [
   { value: 'line', label: 'Line' },
   { value: 'bar', label: 'Bar' },
@@ -138,11 +141,11 @@ export const ChartCardView = memo(
     const { points, seriesNames } = resolveChartData(data, items);
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-lg space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-lg bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -160,19 +163,22 @@ export const ChartCardView = memo(
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">Data visualization</p>
+              <h2 className="text-base font-semibold text-foreground">{item.name}</h2>
+              <p className="text-[11px] text-muted-foreground">Data visualization</p>
             </div>
-            {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
-                {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-              </span>
-            )}
+            <span
+              className={cn(
+                'text-[11px] text-muted-foreground transition-opacity duration-300',
+                saveStatus === 'idle' ? 'opacity-0' : 'opacity-100',
+              )}
+            >
+              {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+            </span>
           </div>
 
           {/* Title */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Title
             </label>
             <input
@@ -180,13 +186,13 @@ export const ChartCardView = memo(
               value={data.title}
               onChange={(e) => update({ title: e.target.value })}
               placeholder="e.g. Monthly Revenue"
-              className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+              className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] font-sans text-foreground placeholder:text-muted-foreground transition-all focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
             />
           </div>
 
           {/* Chart type */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Chart type
             </label>
             <div className="flex gap-1">
@@ -199,7 +205,7 @@ export const ChartCardView = memo(
                     'flex-1 rounded-md border py-1.5 text-[13px] font-medium transition-colors',
                     data.chartType === opt.value
                       ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-background text-muted-foreground hover:bg-muted/40',
+                      : 'border-border bg-muted/20 text-muted-foreground hover:bg-muted/40',
                   )}
                 >
                   {opt.label}
@@ -210,7 +216,7 @@ export const ChartCardView = memo(
 
           {/* Data Source */}
           <div className="space-y-3">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Data Source
             </label>
             <div className="space-y-3 rounded-lg border border-border/60 bg-background p-3">
@@ -235,7 +241,7 @@ export const ChartCardView = memo(
                         yColumnIds: [],
                       });
                     }}
-                    className="w-full rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                    className={selectClass}
                   >
                     <option value="">Select a table...</option>
                     {tableItems.map((t) => (
@@ -254,7 +260,7 @@ export const ChartCardView = memo(
                   <select
                     value={data.source?.xColumnId ?? ''}
                     onChange={(e) => updateSource({ xColumnId: e.target.value })}
-                    className="w-full rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                    className={selectClass}
                   >
                     <option value="">Select a column...</option>
                     {columns.map((col) => (
@@ -278,7 +284,7 @@ export const ChartCardView = memo(
                       onChange={(e) =>
                         updateSource({ yColumnIds: e.target.value ? [e.target.value] : [] })
                       }
-                      className="w-full rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+                      className={selectClass}
                     >
                       <option value="">Select a column...</option>
                       {columns.map((col) => (
@@ -300,7 +306,7 @@ export const ChartCardView = memo(
                                 'flex size-4 items-center justify-center rounded border transition-colors',
                                 checked
                                   ? 'border-primary bg-primary text-white'
-                                  : 'border-border bg-background',
+                                  : 'border-border bg-muted/20',
                               )}
                             >
                               {checked && (
@@ -339,7 +345,7 @@ export const ChartCardView = memo(
                   'flex size-4 items-center justify-center rounded border transition-colors',
                   data.showLegend
                     ? 'border-primary bg-primary text-white'
-                    : 'border-border bg-background',
+                    : 'border-border bg-muted/20',
                 )}
               >
                 {data.showLegend && (
@@ -357,9 +363,7 @@ export const ChartCardView = memo(
                   </svg>
                 )}
               </button>
-              <span className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
-                Show legend
-              </span>
+              <span className="text-[12px] font-medium text-muted-foreground">Show legend</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <button
@@ -369,7 +373,7 @@ export const ChartCardView = memo(
                   'flex size-4 items-center justify-center rounded border transition-colors',
                   data.showGrid
                     ? 'border-primary bg-primary text-white'
-                    : 'border-border bg-background',
+                    : 'border-border bg-muted/20',
                 )}
               >
                 {data.showGrid && (
@@ -387,9 +391,7 @@ export const ChartCardView = memo(
                   </svg>
                 )}
               </button>
-              <span className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
-                Show grid
-              </span>
+              <span className="text-[12px] font-medium text-muted-foreground">Show grid</span>
             </label>
           </div>
 

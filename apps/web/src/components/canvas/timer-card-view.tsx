@@ -112,11 +112,11 @@ export const TimerCardView = memo(
     const isPast = remaining?.isPast ?? false;
 
     return (
-      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-8">
-        <div className="w-full max-w-lg space-y-6">
+      <div className="flex-1 flex items-start justify-center overflow-auto bg-muted/30 py-12 px-4 sm:px-8">
+        <div className="w-full max-w-lg bg-card border border-border/60 shadow-sm rounded-xl p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/5 border border-primary/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -132,19 +132,22 @@ export const TimerCardView = memo(
               </svg>
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold text-black dark:text-zinc-100">{item.name}</h2>
-              <p className="text-[11px] text-black/60 dark:text-zinc-300">Countdown timer</p>
+              <h2 className="text-base font-semibold text-foreground">{item.name}</h2>
+              <p className="text-[11px] text-muted-foreground">Countdown timer</p>
             </div>
-            {saveStatus !== 'idle' && (
-              <span className="text-[11px] text-black/60 dark:text-zinc-300">
-                {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
-              </span>
-            )}
+            <span
+              className={cn(
+                'text-[11px] text-muted-foreground transition-opacity duration-300',
+                saveStatus !== 'idle' ? 'opacity-100' : 'opacity-0',
+              )}
+            >
+              {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
+            </span>
           </div>
 
           {/* Label */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Label
             </label>
             <input
@@ -152,26 +155,26 @@ export const TimerCardView = memo(
               value={data.label}
               onChange={(e) => update({ label: e.target.value })}
               placeholder="e.g. Earnings Report"
-              className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+              className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
             />
           </div>
 
           {/* Target Date */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Target Date
             </label>
             <input
               type="datetime-local"
               value={toLocalDatetimeValue(data.targetDate)}
               onChange={(e) => update({ targetDate: fromLocalDatetimeValue(e.target.value) })}
-              className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-black dark:text-zinc-100 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50"
+              className="w-full rounded-md border border-border bg-muted/20 px-2.5 py-1.5 text-[13px] text-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
             />
           </div>
 
           {/* Color */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-black/70 dark:text-zinc-200">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Accent color
             </label>
             <div className="flex items-center gap-2">
@@ -194,7 +197,7 @@ export const TimerCardView = memo(
           </div>
 
           {/* Live preview */}
-          <div className="rounded-lg border border-border/60 bg-background p-4 text-center space-y-1">
+          <div className="rounded-lg border border-border/60 bg-card p-4 text-center space-y-1">
             <p className="text-[11px] text-muted-foreground">Preview</p>
             <div
               className="h-1 rounded-full mx-auto w-24"
@@ -204,9 +207,9 @@ export const TimerCardView = memo(
               {data.label || 'Deadline'}
             </p>
             {isPast ? (
-              <p className="text-[24px] font-bold text-red-500">Expired</p>
+              <p className="text-[24px] font-semibold text-red-500">Expired</p>
             ) : remaining ? (
-              <p className="text-[24px] font-bold text-foreground tabular-nums">
+              <p className="text-[24px] font-semibold text-foreground tabular-nums">
                 {remaining.days}d {pad(remaining.hours)}h {pad(remaining.minutes)}m{' '}
                 {pad(remaining.seconds)}s
               </p>
