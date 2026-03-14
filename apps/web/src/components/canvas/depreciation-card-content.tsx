@@ -41,7 +41,7 @@ export const DepreciationCardContent = memo(function DepreciationCardContent({
   const barHeight = 40; // px
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card shadow-md overflow-hidden">
+    <div className="flex h-full w-full flex-col bg-card shadow-md overflow-hidden">
       {/* Thin header */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20">
         <span className="rounded bg-muted/50 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">

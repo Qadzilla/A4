@@ -1,0 +1,200 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock env before importing the service
+vi.mock('../env', () => ({
+  env: {
+    ANTHROPIC_API_KEY: 'test-key-123',
+  },
+}));
+
+const mockCreate = vi.fn();
+
+vi.mock('@anthropic-ai/sdk', () => {
+  const APIError = class APIError extends Error {
+    status: number;
+    error: object | undefined;
+    headers: Headers | undefined;
+    constructor(
+      status: number,
+      error: object | undefined,
+      message: string | undefined,
+      headers: Headers | undefined,
+    ) {
+      super(message ?? 'API Error');
+      this.status = status;
+      this.error = error;
+      this.headers = headers;
+      this.name = 'APIError';
+    }
+  };
+
+  const MockAnthropic = vi.fn().mockImplementation(() => ({
+    messages: { create: mockCreate },
+  }));
+
+  // Attach APIError as a static property
+  (MockAnthropic as any).APIError = APIError;
+
+  return { default: MockAnthropic, APIError };
+});
+
+import { _resetClient, streamChatCompletion, AnthropicServiceError } from '../services/anthropic';
+import { env } from '../env';
+import Anthropic from '@anthropic-ai/sdk';
+
+describe('AnthropicService', () => {
+  beforeEach(() => {
+    _resetClient();
+    mockCreate.mockReset();
+    // Reset to valid key
+    (env as any).ANTHROPIC_API_KEY = 'test-key-123';
+  });
+
+  describe('initialization', () => {
+    it('throws ANTHROPIC_AUTH_ERROR when ANTHROPIC_API_KEY is missing', async () => {
+      (env as any).ANTHROPIC_API_KEY = undefined;
+
+      await expect(
+        streamChatCompletion({
+          messages: [{ role: 'user', content: 'hello' }],
+          systemPrompt: 'You are helpful.',
+        }),
+      ).rejects.toThrow(AnthropicServiceError);
+
+      try {
+        await streamChatCompletion({
+          messages: [{ role: 'user', content: 'hello' }],
+          systemPrompt: 'You are helpful.',
+        });
+      } catch (e) {
+        expect(e).toBeInstanceOf(AnthropicServiceError);
+        expect((e as AnthropicServiceError).type).toBe('ANTHROPIC_AUTH_ERROR');
+        expect((e as AnthropicServiceError).message).toContain('ANTHROPIC_API_KEY is not set');
+      }
+    });
+
+    it('creates client lazily on first call', async () => {
+      const mockStream = { type: 'stream' };
+      mockCreate.mockResolvedValueOnce(mockStream);
+
+      // Client not created yet — Anthropic constructor not called
+      expect(Anthropic).not.toHaveBeenCalled();
+
+      await streamChatCompletion({
+        messages: [{ role: 'user', content: 'hello' }],
+        systemPrompt: 'test',
+      });
+
+      // Now Anthropic constructor should have been called
+      expect(Anthropic).toHaveBeenCalledWith({ apiKey: 'test-key-123' });
+    });
+  });
+
+  describe('streamChatCompletion', () => {
+    it('passes messages, system prompt, model, and stream:true to SDK', async () => {
+      const mockStream = { type: 'stream' };
+      mockCreate.mockResolvedValueOnce(mockStream);
+
+      const messages = [
+        { role: 'user' as const, content: 'What is 2+2?' },
+        { role: 'assistant' as const, content: '4' },
+        { role: 'user' as const, content: 'Thanks' },
+      ];
+
+      const result = await streamChatCompletion({
+        messages,
+        systemPrompt: 'You are a math tutor.',
+        model: 'claude-opus-4-6',
+        maxTokens: 8192,
+      });
+
+      expect(result).toBe(mockStream);
+      expect(mockCreate).toHaveBeenCalledWith({
+        model: 'claude-opus-4-6',
+        max_tokens: 8192,
+        system: 'You are a math tutor.',
+        messages,
+        stream: true,
+      });
+    });
+
+    it('uses default model and maxTokens when not specified', async () => {
+      mockCreate.mockResolvedValueOnce({ type: 'stream' });
+
+      await streamChatCompletion({
+        messages: [{ role: 'user', content: 'hello' }],
+        systemPrompt: 'test',
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4096,
+        }),
+      );
+    });
+  });
+
+  describe('error mapping', () => {
+    it('maps 401 APIError to ANTHROPIC_AUTH_ERROR', async () => {
+      mockCreate.mockRejectedValueOnce(new Anthropic.APIError(401, undefined, 'Unauthorized', undefined));
+
+      try {
+        await streamChatCompletion({
+          messages: [{ role: 'user', content: 'hello' }],
+          systemPrompt: 'test',
+        });
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(AnthropicServiceError);
+        expect((e as AnthropicServiceError).type).toBe('ANTHROPIC_AUTH_ERROR');
+      }
+    });
+
+    it('maps 429 APIError to ANTHROPIC_RATE_LIMIT', async () => {
+      mockCreate.mockRejectedValueOnce(new Anthropic.APIError(429, undefined, 'Rate limited', undefined));
+
+      try {
+        await streamChatCompletion({
+          messages: [{ role: 'user', content: 'hello' }],
+          systemPrompt: 'test',
+        });
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(AnthropicServiceError);
+        expect((e as AnthropicServiceError).type).toBe('ANTHROPIC_RATE_LIMIT');
+      }
+    });
+
+    it('maps 529 APIError to ANTHROPIC_OVERLOADED', async () => {
+      mockCreate.mockRejectedValueOnce(new Anthropic.APIError(529, undefined, 'Overloaded', undefined));
+
+      try {
+        await streamChatCompletion({
+          messages: [{ role: 'user', content: 'hello' }],
+          systemPrompt: 'test',
+        });
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(AnthropicServiceError);
+        expect((e as AnthropicServiceError).type).toBe('ANTHROPIC_OVERLOADED');
+      }
+    });
+
+    it('maps network errors to ANTHROPIC_NETWORK_ERROR', async () => {
+      const networkError = new Error('fetch failed');
+      mockCreate.mockRejectedValueOnce(networkError);
+
+      try {
+        await streamChatCompletion({
+          messages: [{ role: 'user', content: 'hello' }],
+          systemPrompt: 'test',
+        });
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(AnthropicServiceError);
+        expect((e as AnthropicServiceError).type).toBe('ANTHROPIC_NETWORK_ERROR');
+      }
+    });
+  });
+});

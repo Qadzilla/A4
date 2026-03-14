@@ -436,12 +436,12 @@ export const CanvasItemRenderer = memo(
           isSelected &&
             !isHighlighted &&
             item.type === 'header-card' &&
-            'ring-1 ring-primary/40 ring-dashed rounded-sm',
+            'ring-1 ring-primary/40 ring-dashed',
           isSelected &&
             !isHighlighted &&
             item.type !== 'header-card' &&
             'ring-2 ring-primary ring-offset-1',
-          isHighlighted && 'ring-2 ring-primary rounded-sm',
+          isHighlighted && 'ring-2 ring-primary',
         )}
         style={{ left, top, width, height, zIndex: item.zIndex }}
       >
@@ -534,7 +534,7 @@ export const CanvasItemRenderer = memo(
             ) : item.type === 'embed-card' ? (
               <EmbedCardContent item={item} />
             ) : (
-              <div className="flex h-full w-full items-center justify-center rounded-sm border border-border/40 bg-muted/20 text-xs text-muted-foreground">
+              <div className="flex h-full w-full items-center justify-center bg-muted/20 text-xs text-muted-foreground">
                 {item.type}
               </div>
             )}

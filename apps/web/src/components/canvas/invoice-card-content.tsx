@@ -40,7 +40,7 @@ export const InvoiceCardContent = memo(function InvoiceCardContent({ item }: { i
 
   if (isLoading) {
     return (
-      <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
+      <div className="flex h-full w-full flex-col bg-card overflow-hidden shadow-md">
         <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
           <div className="h-3 w-12 rounded bg-muted/40 animate-pulse" />
           <div className="h-3 w-16 rounded bg-muted/40 animate-pulse" />
@@ -73,7 +73,7 @@ export const InvoiceCardContent = memo(function InvoiceCardContent({ item }: { i
     status === 'overdue' || (status !== 'paid' && dueDate && new Date(dueDate) < new Date());
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
+    <div className="flex h-full w-full flex-col bg-card overflow-hidden shadow-md">
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
         <span

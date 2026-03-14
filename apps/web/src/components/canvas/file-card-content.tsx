@@ -120,7 +120,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
   // Empty state — no file uploaded yet
   if (!data?.fileId) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center border-2 border-dashed border-border/50 rounded-sm bg-muted/10">
+      <div className="h-full w-full flex flex-col items-center justify-center border-2 border-dashed border-transparent bg-muted/10">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -143,7 +143,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
   // PDF — live render
   if (data.mimeType === 'application/pdf') {
     return (
-      <div className="h-full w-full flex flex-col rounded-sm border border-border/40 bg-white dark:bg-zinc-50 overflow-hidden">
+      <div className="h-full w-full flex flex-col bg-white dark:bg-zinc-50 overflow-hidden">
         <div className="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden">
           <PdfPreview fileId={data.fileId} />
         </div>
@@ -170,7 +170,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
   // Image — served directly from server at full resolution
   if (data.mimeType.startsWith('image/')) {
     return (
-      <div className="h-full w-full flex flex-col rounded-sm border border-border/40 bg-background overflow-hidden">
+      <div className="h-full w-full flex flex-col bg-background overflow-hidden">
         <div className="flex-1 min-h-0 overflow-hidden">
           <img
             src={getFileUrl(data.fileId)}
@@ -201,7 +201,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
   // Table preview (CSV / Excel)
   if (data.tablePreview) {
     return (
-      <div className="h-full w-full flex flex-col rounded-sm border border-border/40 bg-background overflow-hidden">
+      <div className="h-full w-full flex flex-col bg-background overflow-hidden">
         <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/20 border-b border-border/30">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -229,7 +229,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
   // Text preview (TXT / DOCX)
   if (data.textPreview) {
     return (
-      <div className="h-full w-full flex flex-col rounded-sm border border-border/40 bg-background overflow-hidden">
+      <div className="h-full w-full flex flex-col bg-background overflow-hidden">
         <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/20 border-b border-border/30">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -259,7 +259,7 @@ export const FileCardContent = memo(function FileCardContent({ item }: { item: C
 
   // Fallback — file icon + name + size
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center rounded-sm border border-border/40 bg-background gap-1">
+    <div className="h-full w-full flex flex-col items-center justify-center bg-background gap-1">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"

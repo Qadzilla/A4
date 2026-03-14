@@ -37,12 +37,17 @@ describe('sendMessageSchema', () => {
 
 describe('createConversationSchema', () => {
   it('validates with optional fields', () => {
-    const result = createConversationSchema.safeParse({});
+    const result = createConversationSchema.safeParse({
+      workspaceId: '550e8400-e29b-41d4-a716-446655440000',
+    });
     expect(result.success).toBe(true);
   });
 
   it('validates with title', () => {
-    const result = createConversationSchema.safeParse({ title: 'My Chat' });
+    const result = createConversationSchema.safeParse({
+      workspaceId: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'My Chat',
+    });
     expect(result.success).toBe(true);
   });
 });

@@ -36,7 +36,7 @@ export const ChartCardContent = memo(function ChartCardContent({ item }: { item:
   }
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
+    <div className="flex h-full w-full flex-col bg-card overflow-hidden shadow-md">
       {data.title && (
         <div className="bg-muted/20 px-3 py-1.5 shrink-0">
           <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate block">
@@ -167,7 +167,7 @@ export const ChartCardContent = memo(function ChartCardContent({ item }: { item:
 
 function EmptyPlaceholder({ title }: { title?: string }) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center rounded-lg border border-border/60 bg-card shadow-md gap-2">
+    <div className="flex h-full w-full flex-col items-center justify-center bg-card shadow-md gap-2">
       {title && (
         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
           {title}

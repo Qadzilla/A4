@@ -10,7 +10,7 @@ export const EmbedCardContent = memo(function EmbedCardContent({ item }: { item:
   const valid = url !== '' && isValidEmbedUrl(url);
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
+    <div className="flex h-full w-full flex-col bg-card overflow-hidden shadow-md">
       {/* Title bar */}
       <div className="flex items-center gap-1.5 px-2.5 py-1.5 border-b border-border/40 bg-muted/30 shrink-0">
         <svg

@@ -31,7 +31,7 @@ export const DebtPlannerCardContent = memo(function DebtPlannerCardContent({
   const hasDebts = count > 0;
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card shadow-md overflow-hidden">
+    <div className="flex h-full w-full flex-col bg-card shadow-md overflow-hidden">
       {/* Header with strategy pill */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20">
         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">

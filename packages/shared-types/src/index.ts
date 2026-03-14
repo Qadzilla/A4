@@ -4,6 +4,7 @@ import type {
   aggregateInputSchema,
   assetClassSchema,
   categoryTypeSchema,
+  conversationListItemSchema,
   conversationSchema,
   createAccountGroupSchema,
   createAccountSchema,
@@ -19,6 +20,7 @@ import type {
   realtimeQuoteSchema,
   realtimeTradeSchema,
   sendMessageSchema,
+  sseEventSchema,
   subscribeInputSchema,
   tickerDetailSchema,
   tickerSearchInputSchema,
@@ -56,6 +58,8 @@ export type MessageRole = z.infer<typeof messageRoleSchema>;
 export type Conversation = z.infer<typeof conversationSchema>;
 export type CreateConversation = z.infer<typeof createConversationSchema>;
 export type SendMessage = z.infer<typeof sendMessageSchema>;
+export type SSEEvent = z.infer<typeof sseEventSchema>;
+export type ConversationListItem = z.infer<typeof conversationListItemSchema>;
 
 // Financial types
 export type CreateTransaction = z.infer<typeof createTransactionSchema>;

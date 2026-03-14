@@ -29,7 +29,7 @@ export const TimerCardContent = memo(function TimerCardContent({ item }: { item:
   const isPast = remaining?.isPast ?? false;
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
+    <div className="flex h-full w-full flex-col bg-card overflow-hidden shadow-md">
       {/* Colored accent bar */}
       <div
         className={isPast ? 'h-1 shrink-0 bg-red-500' : 'h-1 shrink-0'}

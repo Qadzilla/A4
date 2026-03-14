@@ -8,6 +8,8 @@ import { BudgetCardView } from '../../../../components/canvas/budget-card-view';
 import { CanvasItemRenderer } from '../../../../components/canvas/canvas-item-renderer';
 import { CanvasMinimap } from '../../../../components/canvas/canvas-minimap';
 import { CashFlowCardView } from '../../../../components/canvas/cash-flow-card-view';
+import { ChatPanel } from '../../../../components/canvas/chat-panel';
+import { useChat } from '../../../../hooks/useChat';
 import { ChartCardView } from '../../../../components/canvas/chart-card-view';
 import { EmbedCardView } from '../../../../components/canvas/embed-card-view';
 import { DebtPlannerCardView } from '../../../../components/canvas/debt-planner-card-view';
@@ -77,7 +79,6 @@ function saveCanvasKeepalive(
   });
 }
 
-const BASE_GRID = 24;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
 
@@ -233,9 +234,10 @@ export default function WorkspaceDetailPage() {
   const navigate = useNavigate();
   const { data: workspace } = useQuery(trpc.workspace.getById.queryOptions({ id: id! }));
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const chat = useChat({ workspaceId: id! });
   const [topic, setTopic] = useState('general');
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [panelMode, setPanelMode] = useState<'tools' | 'chat'>('tools');
   const [uploadedFiles, setUploadedFiles] = useState<FileCardData[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -257,8 +259,6 @@ export default function WorkspaceDetailPage() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const zoomRef = useRef(1);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const gridCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvasSize, setCanvasSize] = useState(0); // counter to trigger grid redraws on resize
   const isPanning = useRef(false);
   const lastPoint = useRef({ x: 0, y: 0 });
 
@@ -676,60 +676,7 @@ export default function WorkspaceDetailPage() {
     }
   }, [activeTool]);
 
-  // ResizeObserver — trigger grid redraw when container resizes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: canvasRef is stable
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setCanvasSize((c) => c + 1));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
-  // Draw dot grid on <canvas> — coalesced via rAF to avoid blocking
-  // biome-ignore lint/correctness/useExhaustiveDependencies: canvasSize triggers redraw on resize
-  useEffect(() => {
-    const rafId = requestAnimationFrame(() => {
-      const canvas = gridCanvasRef.current;
-      const container = canvasRef.current;
-      if (!canvas || !container) return;
-
-      const rect = container.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      const w = rect.width;
-      const h = rect.height;
-
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, w, h);
-
-      // Adaptive grid spacing — double when too dense
-      let spacing = BASE_GRID * zoom;
-      while (spacing < 12) spacing *= 2;
-
-      // Dark mode detection
-      const isDark = document.documentElement.classList.contains('dark');
-      ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.18)';
-
-      // Draw 2px dots at integer positions
-      const dotSize = 2;
-      const startX = ((pan.x % spacing) + spacing) % spacing;
-      const startY = ((pan.y % spacing) + spacing) % spacing;
-
-      for (let x = startX; x < w; x += spacing) {
-        for (let y = startY; y < h; y += spacing) {
-          ctx.fillRect(Math.round(x), Math.round(y), dotSize, dotSize);
-        }
-      }
-    });
-    return () => cancelAnimationFrame(rafId);
-  }, [zoom, pan, canvasSize]);
 
   const onCanvasDoubleClick = useCallback(() => {
     zoomRef.current = 1;
@@ -843,17 +790,11 @@ export default function WorkspaceDetailPage() {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleSend = () => {
-    if (!message.trim()) return;
-    setMessages((prev) => [...prev, { role: 'user', content: message }]);
+  const handleSend = (text?: string) => {
+    const content = text ?? message;
+    if (!content.trim() || chat.isStreaming) return;
+    chat.sendMessage(content.trim());
     setMessage('');
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
   };
 
   return (
@@ -924,7 +865,7 @@ export default function WorkspaceDetailPage() {
         <div
           ref={canvasRef}
           className={cn(
-            'relative flex-1 select-none overflow-hidden bg-canvas',
+            'relative flex-1 select-none overflow-hidden bg-canvas canvas-dots',
             activeTool === 'grab' ? 'cursor-grab' : '',
           )}
           onMouseDown={onCanvasMouseDown}
@@ -933,8 +874,6 @@ export default function WorkspaceDetailPage() {
           onMouseLeave={onCanvasMouseUp}
           onDoubleClick={onCanvasDoubleClick}
         >
-          {/* Pixel-perfect dot grid */}
-          <canvas ref={gridCanvasRef} className="pointer-events-none absolute inset-0" />
           {/* Floating pill toolbar */}
           <div className="absolute top-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-border/50 bg-background/80 backdrop-blur-md px-1.5 py-1 shadow-xl">
             <button
@@ -1278,6 +1217,28 @@ export default function WorkspaceDetailPage() {
               isPanelCollapsed && 'invisible',
             )}
           >
+            {panelMode === 'chat' ? (
+              <ChatPanel
+                messages={chat.messages}
+                message={message}
+                onMessageChange={setMessage}
+                onSend={handleSend}
+                isStreaming={chat.isStreaming}
+                error={chat.error}
+                onDismissError={chat.clearError}
+                onRetry={chat.retryLastMessage}
+                isLoadingConversation={chat.isLoadingConversation}
+                workspaceName={workspace?.name ?? 'Workspace'}
+                onSwitchToTools={() => setPanelMode('tools')}
+                onMinimize={() => setIsPanelCollapsed(true)}
+                conversations={chat.conversations}
+                activeConversationId={chat.activeConversationId}
+                onSelectConversation={chat.setActiveConversationId}
+                onNewConversation={() => chat.setActiveConversationId(null)}
+                onDeleteConversation={chat.deleteConversation}
+              />
+            ) : (
+            <>
             {/* Tools header + minimize */}
             <div className="border-b border-border/60">
               <div className="flex items-center justify-between px-4 py-2">
@@ -1630,117 +1591,36 @@ export default function WorkspaceDetailPage() {
                 </div>
                 <TaxToolPanel onDragStart={startDrag} />
               </>
-            ) : (
-              <>
-                {/* Chat header */}
-                <div className="border-b border-border/60 px-4 py-3">
-                  <h2 className="font-bold text-sm truncate flex items-center gap-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="size-4 text-primary"
-                    >
-                      <rect width="7" height="7" x="3" y="3" rx="1" />
-                      <rect width="7" height="7" x="14" y="3" rx="1" />
-                      <rect width="7" height="7" x="3" y="14" rx="1" />
-                      <rect width="7" height="7" x="14" y="14" rx="1" />
-                    </svg>
-                    {workspace?.name ?? 'Workspace'}
-                  </h2>
-                </div>
+            ) : null}
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
-                  {messages.length === 0 ? (
-                    <div className="flex h-full items-center justify-center">
-                      <div className="text-center space-y-3 animate-fade-in">
-                        <div className="size-12 rounded-2xl bg-muted/30 flex items-center justify-center mx-auto">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="size-6 text-muted-foreground/40"
-                          >
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                          </svg>
-                        </div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Ask anything about this workspace
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    messages.map((msg, i) => (
-                      <div
-                        key={`msg-${msg.role}-${i}`}
-                        className={cn(
-                          'flex w-full animate-slide-up',
-                          msg.role === 'user' ? 'justify-end' : 'justify-start',
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            'max-w-[85%] p-3.5 text-sm rounded-2xl shadow-sm',
-                            msg.role === 'user'
-                              ? 'bg-primary text-primary-foreground rounded-br-sm'
-                              : 'bg-muted/80 backdrop-blur-sm text-foreground rounded-bl-sm border border-border/50',
-                          )}
-                        >
-                          {msg.content}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Chat input */}
-                <div className="border-t border-border/60 p-3">
-                  <div className="relative">
-                    <textarea
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Ask A4..."
-                      rows={2}
-                      className="w-full min-h-[50px] max-h-[120px] resize-none py-3 pl-4 pr-12 bg-background border border-border/80 rounded-2xl text-[13px] text-foreground placeholder:text-muted-foreground transition-all duration-200 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/40"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSend}
-                      disabled={!message.trim()}
-                      className={cn(
-                        'absolute bottom-2.5 right-2.5 p-2 rounded-xl transition-all duration-150',
-                        message.trim()
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-90'
-                          : 'bg-muted/40 text-muted-foreground',
-                      )}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="size-4"
-                      >
-                        <path d="m5 12 7-7 7 7" />
-                        <path d="M12 19V5" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </>
+            {/* AI Chat bar pinned to bottom */}
+            <div className="mt-auto border-t border-border/60 p-2">
+              <button
+                type="button"
+                onClick={() => setPanelMode('chat')}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-100"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-4"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                AI Chat
+                {chat.messages.length > 0 && (
+                  <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">
+                    {chat.messages.length}
+                  </span>
+                )}
+              </button>
+            </div>
+            </>
             )}
           </div>
         </aside>

@@ -44,7 +44,7 @@ export const KpiCardContent = memo(function KpiCardContent({ item }: { item: Can
   return (
     <div
       className={cn(
-        'flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md border-l-4',
+        'flex h-full w-full flex-col bg-card overflow-hidden shadow-md border-l-4',
         colorBorderClasses[color],
       )}
     >

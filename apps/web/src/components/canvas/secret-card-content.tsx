@@ -52,7 +52,7 @@ export const SecretCardContent = memo(function SecretCardContent({
   }, [revealed, fields, onRequestUnlock]);
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card overflow-hidden shadow-md">
+    <div className="flex h-full w-full flex-col bg-card overflow-hidden shadow-md">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 bg-muted/20 px-3 py-1.5">
         <div className="flex items-center gap-1.5 min-w-0">

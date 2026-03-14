@@ -376,3 +376,46 @@ export const networthEntries = sqliteTable('networth_entries', {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+// Chat conversations (workspace-scoped)
+export const conversations = sqliteTable('conversations', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  title: text('title'),
+  model: text('model').notNull().default('claude-sonnet-4-6'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// Chat messages
+export const messages = sqliteTable('messages', {
+  id: text('id').primaryKey(),
+  conversationId: text('conversation_id').notNull(),
+  userId: text('user_id').notNull(),
+  role: text('role').notNull(),
+  content: text('content').notNull(),
+  tokenCount: integer('token_count'),
+  model: text('model'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// AI usage tracking
+export const aiUsage = sqliteTable('ai_usage', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  conversationId: text('conversation_id'),
+  model: text('model').notNull(),
+  inputTokens: integer('input_tokens').notNull(),
+  outputTokens: integer('output_tokens').notNull(),
+  costCents: integer('cost_cents'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});

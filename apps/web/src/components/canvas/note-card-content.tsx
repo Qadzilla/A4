@@ -71,7 +71,7 @@ export const NoteCardContent = memo(function NoteCardContent({
 
   return (
     <div
-      className="flex h-full w-full flex-col rounded-lg border border-border/50 bg-card shadow-sm"
+      className="flex h-full w-full flex-col bg-card shadow-sm"
       onDoubleClick={(e) => {
         e.stopPropagation();
         onStartEdit();

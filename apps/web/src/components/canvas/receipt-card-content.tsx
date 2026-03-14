@@ -32,7 +32,7 @@ export const ReceiptCardContent = memo(function ReceiptCardContent({ item }: { i
   const pendingCount = receiptList.filter((r) => r.status === 'pending').length;
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-card shadow-md overflow-hidden">
+    <div className="flex h-full w-full flex-col bg-card shadow-md overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between bg-muted/20 px-3 py-1.5">
         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">

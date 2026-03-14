@@ -9,6 +9,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { DEV_AUTH_BYPASS, env } from './env';
+import { chatStreamRouter } from './routes/chat-stream';
 import { filesRouter } from './routes/files';
 import { PolygonService } from './services/polygon';
 import { createContext, setPolygonService } from './trpc/context';
@@ -30,12 +31,12 @@ app.use(
   }),
 );
 
-// Rate limiting on tRPC endpoint
+// Rate limiting on tRPC endpoint (relaxed in dev for E2E tests)
 app.use(
   '/trpc',
   rateLimit({
     windowMs: 60 * 1000,
-    max: 100,
+    max: DEV_AUTH_BYPASS ? 1000 : 100,
     standardHeaders: true,
     legacyHeaders: false,
   }),
@@ -54,6 +55,19 @@ app.use(
     createContext,
   }),
 );
+
+// Rate limit for AI streaming endpoint
+app.use(
+  '/api/chat/stream',
+  express.json(),
+  rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+);
+app.use('/api/chat/stream', chatStreamRouter);
 
 // File upload/download/delete routes (Express, not tRPC — multipart)
 app.use('/api/files', filesRouter);
