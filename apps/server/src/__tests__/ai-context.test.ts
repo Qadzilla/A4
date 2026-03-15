@@ -310,8 +310,9 @@ describe('buildWorkspaceContext', () => {
     // Should return preamble + workspace header only, no data sections
     expect(result).toContain(SYSTEM_PREAMBLE);
     expect(result).toContain('## Workspace: "Personal Finance 2026"');
-    // No data sections
-    const sectionCount = (result.match(/^### /gm) ?? []).length;
+    // No data sections in workspace context (after "## Current workspace context")
+    const contextPart = result.split('## Current workspace context')[1] ?? '';
+    const sectionCount = (contextPart.match(/^### /gm) ?? []).length;
     expect(sectionCount).toBe(0);
   });
 
@@ -341,5 +342,55 @@ describe('buildWorkspaceContext', () => {
     await expect(buildWorkspaceContext(db, 'user-1', 'ws-nonexistent')).rejects.toThrow(
       'Workspace ws-nonexistent not found for user user-1',
     );
+  });
+});
+
+describe('SYSTEM_PREAMBLE — tool guidelines', () => {
+  it('includes tool usage guidelines section', () => {
+    expect(SYSTEM_PREAMBLE).toContain('## Tool usage guidelines');
+  });
+
+  it('mentions when to use tools vs workspace summary', () => {
+    expect(SYSTEM_PREAMBLE).toContain('answer directly from this context');
+    expect(SYSTEM_PREAMBLE).toContain('detailed');
+  });
+
+  it('includes canvas creation best practices', () => {
+    expect(SYSTEM_PREAMBLE).toContain('descriptive name based on conversation context');
+  });
+
+  it('includes calculation guidelines', () => {
+    expect(SYSTEM_PREAMBLE).toContain('Show key results inline');
+  });
+
+  it('includes restriction about not deleting items', () => {
+    expect(SYSTEM_PREAMBLE).toContain('cannot delete canvas items');
+  });
+
+  it('includes restriction about vault-encrypted data', () => {
+    expect(SYSTEM_PREAMBLE).toContain('vault-encrypted data');
+  });
+
+  it('system prompt stays under token budget for typical workspace', async () => {
+    const db = createTestDb();
+    await insertWorkspace(db);
+
+    // Insert moderate workspace data: 5 accounts, 3 budget categories, 2 subscriptions
+    await insertAccount(db, { name: 'Chase Checking', balance: 8430 });
+    await insertAccount(db, { name: 'Ally HYSA', balance: 25000 });
+    await insertAccount(db, { name: 'Vanguard Brokerage', balance: 42000 });
+    await insertAccount(db, { name: 'Amex Credit Card', balance: -1200 });
+    await insertAccount(db, { name: 'Wells Fargo Savings', balance: 15000 });
+
+    await insertBudgetCategory(db, { name: 'Groceries', budgeted: 500, actual: 420 });
+    await insertBudgetCategory(db, { name: 'Dining', budgeted: 200, actual: 180 });
+    await insertBudgetCategory(db, { name: 'Transportation', budgeted: 300, actual: 275 });
+
+    await insertSubscription(db, { name: 'Netflix', amount: 15.99 });
+    await insertSubscription(db, { name: 'Spotify', amount: 9.99 });
+
+    const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
+    // ~4000 tokens ≈ 16000 chars
+    expect(result.length).toBeLessThan(16000);
   });
 });

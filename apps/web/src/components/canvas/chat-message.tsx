@@ -7,6 +7,7 @@ interface ChatMessageProps {
   role: string;
   content: string;
   isLastStreaming: boolean;
+  toolCalls?: string | null;
 }
 
 const markdownComponents: Components = {
@@ -52,7 +53,7 @@ const markdownComponents: Components = {
   hr: () => <hr className="border-border my-3" />,
 };
 
-export const ChatMessage = memo(function ChatMessage({ role, content, isLastStreaming }: ChatMessageProps) {
+export const ChatMessage = memo(function ChatMessage({ role, content, isLastStreaming, toolCalls }: ChatMessageProps) {
   if (role === 'user') {
     return <>{content}</>;
   }
@@ -62,6 +63,31 @@ export const ChatMessage = memo(function ChatMessage({ role, content, isLastStre
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
         {content}
       </ReactMarkdown>
+      {role === 'assistant' && toolCalls && (() => {
+        try {
+          const calls = JSON.parse(toolCalls) as Array<{ id: string; name: string; input: Record<string, unknown> }>;
+          return (
+            <details data-testid="tool-summary" className="mt-2 text-[11px] text-muted-foreground border-l-2 border-[var(--color-paige)]/20 pl-2">
+              <summary className="cursor-pointer hover:text-foreground transition-colors select-none"
+                style={{ fontFamily: 'var(--font-chat-mono)' }}>
+                Used {calls.length} tool{calls.length !== 1 ? 's' : ''}: {calls.map((c) => c.name).join(', ')}
+              </summary>
+              <div className="mt-1.5 space-y-1 pl-2 border-l border-border/40">
+                {calls.map((c) => (
+                  <div key={c.id}>
+                    <div className="font-medium text-foreground/70">{c.name}</div>
+                    <pre className="text-[10px] text-muted-foreground/70 overflow-x-auto">
+                      {JSON.stringify(c.input, null, 2)}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </details>
+          );
+        } catch {
+          return null;
+        }
+      })()}
       {isLastStreaming && (
         <span className="inline-block w-[2px] h-[1em] bg-[var(--color-paige)] ml-0.5 align-text-bottom animate-pulse" />
       )}

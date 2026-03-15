@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@a4/ui';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import type { ChatError } from '../../hooks/useChat';
+import type { ChatError, ToolActivity } from '../../hooks/useChat';
 import { ChatMessage } from './chat-message';
 
 function relativeTime(date: Date): string {
@@ -54,6 +54,36 @@ function PaigeAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 }
 
 
+function ToolActivityList({ items }: { items: ToolActivity[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mt-1.5 space-y-0.5 border-l-2 border-[var(--color-paige)]/20 pl-2">
+      {items.map((t) => (
+        <div key={t.toolCallId} data-testid="tool-activity-item"
+          className="flex items-center gap-1.5 text-[11px] transition-all duration-200"
+          style={{ fontFamily: 'var(--font-chat-mono)' }}>
+          {t.status === 'running' ? (
+            <>
+              <span className="size-1.5 rounded-full bg-[var(--color-paige)] animate-pulse" />
+              <span className="text-muted-foreground">{t.toolName}</span>
+            </>
+          ) : t.status === 'error' ? (
+            <>
+              <span className="text-yellow-600 dark:text-yellow-400">✕</span>
+              <span className="text-muted-foreground">{t.toolName}</span>
+            </>
+          ) : (
+            <>
+              <span className="text-muted-foreground/60">✓</span>
+              <span className="text-muted-foreground/60">{t.toolName} ({t.durationMs}ms)</span>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 interface ChatPanelProps {
   messages: { role: string; content: string; createdAt?: Date }[];
   message: string;
@@ -72,6 +102,7 @@ interface ChatPanelProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
+  toolActivity: ToolActivity[];
 }
 
 export const ChatPanel = memo(function ChatPanel({
@@ -85,12 +116,14 @@ export const ChatPanel = memo(function ChatPanel({
   onRetry,
   isLoadingConversation,
   workspaceName,
+  onSwitchToTools,
   onMinimize,
   conversations,
   activeConversationId,
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  toolActivity,
 }: ChatPanelProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -161,6 +194,15 @@ export const ChatPanel = memo(function ChatPanel({
             </span>
           </div>
         </div>
+        <div className="flex items-center gap-1">
+        <button type="button" onClick={onSwitchToTools}
+          className="size-8 flex items-center justify-center border border-[color:var(--color-foreground)]/6 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+          title="Switch to tools">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+          </svg>
+        </button>
         <button type="button" onClick={onMinimize}
           className="size-8 flex items-center justify-center border border-[color:var(--color-foreground)]/6 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
           title="Minimize panel">
@@ -172,6 +214,7 @@ export const ChatPanel = memo(function ChatPanel({
             <line x1="3" y1="21" x2="10" y2="14" />
           </svg>
         </button>
+        </div>
       </div>
 
       {/* Conversation Switcher */}
@@ -304,7 +347,8 @@ export const ChatPanel = memo(function ChatPanel({
                     )} style={{ fontFamily: 'var(--font-chat)' }}>
 
                     <ChatMessage role={msg.role} content={msg.content}
-                      isLastStreaming={isStreaming && msg.role === 'assistant' && i === messages.length - 1 && !!msg.content} />
+                      isLastStreaming={isStreaming && msg.role === 'assistant' && i === messages.length - 1 && !!msg.content}
+                      toolCalls={'toolCalls' in msg ? (msg as { toolCalls?: string | null }).toolCalls : undefined} />
 
                     {/* Copy button (assistant only) */}
                     {msg.role === 'assistant' && msg.content && (
@@ -324,6 +368,11 @@ export const ChatPanel = memo(function ChatPanel({
                       </button>
                     )}
                   </div>
+
+                  {/* Tool activity indicators (last assistant message only) */}
+                  {msg.role === 'assistant' && i === messages.length - 1 && toolActivity.length > 0 && (
+                    <ToolActivityList items={toolActivity} />
+                  )}
 
                   {/* Timestamp (hover-reveal) */}
                   {msg.createdAt && (
@@ -352,6 +401,9 @@ export const ChatPanel = memo(function ChatPanel({
                       style={{ animation: 'dot-bounce 1.4s infinite ease-in-out', animationDelay: '320ms' }} />
                   </div>
                 </div>
+                {toolActivity.length > 0 && (
+                  <ToolActivityList items={toolActivity} />
+                )}
               </div>
             )}
 

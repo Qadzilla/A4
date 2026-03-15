@@ -128,6 +128,7 @@ interface CanvasState {
   clearHighlights: () => void;
   toggleHighlight: (id: string) => void;
   setHighlightedItemIds: (ids: string[]) => void;
+  addItemDirect: (item: CanvasItem) => void;
 }
 
 function getAdjacentTab(openItemIds: string[], closedId: string): string | null {
@@ -238,6 +239,19 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
         selectedItemId: id,
         pendingRenameId: id,
         activeItemId: null,
+      };
+    }),
+  addItemDirect: (item) =>
+    set((s) => {
+      const existingIdx = s.items.findIndex((i) => i.id === item.id);
+      if (existingIdx >= 0) {
+        const next = [...s.items];
+        next[existingIdx] = item;
+        return { items: next };
+      }
+      return {
+        items: [...s.items, { ...item, zIndex: s.nextZIndex }],
+        nextZIndex: s.nextZIndex + 1,
       };
     }),
   removeItem: (id) =>

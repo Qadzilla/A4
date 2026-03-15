@@ -25,6 +25,8 @@ function createTestDb() {
       content TEXT NOT NULL,
       token_count INTEGER,
       model TEXT,
+      tool_calls TEXT,
+      tool_call_id TEXT,
       created_at INTEGER NOT NULL
     );
   `);
@@ -185,5 +187,101 @@ describe('messages table', () => {
     expect(convAMessages[0]?.id).toBe('msg-1');
     expect(convAMessages[1]?.id).toBe('msg-2');
     expect(convAMessages[2]?.id).toBe('msg-3');
+  });
+});
+
+describe('messages table — tool columns', () => {
+  let db: ReturnType<typeof createTestDb>;
+
+  beforeEach(() => {
+    db = createTestDb();
+  });
+
+  it('stores a tool result message with toolCallId', async () => {
+    const id = crypto.randomUUID();
+    const now = new Date();
+
+    await db.insert(messages).values({
+      id,
+      conversationId: 'conv-1',
+      userId: 'user-1',
+      role: 'tool',
+      content: '{"result": 42}',
+      toolCallId: 'tc_123',
+      createdAt: now,
+    });
+
+    const [result] = await db.select().from(messages).where(eq(messages.id, id));
+    expect(result).toBeDefined();
+    expect(result?.role).toBe('tool');
+    expect(result?.toolCallId).toBe('tc_123');
+    expect(result?.toolCalls).toBeNull();
+  });
+
+  it('stores an assistant message with toolCalls JSON', async () => {
+    const id = crypto.randomUUID();
+    const now = new Date();
+    const toolCallsJson = JSON.stringify([{ id: 'tc_1', name: 'query_data', input: { table: 'transactions' } }]);
+
+    await db.insert(messages).values({
+      id,
+      conversationId: 'conv-1',
+      userId: 'user-1',
+      role: 'assistant',
+      content: 'Let me look that up.',
+      toolCalls: toolCallsJson,
+      createdAt: now,
+    });
+
+    const [result] = await db.select().from(messages).where(eq(messages.id, id));
+    expect(result).toBeDefined();
+    expect(result?.toolCalls).toBe(toolCallsJson);
+    expect(result?.toolCallId).toBeNull();
+  });
+
+  it('leaves both tool columns null for plain user messages', async () => {
+    const id = crypto.randomUUID();
+    const now = new Date();
+
+    await db.insert(messages).values({
+      id,
+      conversationId: 'conv-1',
+      userId: 'user-1',
+      role: 'user',
+      content: 'Hello',
+      createdAt: now,
+    });
+
+    const [result] = await db.select().from(messages).where(eq(messages.id, id));
+    expect(result?.toolCalls).toBeNull();
+    expect(result?.toolCallId).toBeNull();
+  });
+
+  it('stores interleaved user/assistant/tool/assistant messages in order', async () => {
+    const t1 = new Date('2026-03-01T10:00:00Z');
+    const t2 = new Date('2026-03-01T10:01:00Z');
+    const t3 = new Date('2026-03-01T10:02:00Z');
+    const t4 = new Date('2026-03-01T10:03:00Z');
+
+    await db.insert(messages).values([
+      { id: 'msg-1', conversationId: 'conv-T', userId: 'user-1', role: 'user', content: 'Query revenue', createdAt: t1 },
+      { id: 'msg-2', conversationId: 'conv-T', userId: 'user-1', role: 'assistant', content: '', toolCalls: '[{"id":"tc_1","name":"query"}]', createdAt: t2 },
+      { id: 'msg-3', conversationId: 'conv-T', userId: 'user-1', role: 'tool', content: '{"total":50000}', toolCallId: 'tc_1', createdAt: t3 },
+      { id: 'msg-4', conversationId: 'conv-T', userId: 'user-1', role: 'assistant', content: 'Revenue was $50k.', createdAt: t4 },
+    ]);
+
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, 'conv-T'))
+      .orderBy(asc(messages.createdAt));
+
+    expect(rows).toHaveLength(4);
+    expect(rows[0]?.role).toBe('user');
+    expect(rows[1]?.role).toBe('assistant');
+    expect(rows[1]?.toolCalls).toBe('[{"id":"tc_1","name":"query"}]');
+    expect(rows[2]?.role).toBe('tool');
+    expect(rows[2]?.toolCallId).toBe('tc_1');
+    expect(rows[3]?.role).toBe('assistant');
   });
 });

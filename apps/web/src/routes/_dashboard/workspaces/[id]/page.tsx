@@ -1236,6 +1236,7 @@ export default function WorkspaceDetailPage() {
                 onSelectConversation={chat.setActiveConversationId}
                 onNewConversation={() => chat.setActiveConversationId(null)}
                 onDeleteConversation={chat.deleteConversation}
+                toolActivity={chat.toolActivity}
               />
             ) : (
             <>

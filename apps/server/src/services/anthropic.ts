@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import type { ContentBlockParam, Tool, ToolChoice } from '@anthropic-ai/sdk/resources/messages';
 import { env } from '../env';
 
 // Custom error type for mapped Anthropic errors
@@ -36,15 +37,18 @@ function getClient(): Anthropic {
 }
 
 export interface StreamChatOptions {
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: Array<{ role: 'user' | 'assistant'; content: string | ContentBlockParam[] }>;
   systemPrompt: string;
   model?: string;
   maxTokens?: number;
+  tools?: Tool[];
+  toolChoice?: ToolChoice;
 }
 
 export async function streamChatCompletion(options: StreamChatOptions) {
   const { messages, systemPrompt, model = 'claude-sonnet-4-6', maxTokens = 4096 } = options;
   const anthropic = getClient();
+  const hasTools = options.tools && options.tools.length > 0;
 
   try {
     const stream = await anthropic.messages.create({
@@ -53,6 +57,10 @@ export async function streamChatCompletion(options: StreamChatOptions) {
       system: systemPrompt,
       messages,
       stream: true,
+      ...(hasTools && {
+        tools: options.tools,
+        tool_choice: options.toolChoice ?? { type: 'auto' },
+      }),
     });
     return stream;
   } catch (error) {

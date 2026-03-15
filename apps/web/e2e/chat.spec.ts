@@ -185,8 +185,11 @@ test.describe('Chat E2E', () => {
     await page.waitForLoadState('networkidle');
     await openChatPanel(page);
 
-    // Click the conversation tab (tabs are always visible)
-    const convTab = page.locator('[data-testid="conv-tab"]').filter({ hasText: /message/ }).first();
+    // Open conversation dropdown and click the conversation
+    const dropdownTrigger = page.locator('button[title="Switch conversation"]');
+    await expect(dropdownTrigger).toBeVisible({ timeout: 5_000 });
+    await dropdownTrigger.click();
+    const convTab = page.locator('[data-testid="conv-tab"]').first();
     await expect(convTab).toBeVisible({ timeout: 5_000 });
     await convTab.click();
 
@@ -241,8 +244,11 @@ test.describe('Chat E2E', () => {
     await page.waitForLoadState('networkidle');
     await openChatPanel(page);
 
-    // Click the first conversation tab (tabs are always visible)
-    const convTabs = page.locator('[data-testid="conv-tab"]').filter({ hasText: /message/ });
+    // Open conversation dropdown and click the first conversation
+    const dropdownTrigger = page.locator('button[title="Switch conversation"]');
+    await expect(dropdownTrigger).toBeVisible({ timeout: 5_000 });
+    await dropdownTrigger.click();
+    const convTabs = page.locator('[data-testid="conv-tab"]');
     await expect(convTabs.first()).toBeVisible({ timeout: 5_000 });
     await convTabs.first().click();
 
@@ -253,7 +259,8 @@ test.describe('Chat E2E', () => {
     const firstConvMessage = await userMsgBubble.first().textContent();
     expect(firstConvMessage).toBeTruthy();
 
-    // Switch to the second conversation
+    // Switch to the second conversation via dropdown
+    await dropdownTrigger.click();
     await expect(convTabs.last()).toBeVisible({ timeout: 5_000 });
     await convTabs.last().click();
 
@@ -272,8 +279,11 @@ test.describe('Chat E2E', () => {
     await sendMessage(page, 'Delete me');
     await expect(page.locator('[data-testid="chat-message"]').filter({ hasText: 'Delete me' })).toBeVisible({ timeout: 10_000 });
 
-    // Hover tab and click delete
+    // Open dropdown, hover tab and click delete
     await page.unroute('**/api/chat/stream');
+    const dropdownTrigger = page.locator('button[title="Switch conversation"]');
+    await expect(dropdownTrigger).toBeVisible({ timeout: 5_000 });
+    await dropdownTrigger.click();
     const convTab = page.locator('[data-testid="conv-tab"]').first();
     await expect(convTab).toBeVisible({ timeout: 5_000 });
     await convTab.hover();

@@ -28,9 +28,9 @@ vi.mock('@anthropic-ai/sdk', () => {
     }
   };
 
-  const MockAnthropic = vi.fn().mockImplementation(() => ({
-    messages: { create: mockCreate },
-  }));
+  const MockAnthropic = vi.fn().mockImplementation(function (this: any) {
+    this.messages = { create: mockCreate };
+  });
 
   // Attach APIError as a static property
   (MockAnthropic as any).APIError = APIError;
@@ -132,6 +132,74 @@ describe('AnthropicService', () => {
           max_tokens: 4096,
         }),
       );
+    });
+  });
+
+  describe('StreamChatOptions — tools support', () => {
+    it('accepts options with tools array', async () => {
+      mockCreate.mockResolvedValueOnce({ type: 'stream' });
+
+      const tools = [
+        {
+          name: 'get_weather',
+          description: 'Get weather for a location',
+          input_schema: { type: 'object' as const, properties: { location: { type: 'string' } }, required: ['location'] },
+        },
+      ];
+
+      await streamChatCompletion({
+        messages: [{ role: 'user', content: 'What is the weather in NYC?' }],
+        systemPrompt: 'You are helpful.',
+        tools,
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tools,
+          tool_choice: { type: 'auto' },
+        }),
+      );
+    });
+
+    it('accepts options with multi-content-block messages', async () => {
+      mockCreate.mockResolvedValueOnce({ type: 'stream' });
+
+      const messages = [
+        { role: 'user' as const, content: 'Use the tool' },
+        {
+          role: 'assistant' as const,
+          content: [
+            { type: 'text' as const, text: 'I will call the tool.' },
+            { type: 'tool_use' as const, id: 'toolu_1', name: 'get_weather', input: { location: 'NYC' } },
+          ],
+        },
+        {
+          role: 'user' as const,
+          content: [{ type: 'tool_result' as const, tool_use_id: 'toolu_1', content: 'Sunny, 72°F' }],
+        },
+      ];
+
+      await streamChatCompletion({
+        messages,
+        systemPrompt: 'You are helpful.',
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ messages }),
+      );
+    });
+
+    it('accepts options without tools (backward compatibility)', async () => {
+      mockCreate.mockResolvedValueOnce({ type: 'stream' });
+
+      await streamChatCompletion({
+        messages: [{ role: 'user', content: 'hello' }],
+        systemPrompt: 'test',
+      });
+
+      const callArgs = mockCreate.mock.calls[0]![0];
+      expect(callArgs).not.toHaveProperty('tools');
+      expect(callArgs).not.toHaveProperty('tool_choice');
     });
   });
 

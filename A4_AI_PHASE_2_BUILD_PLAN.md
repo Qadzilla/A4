@@ -1477,26 +1477,26 @@ Summary of all files created or modified across Phase 2:
 
 All of these must be true when BU-01 through BU-11 are complete:
 
-- [ ] **BU-01** — `messages` table has `toolCalls` and `toolCallId` columns; `messageRoleSchema` includes `'tool'`; `sseEventSchema` has 4 new tool event types; schema tests pass
-- [ ] **BU-02** — `StreamChatOptions` accepts `tools` array; multi-content-block messages supported; service tests pass
-- [ ] **BU-03** — 12 read-only tools registered with definitions and executors; all return structured data; tool tests pass
-- [ ] **BU-04** — Server-side `ITEM_DEFAULTS`, `defaultNames`, `createDefaultData` exist; `findNextPosition` and `findBatchPositions` work correctly; positioning tests pass
-- [ ] **BU-05** — 5 mutation tools registered (create, update, connect, position, delete-blocked); creation inserts into DB and returns full item shape; mutation tests pass
-- [ ] **BU-06** — 7 calculation files copied to server; 7 calc tools registered; each returns truncated structured results; calc tests pass
-- [ ] **BU-07** — Chat stream supports multi-round tool execution; tool events streamed to client; messages persisted with tool data; tokens summed across rounds; stream tests pass
-- [ ] **BU-08** — System prompt includes tool usage guidelines, creation best practices, calculation guidance, and restrictions; context tests pass
-- [ ] **BU-09** — Client parses tool SSE events; `toolActivity` state tracked; `addItemDirect` upserts items into canvas store; tool indicators visible in chat; canvas_update events add items to canvas
-- [ ] **BU-10** — `safeExecuteTool` validates inputs, catches errors, filters vault data, and logs execution; safety tests pass
-- [ ] **BU-11** — E2E tests cover data query, canvas creation, calculation, multi-tool, error handling, and persisted tool summary; tool activity UI polished for both themes
+- [x] **BU-01** — `messages` table has `toolCalls` and `toolCallId` columns; `messageRoleSchema` includes `'tool'`; `sseEventSchema` has 4 new tool event types; schema tests pass
+- [x] **BU-02** — `StreamChatOptions` accepts `tools` array; multi-content-block messages supported; service tests pass
+- [x] **BU-03** — 12 read-only tools registered with definitions and executors; all return structured data; tool tests pass
+- [x] **BU-04** — Server-side `ITEM_DEFAULTS`, `defaultNames`, `createDefaultData` exist; `findNextPosition` and `findBatchPositions` work correctly; positioning tests pass
+- [x] **BU-05** — 5 mutation tools registered (create, update, connect, position, delete-blocked); creation inserts into DB and returns full item shape; mutation tests pass
+- [x] **BU-06** — 7 calculation files copied to server; 7 calc tools registered; each returns truncated structured results; calc tests pass
+- [x] **BU-07** — Chat stream supports multi-round tool execution; tool events streamed to client; messages persisted with tool data; tokens summed across rounds; stream tests pass
+- [x] **BU-08** — System prompt includes tool usage guidelines, creation best practices, calculation guidance, and restrictions; context tests pass
+- [x] **BU-09** — Client parses tool SSE events; `toolActivity` state tracked; `addItemDirect` upserts items into canvas store; tool indicators visible in chat; canvas_update events add items to canvas
+- [x] **BU-10** — `safeExecuteTool` validates inputs, catches errors, filters vault data, and logs execution; safety tests pass
+- [x] **BU-11** — E2E tests cover data query, canvas creation, calculation, multi-tool, error handling, and persisted tool summary; tool activity UI polished for both themes
 
 **Phase 2 success criteria:**
-- [ ] User asks "what accounts do I have?" → Claude calls `get_accounts` tool, responds with real data
-- [ ] User says "create a budget for Q1" → budget card appears on the canvas with populated data
-- [ ] User asks "calculate my tax for $100k in California" → Claude calls `calculate_tax`, returns detailed breakdown
-- [ ] Multi-tool interaction works: "create a budget based on my current spending" → Claude reads subscriptions, reads accounts, creates budget
-- [ ] Tool activity indicators show during execution, collapse after completion
-- [ ] AI-created items persist across page reloads
-- [ ] `pnpm typecheck` passes across entire monorepo
-- [ ] `pnpm test` — all unit tests pass
-- [ ] `pnpm exec playwright test` — all E2E tests pass
-- [ ] `pnpm build` — both apps build successfully
+- [x] User asks "what accounts do I have?" → Claude calls `get_accounts` tool, responds with real data
+- [x] User says "create a budget for Q1" → budget card appears on the canvas with populated data
+- [x] User asks "calculate my tax for $100k in California" → Claude calls `calculate_tax`, returns detailed breakdown
+- [x] Multi-tool interaction works: "create a budget based on my current spending" → Claude reads subscriptions, reads accounts, creates budget
+- [x] Tool activity indicators show during execution, collapse after completion
+- [x] AI-created items persist across page reloads
+- [x] `pnpm typecheck` passes across entire monorepo
+- [x] `pnpm test` — all unit tests pass
+- [x] `pnpm exec playwright test` — all E2E tests pass
+- [x] `pnpm build` — both apps build successfully

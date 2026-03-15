@@ -3,6 +3,7 @@ import {
   conversationListItemSchema,
   conversationSchema,
   createConversationSchema,
+  messageRoleSchema,
   messageSchema,
   sendMessageSchema,
   sseEventSchema,
@@ -221,5 +222,107 @@ describe('conversationListItemSchema', () => {
     if (result.success) {
       expect(result.data.title).toBeNull();
     }
+  });
+});
+
+describe('messageRoleSchema — tool support', () => {
+  it('accepts tool as a valid role', () => {
+    const result = messageRoleSchema.safeParse('tool');
+    expect(result.success).toBe(true);
+  });
+
+  it('still accepts user and assistant', () => {
+    expect(messageRoleSchema.safeParse('user').success).toBe(true);
+    expect(messageRoleSchema.safeParse('assistant').success).toBe(true);
+  });
+});
+
+describe('sseEventSchema — tool events', () => {
+  it('validates tool_call_start event', () => {
+    const result = sseEventSchema.safeParse({
+      type: 'tool_call_start',
+      toolCallId: 'tc_1',
+      toolName: 'query_data',
+      toolInput: { table: 'transactions', filter: { year: 2026 } },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('validates tool_call_end event', () => {
+    const result = sseEventSchema.safeParse({
+      type: 'tool_call_end',
+      toolCallId: 'tc_1',
+      toolName: 'query_data',
+      durationMs: 230,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('validates tool_result event', () => {
+    const result = sseEventSchema.safeParse({
+      type: 'tool_result',
+      toolCallId: 'tc_1',
+      toolName: 'query_data',
+      result: { rows: [{ revenue: 50000 }] },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('validates tool_result with isError=true', () => {
+    const result = sseEventSchema.safeParse({
+      type: 'tool_result',
+      toolCallId: 'tc_1',
+      toolName: 'query_data',
+      result: 'Table not found',
+      isError: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toHaveProperty('isError', true);
+    }
+  });
+
+  it('validates canvas_update with create action', () => {
+    const result = sseEventSchema.safeParse({
+      type: 'canvas_update',
+      action: 'create',
+      item: {
+        id: UUID,
+        type: 'kpi-card',
+        name: 'Revenue KPI',
+        x: 100,
+        y: 200,
+        width: 300,
+        height: 200,
+        zIndex: 5,
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('validates canvas_update with data field', () => {
+    const result = sseEventSchema.safeParse({
+      type: 'canvas_update',
+      action: 'update',
+      item: {
+        id: UUID,
+        type: 'chart-card',
+        name: 'Revenue Chart',
+        x: 0,
+        y: 0,
+        width: 400,
+        height: 300,
+        zIndex: 1,
+        data: { chartType: 'bar', series: [1, 2, 3] },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('still validates all Phase 1 event types', () => {
+    expect(sseEventSchema.safeParse({ type: 'message_start', messageId: UUID }).success).toBe(true);
+    expect(sseEventSchema.safeParse({ type: 'text_delta', text: 'hi' }).success).toBe(true);
+    expect(sseEventSchema.safeParse({ type: 'error', message: 'fail' }).success).toBe(true);
+    expect(sseEventSchema.safeParse({ type: 'done', usage: { inputTokens: 10, outputTokens: 5 } }).success).toBe(true);
   });
 });

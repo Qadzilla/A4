@@ -2,6 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthToken } from './useAuthToken';
 import { useTRPC } from '../lib/trpc';
+import { useCanvasStore } from '../stores/canvas-store';
+
+export interface ToolActivity {
+  toolCallId: string;
+  toolName: string;
+  status: 'running' | 'complete' | 'error';
+  startedAt: number;
+  durationMs?: number;
+}
 
 export type ChatErrorType = 'network' | 'rate_limit' | 'api_error' | 'unknown';
 
@@ -49,6 +58,7 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
   const [streamingContent, setStreamingContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<ChatError | null>(null);
+  const [toolActivity, setToolActivity] = useState<ToolActivity[]>([]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastFailedMessageRef = useRef<string | null>(null);
@@ -115,6 +125,7 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
   const sendMessage = useCallback(
     async (content: string) => {
       setError(null);
+      setToolActivity([]);
 
       // Abort any in-flight stream
       if (isStreaming) {
@@ -211,6 +222,33 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
                 case 'text_delta':
                   setStreamingContent((prev) => prev + event.text);
                   break;
+                case 'tool_call_start':
+                  setToolActivity((prev) => [
+                    ...prev,
+                    { toolCallId: event.toolCallId, toolName: event.toolName, status: 'running', startedAt: Date.now() },
+                  ]);
+                  break;
+                case 'tool_call_end':
+                  setToolActivity((prev) =>
+                    prev.map((t) =>
+                      t.toolCallId === event.toolCallId
+                        ? { ...t, status: 'complete', durationMs: Date.now() - t.startedAt }
+                        : t,
+                    ),
+                  );
+                  break;
+                case 'tool_result':
+                  if (event.isError) {
+                    setToolActivity((prev) =>
+                      prev.map((t) =>
+                        t.toolCallId === event.toolCallId ? { ...t, status: 'error' } : t,
+                      ),
+                    );
+                  }
+                  break;
+                case 'canvas_update':
+                  useCanvasStore.getState().addItemDirect(event.item);
+                  break;
                 case 'done':
                   setIsStreaming(false);
                   setStreamingContent('');
@@ -303,5 +341,6 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
     clearError,
     retryLastMessage,
     isLoadingConversation,
+    toolActivity,
   };
 }

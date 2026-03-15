@@ -25,6 +25,8 @@ function createTestDb() {
       content TEXT NOT NULL,
       token_count INTEGER,
       model TEXT,
+      tool_calls TEXT,
+      tool_call_id TEXT,
       created_at INTEGER NOT NULL
     );
   `);

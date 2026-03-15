@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const messageRoleSchema = z.enum(['user', 'assistant']);
+export const messageRoleSchema = z.enum(['user', 'assistant', 'tool']);
 
 export const messageSchema = z.object({
   id: z.string().uuid(),
@@ -10,6 +10,8 @@ export const messageSchema = z.object({
   content: z.string(),
   tokenCount: z.number().int().nullable().optional(),
   model: z.string().nullable().optional(),
+  toolCalls: z.string().nullable().optional(),
+  toolCallId: z.string().nullable().optional(),
   createdAt: z.coerce.date(),
 });
 
@@ -41,6 +43,40 @@ export const sseEventSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('done'),
     usage: z.object({ inputTokens: z.number().int(), outputTokens: z.number().int() }),
+  }),
+  z.object({
+    type: z.literal('tool_call_start'),
+    toolCallId: z.string(),
+    toolName: z.string(),
+    toolInput: z.record(z.unknown()),
+  }),
+  z.object({
+    type: z.literal('tool_call_end'),
+    toolCallId: z.string(),
+    toolName: z.string(),
+    durationMs: z.number(),
+  }),
+  z.object({
+    type: z.literal('tool_result'),
+    toolCallId: z.string(),
+    toolName: z.string(),
+    result: z.unknown(),
+    isError: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal('canvas_update'),
+    action: z.enum(['create', 'update']),
+    item: z.object({
+      id: z.string(),
+      type: z.string(),
+      name: z.string(),
+      x: z.number(),
+      y: z.number(),
+      width: z.number(),
+      height: z.number(),
+      zIndex: z.number(),
+      data: z.unknown().optional(),
+    }),
   }),
 ]);
 

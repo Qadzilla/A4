@@ -34,13 +34,24 @@ vi.mock('../services/anthropic', () => ({
 vi.mock('../services/ai-context', () => ({
   buildWorkspaceContext: vi.fn().mockResolvedValue('You are Paige, a financial AI assistant.'),
 }));
+vi.mock('../services/ai-tools', () => ({
+  getToolDefinitions: vi.fn().mockReturnValue([
+    { name: 'get_accounts', description: 'List accounts', input_schema: { type: 'object', properties: {}, required: [] } },
+    { name: 'get_budget', description: 'Get budget', input_schema: { type: 'object', properties: {}, required: [] } },
+    { name: 'create_canvas_item', description: 'Create item', input_schema: { type: 'object', properties: {}, required: [] } },
+  ]),
+  executeTool: vi.fn(),
+  safeExecuteTool: vi.fn(),
+}));
 
 const envRef = { devBypass: true };
 
 import { chatStreamRouter } from '../routes/chat-stream';
 import { AnthropicServiceError, streamChatCompletion } from '../services/anthropic';
+import { safeExecuteTool } from '../services/ai-tools';
 
 const mockStreamChatCompletion = streamChatCompletion as ReturnType<typeof vi.fn>;
+const mockExecuteTool = safeExecuteTool as ReturnType<typeof vi.fn>;
 
 function createTestDb() {
   const sqlite = new Database(':memory:');
@@ -74,22 +85,64 @@ function createTestDb() {
       content TEXT NOT NULL,
       token_count INTEGER,
       model TEXT,
+      tool_calls TEXT,
+      tool_call_id TEXT,
       created_at INTEGER NOT NULL
     );
   `);
   return drizzle(sqlite, { schema });
 }
 
-// Mock async iterable for Anthropic stream
+// Mock async iterable for Anthropic stream (text-only)
 async function* mockAnthropicStream(
   texts: string[],
   usage = { input_tokens: 100, output_tokens: 50 },
 ) {
   yield { type: 'message_start', message: { usage: { input_tokens: usage.input_tokens } } };
-  for (const text of texts) {
-    yield { type: 'content_block_delta', delta: { type: 'text_delta', text } };
+  for (let i = 0; i < texts.length; i++) {
+    yield { type: 'content_block_start', index: i, content_block: { type: 'text' } };
+    yield { type: 'content_block_delta', index: i, delta: { type: 'text_delta', text: texts[i] } };
+    yield { type: 'content_block_stop', index: i };
   }
-  yield { type: 'message_delta', usage: { output_tokens: usage.output_tokens } };
+  yield { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: usage.output_tokens } };
+  yield { type: 'message_stop' };
+}
+
+// Mock stream with tool_use blocks
+async function* mockToolStream(
+  toolUses: Array<{ id: string; name: string; input: Record<string, unknown> }>,
+  text = '',
+  usage = { input_tokens: 100, output_tokens: 50 },
+) {
+  yield { type: 'message_start', message: { usage: { input_tokens: usage.input_tokens } } };
+
+  let blockIndex = 0;
+
+  // Emit text block if present
+  if (text) {
+    yield { type: 'content_block_start', index: blockIndex, content_block: { type: 'text' } };
+    yield { type: 'content_block_delta', index: blockIndex, delta: { type: 'text_delta', text } };
+    yield { type: 'content_block_stop', index: blockIndex };
+    blockIndex++;
+  }
+
+  // Emit tool_use blocks
+  for (const tu of toolUses) {
+    yield {
+      type: 'content_block_start',
+      index: blockIndex,
+      content_block: { type: 'tool_use', id: tu.id, name: tu.name },
+    };
+    yield {
+      type: 'content_block_delta',
+      index: blockIndex,
+      delta: { type: 'input_json_delta', partial_json: JSON.stringify(tu.input) },
+    };
+    yield { type: 'content_block_stop', index: blockIndex };
+    blockIndex++;
+  }
+
+  yield { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: usage.output_tokens } };
   yield { type: 'message_stop' };
 }
 
@@ -189,6 +242,8 @@ describe('POST /api/chat/stream', () => {
       createdAt: now,
     });
   }
+
+  // --- Original tests ---
 
   it('returns 401 without auth', async () => {
     envRef.devBypass = false;
@@ -308,10 +363,12 @@ describe('POST /api/chat/stream', () => {
 
     async function* slowStream() {
       yield { type: 'message_start', message: { usage: { input_tokens: 10 } } };
-      yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Partial' } };
+      yield { type: 'content_block_start', index: 0, content_block: { type: 'text' } };
+      yield { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Partial' } };
       await new Promise((resolve) => setTimeout(resolve, 500));
-      yield { type: 'content_block_delta', delta: { type: 'text_delta', text: ' response' } };
-      yield { type: 'message_delta', usage: { output_tokens: 5 } };
+      yield { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: ' response' } };
+      yield { type: 'content_block_stop', index: 0 };
+      yield { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } };
       yield { type: 'message_stop' };
     }
 
@@ -349,5 +406,398 @@ describe('POST /api/chat/stream', () => {
     const assistantMsg = dbMessages.find((m: any) => m.role === 'assistant');
     expect(assistantMsg).toBeDefined();
     expect(assistantMsg!.content).toContain('Partial');
+  });
+
+  // --- Tool execution tests ---
+
+  it('executes a single read-only tool call', async () => {
+    await seedConversation();
+
+    // Round 1: Claude returns tool_use
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockToolStream(
+        [{ id: 'tool-1', name: 'get_accounts', input: {} }],
+        'Let me check your accounts.',
+        { input_tokens: 100, output_tokens: 30 },
+      ),
+    );
+
+    // Tool returns account data
+    mockExecuteTool.mockResolvedValueOnce({
+      result: { accounts: [{ id: 'a1', name: 'Checking', balance: 5000 }] },
+      isError: false,
+    });
+
+    // Round 2: Claude responds with text
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockAnthropicStream(['You have a Checking account with $5,000.'], { input_tokens: 200, output_tokens: 40 }),
+    );
+
+    const result = await postStream(port, { conversationId: 'conv-1' });
+    const events = parseSSE(result.body);
+
+    // Check SSE events
+    expect(events.find((e) => e.type === 'tool_call_start')).toEqual({
+      type: 'tool_call_start',
+      toolName: 'get_accounts',
+      toolCallId: 'tool-1',
+    });
+    expect(events.find((e) => e.type === 'tool_call_end')).toEqual({
+      type: 'tool_call_end',
+      toolCallId: 'tool-1',
+    });
+    expect(events.find((e) => e.type === 'tool_result')).toEqual({
+      type: 'tool_result',
+      toolCallId: 'tool-1',
+      toolName: 'get_accounts',
+      result: { accounts: [{ id: 'a1', name: 'Checking', balance: 5000 }] },
+      isError: false,
+    });
+
+    // Final text from round 2
+    const textDeltas = events.filter((e) => e.type === 'text_delta');
+    expect(textDeltas.map((e) => e.text).join('')).toContain('Checking account');
+
+    // Done event with summed tokens
+    const done = events.find((e) => e.type === 'done');
+    expect(done!.usage.inputTokens).toBe(300);
+    expect(done!.usage.outputTokens).toBe(70);
+  });
+
+  it('sends canvas_update for create_canvas_item', async () => {
+    await seedConversation();
+
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockToolStream(
+        [{ id: 'tool-2', name: 'create_canvas_item', input: { type: 'budget-card' } }],
+        'Creating a budget card.',
+        { input_tokens: 100, output_tokens: 30 },
+      ),
+    );
+
+    mockExecuteTool.mockResolvedValueOnce({
+      result: {
+        id: 'item-1',
+        type: 'budget-card',
+        name: 'Budget',
+        x: 0,
+        y: 0,
+        width: 400,
+        height: 300,
+        _canvasUpdate: true,
+      },
+      isError: false,
+    });
+
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockAnthropicStream(["I've created a budget card."], { input_tokens: 200, output_tokens: 30 }),
+    );
+
+    const result = await postStream(port, { conversationId: 'conv-1' });
+    const events = parseSSE(result.body);
+
+    // canvas_update event
+    const canvasUpdate = events.find((e) => e.type === 'canvas_update');
+    expect(canvasUpdate).toEqual({
+      type: 'canvas_update',
+      action: 'create',
+      item: { id: 'item-1', type: 'budget-card', name: 'Budget', x: 0, y: 0, width: 400, height: 300 },
+    });
+
+    // tool_result should NOT contain _canvasUpdate
+    const toolResult = events.find((e) => e.type === 'tool_result');
+    expect(toolResult!.result._canvasUpdate).toBeUndefined();
+  });
+
+  it('handles multi-tool-call in single round', async () => {
+    await seedConversation();
+
+    // Claude requests 2 tools at once
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockToolStream(
+        [
+          { id: 'tool-a', name: 'get_accounts', input: {} },
+          { id: 'tool-b', name: 'get_budget', input: {} },
+        ],
+        'Let me fetch both.',
+        { input_tokens: 100, output_tokens: 40 },
+      ),
+    );
+
+    mockExecuteTool
+      .mockResolvedValueOnce({ result: { accounts: [{ id: 'a1', name: 'Savings', balance: 10000 }] }, isError: false })
+      .mockResolvedValueOnce({ result: { categories: [{ name: 'Food', budgeted: 500, actual: 420 }] }, isError: false });
+
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockAnthropicStream(['Here is your summary.'], { input_tokens: 300, output_tokens: 50 }),
+    );
+
+    const result = await postStream(port, { conversationId: 'conv-1' });
+    const events = parseSSE(result.body);
+
+    // Should have 2 tool_call_start and 2 tool_call_end events
+    const starts = events.filter((e) => e.type === 'tool_call_start');
+    const ends = events.filter((e) => e.type === 'tool_call_end');
+    const results = events.filter((e) => e.type === 'tool_result');
+
+    expect(starts).toHaveLength(2);
+    expect(ends).toHaveLength(2);
+    expect(results).toHaveLength(2);
+
+    // Verify Claude was called again with both tool results
+    expect(mockStreamChatCompletion).toHaveBeenCalledTimes(2);
+    const secondCall = mockStreamChatCompletion.mock.calls[1]![0];
+    const lastMsg = secondCall.messages[secondCall.messages.length - 1];
+    expect(lastMsg.role).toBe('user');
+    expect(lastMsg.content).toHaveLength(2);
+    expect(lastMsg.content[0].type).toBe('tool_result');
+    expect(lastMsg.content[1].type).toBe('tool_result');
+  });
+
+  it('handles multi-round tool execution', async () => {
+    await seedConversation();
+
+    // Round 1: get_accounts
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockToolStream(
+        [{ id: 'tool-r1', name: 'get_accounts', input: {} }],
+        '',
+        { input_tokens: 100, output_tokens: 20 },
+      ),
+    );
+    mockExecuteTool.mockResolvedValueOnce({ result: { accounts: [] }, isError: false });
+
+    // Round 2: get_budget
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockToolStream(
+        [{ id: 'tool-r2', name: 'get_budget', input: {} }],
+        '',
+        { input_tokens: 200, output_tokens: 30 },
+      ),
+    );
+    mockExecuteTool.mockResolvedValueOnce({ result: { categories: [] }, isError: false });
+
+    // Round 3: final text
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockAnthropicStream(['No data found.'], { input_tokens: 300, output_tokens: 40 }),
+    );
+
+    const result = await postStream(port, { conversationId: 'conv-1' });
+    const events = parseSSE(result.body);
+
+    expect(mockStreamChatCompletion).toHaveBeenCalledTimes(3);
+    expect(events.filter((e) => e.type === 'tool_call_start')).toHaveLength(2);
+
+    const done = events.find((e) => e.type === 'done');
+    expect(done!.usage.inputTokens).toBe(600);
+    expect(done!.usage.outputTokens).toBe(90);
+  });
+
+  it('enforces MAX_TOOL_ROUNDS limit', async () => {
+    await seedConversation();
+
+    // 11 streamChatCompletion calls (1 initial + 10 in loop), but only 10 executeTool calls
+    for (let i = 0; i < 11; i++) {
+      mockStreamChatCompletion.mockResolvedValueOnce(
+        mockToolStream(
+          [{ id: `tool-loop-${i}`, name: 'get_accounts', input: {} }],
+          '',
+          { input_tokens: 10, output_tokens: 5 },
+        ),
+      );
+    }
+    for (let i = 0; i < 10; i++) {
+      mockExecuteTool.mockResolvedValueOnce({ result: { accounts: [] }, isError: false });
+    }
+
+    const result = await postStream(port, { conversationId: 'conv-1' });
+    const events = parseSSE(result.body);
+
+    // Should have stopped after 10 rounds (11 streamChatCompletion calls: 1 initial + 10 loop)
+    expect(mockStreamChatCompletion).toHaveBeenCalledTimes(11);
+    expect(mockExecuteTool).toHaveBeenCalledTimes(10);
+
+    // Done event should still be sent
+    const done = events.find((e) => e.type === 'done');
+    expect(done).toBeDefined();
+  });
+
+  it('persists tool messages in DB', async () => {
+    await seedConversation();
+
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockToolStream(
+        [{ id: 'tool-db', name: 'get_accounts', input: {} }],
+        'Checking...',
+        { input_tokens: 100, output_tokens: 30 },
+      ),
+    );
+    mockExecuteTool.mockResolvedValueOnce({ result: { accounts: [{ id: 'a1', name: 'Main' }] }, isError: false });
+
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockAnthropicStream(['You have one account.'], { input_tokens: 200, output_tokens: 40 }),
+    );
+
+    await postStream(port, { conversationId: 'conv-1' });
+
+    const dbMsgs = await dbRef.current
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, 'conv-1'));
+
+    // user, intermediate assistant (with toolCalls), tool, final assistant
+    expect(dbMsgs).toHaveLength(4);
+
+    const userMsg = dbMsgs.find((m: any) => m.role === 'user');
+    expect(userMsg).toBeDefined();
+
+    const intermediateAssistant = dbMsgs.find((m: any) => m.role === 'assistant' && m.toolCalls);
+    expect(intermediateAssistant).toBeDefined();
+    expect(intermediateAssistant!.content).toBe('Checking...');
+    const toolCalls = JSON.parse(intermediateAssistant!.toolCalls!);
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0].name).toBe('get_accounts');
+
+    const toolMsg = dbMsgs.find((m: any) => m.role === 'tool');
+    expect(toolMsg).toBeDefined();
+    expect(toolMsg!.toolCallId).toBe('tool-db');
+    expect(JSON.parse(toolMsg!.content)).toEqual({ accounts: [{ id: 'a1', name: 'Main' }] });
+
+    const finalAssistant = dbMsgs.find((m: any) => m.role === 'assistant' && !m.toolCalls);
+    expect(finalAssistant).toBeDefined();
+    expect(finalAssistant!.content).toBe('You have one account.');
+    expect(finalAssistant!.tokenCount).toBe(370); // 100+200 input + 30+40 output
+  });
+
+  it('sums tokens across rounds', async () => {
+    await seedConversation();
+
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockToolStream(
+        [{ id: 'tool-t1', name: 'get_accounts', input: {} }],
+        '',
+        { input_tokens: 150, output_tokens: 25 },
+      ),
+    );
+    mockExecuteTool.mockResolvedValueOnce({ result: { accounts: [] }, isError: false });
+
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockAnthropicStream(['Done.'], { input_tokens: 250, output_tokens: 35 }),
+    );
+
+    const result = await postStream(port, { conversationId: 'conv-1' });
+    const events = parseSSE(result.body);
+
+    const done = events.find((e) => e.type === 'done');
+    expect(done).toEqual({
+      type: 'done',
+      usage: { inputTokens: 400, outputTokens: 60 },
+    });
+  });
+
+  it('handles tool executor errors', async () => {
+    await seedConversation();
+
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockToolStream(
+        [{ id: 'tool-err', name: 'get_accounts', input: {} }],
+        'Checking...',
+        { input_tokens: 100, output_tokens: 30 },
+      ),
+    );
+
+    // Tool returns an error
+    mockExecuteTool.mockResolvedValueOnce({
+      result: { error: 'Database connection failed' },
+      isError: true,
+    });
+
+    // Claude responds after getting error
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockAnthropicStream(["I couldn't fetch your accounts."], { input_tokens: 200, output_tokens: 40 }),
+    );
+
+    const result = await postStream(port, { conversationId: 'conv-1' });
+    const events = parseSSE(result.body);
+
+    // tool_result should have isError=true
+    const toolResult = events.find((e) => e.type === 'tool_result');
+    expect(toolResult).toEqual({
+      type: 'tool_result',
+      toolCallId: 'tool-err',
+      toolName: 'get_accounts',
+      result: { error: 'Database connection failed' },
+      isError: true,
+    });
+
+    // Claude should have received is_error tool_result
+    const secondCall = mockStreamChatCompletion.mock.calls[1]![0];
+    const lastMsg = secondCall.messages[secondCall.messages.length - 1];
+    expect(lastMsg.content[0].is_error).toBe(true);
+
+    // Flow should continue with final text
+    const done = events.find((e) => e.type === 'done');
+    expect(done).toBeDefined();
+  });
+
+  it('handles client disconnect during tool loop', async () => {
+    await seedConversation();
+
+    // Set up tool call that takes time
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockToolStream(
+        [{ id: 'tool-dc', name: 'get_accounts', input: {} }],
+        'Let me check.',
+        { input_tokens: 100, output_tokens: 30 },
+      ),
+    );
+
+    // Tool execution is slow
+    mockExecuteTool.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve({ result: { accounts: [] }, isError: false }), 600)),
+    );
+
+    // Set up a second call in case it gets there
+    mockStreamChatCompletion.mockResolvedValueOnce(
+      mockAnthropicStream(['Done.'], { input_tokens: 200, output_tokens: 40 }),
+    );
+
+    await new Promise<void>((resolve) => {
+      const data = JSON.stringify({ conversationId: 'conv-1' });
+      const req = http.request(
+        {
+          hostname: '127.0.0.1',
+          port,
+          path: '/api/chat/stream',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data),
+          },
+        },
+        (res) => {
+          // Wait for first data then disconnect
+          res.once('data', () => {
+            setTimeout(() => {
+              req.destroy();
+              setTimeout(resolve, 1000);
+            }, 100);
+          });
+        },
+      );
+      req.write(data);
+      req.end();
+    });
+
+    // Should not crash — intermediate assistant message should be persisted
+    const dbMsgs = await dbRef.current
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, 'conv-1'));
+
+    // At least the user message and intermediate assistant should exist
+    expect(dbMsgs.length).toBeGreaterThanOrEqual(2);
+    const assistantMsg = dbMsgs.find((m: any) => m.role === 'assistant');
+    expect(assistantMsg).toBeDefined();
   });
 });
