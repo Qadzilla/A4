@@ -5,6 +5,11 @@ import * as schema from '../db/schema';
 import { executeTool, safeExecuteTool, getToolDefinitions } from '../services/ai-tools';
 import type { ToolContext } from '../services/ai-tools';
 
+const mockSearchDocuments = vi.hoisted(() => vi.fn());
+vi.mock('../services/vector-search', () => ({
+  searchDocuments: mockSearchDocuments,
+}));
+
 function createTestDb() {
   const sqlite = new Database(':memory:');
   sqlite.exec(`
@@ -275,9 +280,9 @@ function ctx(db: TestDb, overrides: Partial<ToolContext> = {}): ToolContext {
 describe('tool registry', () => {
   it('getToolDefinitions returns 17 tools with unique names', () => {
     const defs = getToolDefinitions();
-    expect(defs).toHaveLength(24);
+    expect(defs).toHaveLength(25);
     const names = defs.map((d) => d.name);
-    expect(new Set(names).size).toBe(24);
+    expect(new Set(names).size).toBe(25);
   });
 
   it('executeTool throws for unknown tool name', async () => {
@@ -961,5 +966,56 @@ describe('safeExecuteTool — logging', () => {
 
     errorSpy.mockRestore();
     logSpy.mockRestore();
+  });
+});
+
+describe('search_documents', () => {
+  let db: TestDb;
+  beforeEach(() => {
+    db = createTestDb();
+    mockSearchDocuments.mockReset();
+  });
+
+  it('tool is registered in definitions', () => {
+    const defs = getToolDefinitions();
+    const tool = defs.find((d) => d.name === 'search_documents');
+    expect(tool).toBeDefined();
+    expect(tool!.input_schema.required).toContain('query');
+  });
+
+  it('returns formatted results with fileName, content, and score', async () => {
+    mockSearchDocuments.mockResolvedValue([
+      { chunkId: 'c1', fileId: 'f1', fileName: 'report.pdf', content: 'Revenue was $1.2M', chunkIndex: 0, score: 0.9537 },
+      { chunkId: 'c2', fileId: 'f1', fileName: 'report.pdf', content: 'Expenses totaled $800K', chunkIndex: 1, score: 0.8214 },
+    ]);
+
+    const result = await executeTool('search_documents', { query: 'revenue' }, ctx(db));
+    expect(result.results).toHaveLength(2);
+    const results = result.results as any[];
+    expect(results[0].fileName).toBe('report.pdf');
+    expect(results[0].content).toBe('Revenue was $1.2M');
+    expect(results[0].score).toBe(0.954); // rounded to 3dp
+    expect(results[1].score).toBe(0.821);
+  });
+
+  it('returns message when no results', async () => {
+    mockSearchDocuments.mockResolvedValue([]);
+
+    const result = await executeTool('search_documents', { query: 'nothing here' }, ctx(db));
+    expect(result.results).toEqual([]);
+    expect(result.message).toContain('No matching documents');
+  });
+
+  it('handles embedding API errors gracefully', async () => {
+    mockSearchDocuments.mockRejectedValue(new Error('OPENAI_API_KEY is not set'));
+
+    const result = await executeTool('search_documents', { query: 'test' }, ctx(db));
+    expect(result.results).toEqual([]);
+    expect(result.message).toContain('not available');
+  });
+
+  it('rejects empty query', async () => {
+    const result = await executeTool('search_documents', { query: '' }, ctx(db));
+    expect(result.error).toContain('non-empty');
   });
 });

@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { blob, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const workspaces = sqliteTable('workspaces', {
   id: text('id').primaryKey(),
@@ -403,6 +403,22 @@ export const messages = sqliteTable('messages', {
   model: text('model'),
   toolCalls: text('tool_calls'),
   toolCallId: text('tool_call_id'),
+  citations: text('citations'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// Document chunks for RAG embeddings
+export const documentChunks = sqliteTable('document_chunks', {
+  id: text('id').primaryKey(),
+  fileId: text('file_id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  chunkIndex: integer('chunk_index').notNull(),
+  content: text('content').notNull(),
+  tokenCount: integer('token_count').notNull(),
+  embedding: blob('embedding', { mode: 'buffer' }).notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),

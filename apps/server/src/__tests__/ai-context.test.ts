@@ -1,9 +1,16 @@
 import Database from 'better-sqlite3';
 import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../db/schema';
-import { buildWorkspaceContext, SYSTEM_PREAMBLE } from '../services/ai-context';
+import { buildWorkspaceContext, buildDocumentContext, SYSTEM_PREAMBLE } from '../services/ai-context';
+
+vi.mock('../services/vector-search', () => ({
+  searchDocuments: vi.fn().mockResolvedValue([]),
+}));
+
+import { searchDocuments } from '../services/vector-search';
+const mockSearchDocuments = searchDocuments as ReturnType<typeof vi.fn>;
 
 function createTestDb() {
   const sqlite = new Database(':memory:');
@@ -392,5 +399,83 @@ describe('SYSTEM_PREAMBLE — tool guidelines', () => {
     const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
     // ~4000 tokens ≈ 16000 chars
     expect(result.length).toBeLessThan(16000);
+  });
+});
+
+describe('buildDocumentContext', () => {
+  let db: ReturnType<typeof createTestDb>;
+
+  beforeEach(() => {
+    db = createTestDb();
+    vi.clearAllMocks();
+  });
+
+  it('returns formatted document section with numbered citations', async () => {
+    mockSearchDocuments.mockResolvedValueOnce([
+      { chunkId: 'c1', fileId: 'f1', fileName: 'bank.pdf', content: 'Transaction on 2024-01-15 for $500', chunkIndex: 0, score: 0.92 },
+    ]);
+
+    const result = await buildDocumentContext('what transactions did I have?', 'ws-1', db);
+
+    expect(result.section).toContain('## Relevant Documents');
+    expect(result.section).toContain('[1] bank.pdf (relevance: 92%)');
+    expect(result.section).toContain('Transaction on 2024-01-15');
+    expect(result.citations).toHaveLength(1);
+    expect(result.citations[0]!.index).toBe(1);
+    expect(result.citations[0]!.fileId).toBe('f1');
+    expect(result.citations[0]!.fileName).toBe('bank.pdf');
+  });
+
+  it('returns empty section when no results', async () => {
+    mockSearchDocuments.mockResolvedValueOnce([]);
+
+    const result = await buildDocumentContext('anything', 'ws-1', db);
+
+    expect(result.section).toBe('');
+    expect(result.citations).toEqual([]);
+  });
+
+  it('numbers citations sequentially across multiple results', async () => {
+    mockSearchDocuments.mockResolvedValueOnce([
+      { chunkId: 'c1', fileId: 'f1', fileName: 'bank.pdf', content: 'Chunk 1', chunkIndex: 0, score: 0.95 },
+      { chunkId: 'c2', fileId: 'f1', fileName: 'bank.pdf', content: 'Chunk 2', chunkIndex: 1, score: 0.88 },
+      { chunkId: 'c3', fileId: 'f2', fileName: 'expenses.csv', content: 'Chunk 3', chunkIndex: 0, score: 0.82 },
+    ]);
+
+    const result = await buildDocumentContext('expenses', 'ws-1', db);
+
+    expect(result.citations).toHaveLength(3);
+    expect(result.citations[0]!.index).toBe(1);
+    expect(result.citations[1]!.index).toBe(2);
+    expect(result.citations[2]!.index).toBe(3);
+    expect(result.section).toContain('[1]');
+    expect(result.section).toContain('[2]');
+    expect(result.section).toContain('[3]');
+  });
+
+  it('truncates to token budget', async () => {
+    const longContent = 'x'.repeat(2000);
+    mockSearchDocuments.mockResolvedValueOnce([
+      { chunkId: 'c1', fileId: 'f1', fileName: 'a.pdf', content: longContent, chunkIndex: 0, score: 0.95 },
+      { chunkId: 'c2', fileId: 'f2', fileName: 'b.pdf', content: longContent, chunkIndex: 0, score: 0.90 },
+      { chunkId: 'c3', fileId: 'f3', fileName: 'c.pdf', content: longContent, chunkIndex: 0, score: 0.85 },
+      { chunkId: 'c4', fileId: 'f4', fileName: 'd.pdf', content: longContent, chunkIndex: 0, score: 0.80 },
+      { chunkId: 'c5', fileId: 'f5', fileName: 'e.pdf', content: longContent, chunkIndex: 0, score: 0.75 },
+    ]);
+
+    const result = await buildDocumentContext('query', 'ws-1', db);
+
+    // Should truncate — not all 5 chunks should fit in 8000 chars
+    expect(result.section.length).toBeLessThanOrEqual(8500);
+    expect(result.citations.length).toBeLessThan(5);
+  });
+
+  it('returns empty on searchDocuments error', async () => {
+    mockSearchDocuments.mockRejectedValueOnce(new Error('Embedding API down'));
+
+    const result = await buildDocumentContext('query', 'ws-1', db);
+
+    expect(result.section).toBe('');
+    expect(result.citations).toEqual([]);
   });
 });

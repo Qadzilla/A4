@@ -105,7 +105,11 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
   );
 
   // Build messages array: persisted + optional streaming assistant message
-  const messages = conversationData?.messages ?? [];
+  const rawMessages = conversationData?.messages ?? [];
+  const messages = rawMessages.map((msg) => ({
+    ...msg,
+    parsedCitations: msg.citations ? (JSON.parse(msg.citations) as Array<{ index: number; fileId: string; fileName: string; chunkContent: string; score: number }>) : undefined,
+  }));
   const allMessages = isStreaming && streamingContent
     ? [
         ...messages,
@@ -118,6 +122,7 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
           tokenCount: null,
           model: null,
           createdAt: new Date(),
+          parsedCitations: undefined as Array<{ index: number; fileId: string; fileName: string; chunkContent: string; score: number }> | undefined,
         },
       ]
     : messages;

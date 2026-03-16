@@ -19,6 +19,8 @@ import {
 } from '../db/schema';
 import { ITEM_DEFAULTS, defaultNames, createDefaultData } from './canvas-defaults';
 import { findNextPosition } from './auto-position';
+// Lazy import to avoid loading OpenAI SDK at server startup
+const lazySearchDocuments = () => import('./vector-search').then((m) => m.searchDocuments);
 import {
   computeTaxEstimate,
   createDefaultTaxEstimatorData,
@@ -483,7 +485,7 @@ const TOOLS: ToolRegistration[] = [
         properties: {
           type: { type: 'string', description: 'Item type (e.g. "note", "budget-card", "kpi-card")' },
           name: { type: 'string', description: 'Optional display name for the item' },
-          data: { type: 'object', description: 'Optional data payload for the item' },
+          data: { type: 'object', description: 'Optional data payload for the item. For notes, pass { text: "content" }.' },
         },
         required: ['type'],
       },
@@ -985,6 +987,57 @@ const TOOLS: ToolRegistration[] = [
         scheduleTruncated: truncated,
         scheduleTotalRows: totalRows,
       };
+    },
+  },
+
+  // 25. search_documents
+  {
+    definition: {
+      name: 'search_documents',
+      description:
+        'Search uploaded documents in the workspace using semantic similarity. Returns the most relevant text chunks from uploaded files (PDF, CSV, Excel, etc.) that match the query.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The search query to find relevant document content.',
+          },
+          topK: {
+            type: 'number',
+            description: 'Maximum number of results to return (default: 5).',
+          },
+        },
+        required: ['query'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const query = input.query as string;
+      if (!query || query.trim().length === 0) {
+        return { error: 'Query must be a non-empty string.' };
+      }
+
+      try {
+        const searchDocuments = await lazySearchDocuments();
+        const results = await searchDocuments(query, ctx.workspaceId, ctx.db, {
+          topK: input.topK as number | undefined,
+        });
+
+        if (results.length === 0) {
+          return { results: [], message: 'No matching documents found. The workspace may not have any uploaded documents, or none matched the query.' };
+        }
+
+        return {
+          results: results.map((r) => ({
+            fileName: r.fileName,
+            content: r.content,
+            score: Math.round(r.score * 1000) / 1000,
+            chunkIndex: r.chunkIndex,
+          })),
+        };
+      } catch {
+        return { results: [], message: 'Document search is not available. Embedding service may be unavailable.' };
+      }
     },
   },
 ];

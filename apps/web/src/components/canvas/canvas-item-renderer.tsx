@@ -652,7 +652,13 @@ export const CanvasItemRenderer = memo(
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="gap-2 text-[13px] text-destructive focus:text-destructive"
-                onSelect={() => removeItem(item.id)}
+                onSelect={() => {
+                  // For file-cards, also delete the file and its embedding chunks from the server
+                  if (item.type === 'file-card' && item.data?.fileId) {
+                    fetch(`/api/files/${item.data.fileId}`, { method: 'DELETE' }).catch(() => {});
+                  }
+                  removeItem(item.id);
+                }}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

@@ -1,16 +1,26 @@
-import { memo } from 'react';
+import { memo, useMemo, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
+
+interface ParsedCitation {
+  index: number;
+  fileId: string;
+  fileName: string;
+  chunkContent: string;
+  score: number;
+}
 
 interface ChatMessageProps {
   role: string;
   content: string;
   isLastStreaming: boolean;
   toolCalls?: string | null;
+  citations?: ParsedCitation[];
+  onCitationClick?: (fileId: string) => void;
 }
 
-const markdownComponents: Components = {
+const baseMarkdownComponents: Components = {
   h1: ({ children }) => <h1 className="text-sm font-semibold mt-3 mb-1">{children}</h1>,
   h2: ({ children }) => <h2 className="text-sm font-semibold mt-3 mb-1">{children}</h2>,
   h3: ({ children }) => <h3 className="text-[13px] font-semibold mt-2 mb-1">{children}</h3>,
@@ -53,10 +63,77 @@ const markdownComponents: Components = {
   hr: () => <hr className="border-border my-3" />,
 };
 
-export const ChatMessage = memo(function ChatMessage({ role, content, isLastStreaming, toolCalls }: ChatMessageProps) {
+const CITATION_RE = /\[(\d+)\]/g;
+
+function renderTextWithCitations(
+  text: string,
+  citations: ParsedCitation[],
+  onCitationClick?: (fileId: string) => void,
+): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  CITATION_RE.lastIndex = 0;
+  while ((match = CITATION_RE.exec(text)) !== null) {
+    const num = Number.parseInt(match[1]!, 10);
+    const citation = citations.find((c) => c.index === num);
+    if (!citation) continue;
+
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    parts.push(
+      <button
+        key={`cite-${match.index}`}
+        type="button"
+        title={citation.fileName}
+        onClick={() => onCitationClick?.(citation.fileId)}
+        data-testid="citation-badge"
+        className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-[var(--color-paige)]/10 text-[var(--color-paige)] hover:bg-[var(--color-paige)]/20 active:scale-[0.97] cursor-pointer transition-colors rounded-sm align-baseline mx-0.5"
+      >
+        {num}
+      </button>,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+}
+
+export const ChatMessage = memo(function ChatMessage({
+  role,
+  content,
+  isLastStreaming,
+  toolCalls,
+  citations,
+  onCitationClick,
+}: ChatMessageProps) {
   if (role === 'user') {
     return <>{content}</>;
   }
+
+  const markdownComponents = useMemo<Components>(() => {
+    if (!citations || citations.length === 0) return baseMarkdownComponents;
+
+    return {
+      ...baseMarkdownComponents,
+      // Override text rendering to inject citation badges
+      p: ({ children }) => {
+        const processed = processChildren(children, citations, onCitationClick);
+        return <p className="mb-2 last:mb-0">{processed}</p>;
+      },
+      li: ({ children }) => {
+        const processed = processChildren(children, citations, onCitationClick);
+        return <li className="text-sm">{processed}</li>;
+      },
+    };
+  }, [citations, onCitationClick]);
 
   return (
     <>
@@ -88,9 +165,74 @@ export const ChatMessage = memo(function ChatMessage({ role, content, isLastStre
           return null;
         }
       })()}
+      {citations && citations.length > 0 && (
+        <details data-testid="citation-sources" className="mt-3 pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+          <summary
+            data-testid="citation-sources-toggle"
+            className="cursor-pointer hover:text-foreground transition-colors select-none flex items-center gap-1"
+            style={{ fontFamily: 'var(--font-chat-mono)' }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+            Sources ({citations.length})
+          </summary>
+          <div className="mt-1.5 space-y-1.5 pl-2">
+            {citations.map((c) => (
+              <button
+                key={c.index}
+                type="button"
+                onClick={() => onCitationClick?.(c.fileId)}
+                data-testid="citation-source-item"
+                className="flex items-start gap-2 w-full text-left hover:bg-muted/30 rounded-sm px-1.5 py-1 transition-colors group"
+              >
+                <span className="shrink-0 inline-flex items-center justify-center size-4 text-[9px] font-medium bg-[var(--color-paige)]/10 text-[var(--color-paige)] rounded-sm mt-0.5">
+                  {c.index}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate font-medium text-foreground/70 group-hover:text-foreground transition-colors">
+                      {c.fileName}
+                    </span>
+                    <span className="shrink-0 text-[9px] text-muted-foreground/60" style={{ fontFamily: 'var(--font-chat-mono)' }}>
+                      {Math.round(c.score * 100)}%
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">
+                    {c.chunkContent.slice(0, 120)}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </details>
+      )}
       {isLastStreaming && (
         <span className="inline-block w-[2px] h-[1em] bg-[var(--color-paige)] ml-0.5 align-text-bottom animate-pulse" />
       )}
     </>
   );
 });
+
+function processChildren(
+  children: ReactNode,
+  citations: ParsedCitation[],
+  onCitationClick?: (fileId: string) => void,
+): ReactNode {
+  if (!Array.isArray(children)) {
+    if (typeof children === 'string') {
+      const result = renderTextWithCitations(children, citations, onCitationClick);
+      return result.length === 1 && typeof result[0] === 'string' ? result[0] : <>{result}</>;
+    }
+    return children;
+  }
+
+  return children.map((child, i) => {
+    if (typeof child === 'string') {
+      const result = renderTextWithCitations(child, citations, onCitationClick);
+      return result.length === 1 && typeof result[0] === 'string' ? result[0] : <span key={i}>{result}</span>;
+    }
+    return child;
+  });
+}

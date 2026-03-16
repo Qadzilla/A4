@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  citationSchema,
   conversationListItemSchema,
   conversationSchema,
   createConversationSchema,
@@ -225,6 +226,27 @@ describe('conversationListItemSchema', () => {
   });
 });
 
+describe('citationSchema', () => {
+  it('validates a valid citation', () => {
+    const result = citationSchema.safeParse({
+      index: 0,
+      fileId: 'file-1',
+      fileName: 'report.pdf',
+      chunkContent: 'Revenue was $1.2M in Q4.',
+      score: 0.95,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects missing required fields', () => {
+    const result = citationSchema.safeParse({
+      index: 0,
+      fileId: 'file-1',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('messageRoleSchema — tool support', () => {
   it('accepts tool as a valid role', () => {
     const result = messageRoleSchema.safeParse('tool');
@@ -315,6 +337,26 @@ describe('sseEventSchema — tool events', () => {
         zIndex: 1,
         data: { chartType: 'bar', series: [1, 2, 3] },
       },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('validates done event with citations array', () => {
+    const result = sseEventSchema.safeParse({
+      type: 'done',
+      usage: { inputTokens: 100, outputTokens: 50 },
+      citations: [
+        { index: 0, fileId: 'file-1', fileName: 'report.pdf', chunkContent: 'Revenue was $1.2M', score: 0.95 },
+        { index: 1, fileId: 'file-2', fileName: 'forecast.csv', chunkContent: 'Q2 projection', score: 0.82 },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('validates done event without citations (backward compatible)', () => {
+    const result = sseEventSchema.safeParse({
+      type: 'done',
+      usage: { inputTokens: 10, outputTokens: 5 },
     });
     expect(result.success).toBe(true);
   });

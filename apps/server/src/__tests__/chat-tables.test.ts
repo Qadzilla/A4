@@ -27,6 +27,7 @@ function createTestDb() {
       model TEXT,
       tool_calls TEXT,
       tool_call_id TEXT,
+      citations TEXT,
       created_at INTEGER NOT NULL
     );
   `);

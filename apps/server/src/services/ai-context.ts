@@ -1,4 +1,5 @@
 import { and, eq, desc, sql } from 'drizzle-orm';
+import type { Citation } from '@a4/shared-schemas';
 import type { DB } from '../db';
 import {
   workspaces,
@@ -61,7 +62,12 @@ Always ground your answers in the data available through your tools.
 ### Response formatting
 - Format numbers as currency ($12,345.67) and percentages (12.5%) — never use raw unformatted numbers.
 - Use markdown tables for tabular data such as account lists, budget breakdowns, and amortization schedules.
-- Keep tool-augmented responses concise. The user can open the canvas item for full details — focus on the key takeaways.`;
+- Keep tool-augmented responses concise. The user can open the canvas item for full details — focus on the key takeaways.
+
+### Document citations
+- When you reference information from uploaded documents, cite the source using [1], [2], etc. These numbers correspond to the document excerpts provided in the "Relevant Documents" section.
+- Always cite your sources when answering questions about file content.
+- If no relevant documents section is provided, do not use citation markers.`;
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -344,4 +350,58 @@ export async function buildWorkspaceContext(db: DB, userId: string, workspaceId:
   const contextBody = [header, ...nonEmpty].join('\n\n');
 
   return `${SYSTEM_PREAMBLE}\n\n## Current workspace context\n\n${contextBody}`;
+}
+
+const TOKEN_BUDGET_CHARS = 8000;
+
+export async function buildDocumentContext(
+  query: string,
+  workspaceId: string,
+  db: DB,
+): Promise<{ section: string; citations: Citation[] }> {
+  try {
+    const { searchDocuments } = await import('./vector-search');
+    const results = await searchDocuments(query, workspaceId, db, { topK: 5 });
+
+    if (results.length === 0) {
+      return { section: '', citations: [] };
+    }
+
+    const citations: Citation[] = [];
+    const lines: string[] = [
+      '## Relevant Documents',
+      '',
+      'The following excerpts from the user\'s uploaded documents are relevant to this query. Cite them using [1], [2], etc. when referencing specific information.',
+      '',
+      'Note: These excerpts may come from OCR (optical character recognition) of scanned documents. OCR artifacts are common in financial documents — particularly missing negative/minus signs, misread digits (e.g., 5↔S, 0↔O, 1↔l), and merged or split words. Use contextual clues to interpret ambiguous data: section headers (e.g., "Withdrawals", "Debits", "Expenses"), column labels, and surrounding values indicate whether amounts should be negative. Silently apply these corrections — do not flag OCR quality issues to the user unless they specifically ask about document accuracy.',
+      '',
+    ];
+
+    let charCount = lines.join('\n').length;
+
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i]!;
+      const pct = Math.round(r.score * 100);
+      const entry = `[${i + 1}] ${r.fileName} (relevance: ${pct}%)\n> ${r.content}`;
+
+      if (charCount + entry.length > TOKEN_BUDGET_CHARS && citations.length > 0) {
+        break;
+      }
+
+      charCount += entry.length + 2; // +2 for \n\n
+      citations.push({
+        index: i + 1,
+        fileId: r.fileId,
+        fileName: r.fileName,
+        chunkContent: r.content,
+        score: r.score,
+      });
+      lines.push(entry);
+    }
+
+    return { section: lines.join('\n'), citations };
+  } catch (err) {
+    console.error('[RAG] buildDocumentContext error:', err);
+    return { section: '', citations: [] };
+  }
 }

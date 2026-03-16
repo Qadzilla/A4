@@ -36,6 +36,16 @@ export const sendMessageSchema = z.object({
   content: z.string().min(1, 'Message cannot be empty').max(10000),
 });
 
+export const citationSchema = z.object({
+  index: z.number(),
+  fileId: z.string(),
+  fileName: z.string(),
+  chunkContent: z.string(),
+  score: z.number(),
+});
+
+export type Citation = z.infer<typeof citationSchema>;
+
 export const sseEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('message_start'), messageId: z.string() }),
   z.object({ type: z.literal('text_delta'), text: z.string() }),
@@ -43,6 +53,7 @@ export const sseEventSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('done'),
     usage: z.object({ inputTokens: z.number().int(), outputTokens: z.number().int() }),
+    citations: z.array(citationSchema).optional(),
   }),
   z.object({
     type: z.literal('tool_call_start'),

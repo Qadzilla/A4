@@ -13,6 +13,7 @@ const envSchema = z.object({
     : z.string().min(1, 'CLERK_PUBLISHABLE_KEY is required'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
   ANTHROPIC_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
   POLYGON_API_KEY: z.string().default(''),
   POLYGON_WS_URL: z.string().default('wss://socket.polygon.io'),
 });

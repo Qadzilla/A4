@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { Router, type Response, type Router as RouterType } from 'express';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages';
+import type { Citation } from '@a4/shared-schemas';
 import { db } from '../db';
-import { aiUsage, conversations, messages } from '../db/schema';
+import { aiUsage, conversations, documentChunks, messages } from '../db/schema';
 import { DEV_AUTH_BYPASS } from '../env';
-import { buildWorkspaceContext } from '../services/ai-context';
+import { buildWorkspaceContext, buildDocumentContext } from '../services/ai-context';
 import { AnthropicServiceError, streamChatCompletion } from '../services/anthropic';
 import { getToolDefinitions, safeExecuteTool, type ToolContext } from '../services/ai-tools';
 
@@ -251,7 +252,30 @@ chatStreamRouter.post('/', async (req, res) => {
 
   try {
     // 6. Build system prompt
-    const systemPrompt = await buildWorkspaceContext(db, userId, conversation.workspaceId);
+    let systemPrompt = await buildWorkspaceContext(db, userId, conversation.workspaceId);
+
+    // 6b. RAG: inject document context if workspace has chunks
+    let citations: Citation[] = [];
+    try {
+      const lastUserMsg = dbMessages.filter((m) => m.role === 'user').pop();
+      if (lastUserMsg) {
+        const chunkCountRows = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(documentChunks)
+          .where(eq(documentChunks.workspaceId, conversation.workspaceId));
+        const chunkCount = chunkCountRows[0]?.count ?? 0;
+
+        if (chunkCount > 0) {
+          const docCtx = await buildDocumentContext(lastUserMsg.content, conversation.workspaceId, db);
+          if (docCtx.section) {
+            systemPrompt = `${systemPrompt}\n\n${docCtx.section}`;
+            citations = docCtx.citations;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[RAG] Error in chat-stream RAG integration:', err);
+    }
 
     // 7. Format messages for Anthropic
     const anthropicMessages = formatMessagesForAnthropic(dbMessages);
@@ -411,7 +435,11 @@ chatStreamRouter.post('/', async (req, res) => {
 
     // 13. Send done event
     if (!aborted) {
-      sendSSE(res, { type: 'done', usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens } });
+      sendSSE(res, {
+        type: 'done',
+        usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+        ...(citations.length > 0 && { citations }),
+      });
     }
 
     // 14. Persist final assistant message
@@ -425,6 +453,7 @@ chatStreamRouter.post('/', async (req, res) => {
         content: finalText,
         tokenCount: totalInputTokens + totalOutputTokens,
         model: conversation.model,
+        citations: citations.length > 0 ? JSON.stringify(citations) : null,
         createdAt: new Date(),
       });
 

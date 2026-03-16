@@ -294,7 +294,7 @@ export function createDefaultData(type: string): Record<string, unknown> | undef
     case 'file-card':
     case 'header-card':
     case 'note':
-      return undefined;
+      return { text: '' };
 
     default:
       return undefined;

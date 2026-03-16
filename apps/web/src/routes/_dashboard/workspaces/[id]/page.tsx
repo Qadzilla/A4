@@ -704,6 +704,18 @@ export default function WorkspaceDetailPage() {
     [zoom, setActiveItem],
   );
 
+  const handleCitationClick = useCallback((fileId: string) => {
+    const items = useCanvasStore.getState().items;
+    const fileCard = items.find((item) => {
+      if (item.type !== 'file-card') return false;
+      try {
+        const data = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+        return data?.fileId === fileId;
+      } catch { return false; }
+    });
+    if (fileCard) focusItem(fileCard.id);
+  }, [focusItem]);
+
   const onCloseWorkspace = useCallback(() => {
     const parentId = workspace?.parentId;
     navigate(parentId ? `/workspaces/${parentId}/folder` : '/workspaces');
@@ -1237,6 +1249,7 @@ export default function WorkspaceDetailPage() {
                 onNewConversation={() => chat.setActiveConversationId(null)}
                 onDeleteConversation={chat.deleteConversation}
                 toolActivity={chat.toolActivity}
+                onCitationClick={handleCitationClick}
               />
             ) : (
             <>

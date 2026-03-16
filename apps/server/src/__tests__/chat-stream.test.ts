@@ -33,6 +33,7 @@ vi.mock('../services/anthropic', () => ({
 }));
 vi.mock('../services/ai-context', () => ({
   buildWorkspaceContext: vi.fn().mockResolvedValue('You are Paige, a financial AI assistant.'),
+  buildDocumentContext: vi.fn().mockResolvedValue({ section: '', citations: [] }),
 }));
 vi.mock('../services/ai-tools', () => ({
   getToolDefinitions: vi.fn().mockReturnValue([
@@ -49,6 +50,9 @@ const envRef = { devBypass: true };
 import { chatStreamRouter } from '../routes/chat-stream';
 import { AnthropicServiceError, streamChatCompletion } from '../services/anthropic';
 import { safeExecuteTool } from '../services/ai-tools';
+import { buildDocumentContext } from '../services/ai-context';
+
+const mockBuildDocumentContext = buildDocumentContext as ReturnType<typeof vi.fn>;
 
 const mockStreamChatCompletion = streamChatCompletion as ReturnType<typeof vi.fn>;
 const mockExecuteTool = safeExecuteTool as ReturnType<typeof vi.fn>;
@@ -87,6 +91,18 @@ function createTestDb() {
       model TEXT,
       tool_calls TEXT,
       tool_call_id TEXT,
+      citations TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE document_chunks (
+      id TEXT PRIMARY KEY,
+      file_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      chunk_index INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      embedding BLOB NOT NULL,
+      token_count INTEGER NOT NULL,
       created_at INTEGER NOT NULL
     );
   `);
@@ -799,5 +815,115 @@ describe('POST /api/chat/stream', () => {
     expect(dbMsgs.length).toBeGreaterThanOrEqual(2);
     const assistantMsg = dbMsgs.find((m: any) => m.role === 'assistant');
     expect(assistantMsg).toBeDefined();
+  });
+
+  // --- RAG integration tests ---
+
+  describe('RAG integration', () => {
+    async function insertChunk(workspaceId = 'ws-1') {
+      const embedding = new Float32Array(256).fill(0);
+      const buf = Buffer.from(embedding.buffer);
+      await dbRef.current.insert(schema.documentChunks).values({
+        id: 'chunk-1',
+        fileId: 'file-1',
+        workspaceId,
+        userId: 'dev-user-001',
+        chunkIndex: 0,
+        content: 'Sample document chunk content',
+        embedding: buf,
+        tokenCount: 10,
+        createdAt: new Date(),
+      });
+    }
+
+    it('skips RAG when workspace has no document chunks', async () => {
+      await seedConversation();
+      mockStreamChatCompletion.mockResolvedValueOnce(mockAnthropicStream(['Hello']));
+
+      await postStream(port, { conversationId: 'conv-1' });
+
+      expect(mockBuildDocumentContext).not.toHaveBeenCalled();
+    });
+
+    it('includes document context in system prompt when chunks exist', async () => {
+      await seedConversation();
+      await insertChunk();
+      mockBuildDocumentContext.mockResolvedValueOnce({
+        section: '## Relevant Documents\n\n[1] bank.pdf (relevance: 92%)\n> Transaction data',
+        citations: [{ index: 1, fileId: 'file-1', fileName: 'bank.pdf', chunkContent: 'Transaction data', score: 0.92 }],
+      });
+      mockStreamChatCompletion.mockResolvedValueOnce(mockAnthropicStream(['Based on your bank statement...']));
+
+      await postStream(port, { conversationId: 'conv-1' });
+
+      // Verify buildDocumentContext was called
+      expect(mockBuildDocumentContext).toHaveBeenCalledWith('Hello', 'ws-1', expect.anything());
+
+      // Verify system prompt includes RAG section
+      const callArgs = mockStreamChatCompletion.mock.calls[0]![0];
+      expect(callArgs.systemPrompt).toContain('## Relevant Documents');
+    });
+
+    it('sends citations in done event', async () => {
+      await seedConversation();
+      await insertChunk();
+      mockBuildDocumentContext.mockResolvedValueOnce({
+        section: '## Relevant Documents\n\n[1] bank.pdf',
+        citations: [{ index: 1, fileId: 'file-1', fileName: 'bank.pdf', chunkContent: 'Data', score: 0.90 }],
+      });
+      mockStreamChatCompletion.mockResolvedValueOnce(mockAnthropicStream(['Answer']));
+
+      const result = await postStream(port, { conversationId: 'conv-1' });
+      const events = parseSSE(result.body);
+      const doneEvent = events.find((e) => e.type === 'done');
+
+      expect(doneEvent!.citations).toBeDefined();
+      expect(doneEvent!.citations).toHaveLength(1);
+      expect(doneEvent!.citations[0].fileId).toBe('file-1');
+    });
+
+    it('persists citations on assistant message', async () => {
+      await seedConversation();
+      await insertChunk();
+      const testCitations = [{ index: 1, fileId: 'file-1', fileName: 'bank.pdf', chunkContent: 'Data', score: 0.90 }];
+      mockBuildDocumentContext.mockResolvedValueOnce({
+        section: '## Relevant Documents\n\n[1] bank.pdf',
+        citations: testCitations,
+      });
+      mockStreamChatCompletion.mockResolvedValueOnce(mockAnthropicStream(['Answer']));
+
+      await postStream(port, { conversationId: 'conv-1' });
+
+      const dbMsgs = await dbRef.current
+        .select()
+        .from(messages)
+        .where(eq(messages.conversationId, 'conv-1'));
+
+      const assistantMsg = dbMsgs.find((m: any) => m.role === 'assistant');
+      expect(assistantMsg).toBeDefined();
+      expect(assistantMsg!.citations).toBeDefined();
+      const parsed = JSON.parse(assistantMsg!.citations!);
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0].fileId).toBe('file-1');
+    });
+
+    it('continues normally when RAG fails', async () => {
+      await seedConversation();
+      await insertChunk();
+      mockBuildDocumentContext.mockRejectedValueOnce(new Error('Embedding service down'));
+      mockStreamChatCompletion.mockResolvedValueOnce(mockAnthropicStream(['Hello there']));
+
+      const result = await postStream(port, { conversationId: 'conv-1' });
+      const events = parseSSE(result.body);
+
+      // Stream should complete normally
+      const textDeltas = events.filter((e) => e.type === 'text_delta');
+      expect(textDeltas.map((e) => e.text).join('')).toBe('Hello there');
+
+      // Done event should have no citations
+      const doneEvent = events.find((e) => e.type === 'done');
+      expect(doneEvent).toBeDefined();
+      expect(doneEvent!.citations).toBeUndefined();
+    });
   });
 });

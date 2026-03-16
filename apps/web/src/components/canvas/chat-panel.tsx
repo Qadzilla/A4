@@ -85,7 +85,7 @@ function ToolActivityList({ items }: { items: ToolActivity[] }) {
 }
 
 interface ChatPanelProps {
-  messages: { role: string; content: string; createdAt?: Date }[];
+  messages: { role: string; content: string; createdAt?: Date; parsedCitations?: Array<{ index: number; fileId: string; fileName: string; chunkContent: string; score: number }> }[];
   message: string;
   onMessageChange: (value: string) => void;
   onSend: (text?: string) => void;
@@ -103,6 +103,7 @@ interface ChatPanelProps {
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
   toolActivity: ToolActivity[];
+  onCitationClick?: (fileId: string) => void;
 }
 
 export const ChatPanel = memo(function ChatPanel({
@@ -124,6 +125,7 @@ export const ChatPanel = memo(function ChatPanel({
   onNewConversation,
   onDeleteConversation,
   toolActivity,
+  onCitationClick,
 }: ChatPanelProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -348,7 +350,9 @@ export const ChatPanel = memo(function ChatPanel({
 
                     <ChatMessage role={msg.role} content={msg.content}
                       isLastStreaming={isStreaming && msg.role === 'assistant' && i === messages.length - 1 && !!msg.content}
-                      toolCalls={'toolCalls' in msg ? (msg as { toolCalls?: string | null }).toolCalls : undefined} />
+                      toolCalls={'toolCalls' in msg ? (msg as { toolCalls?: string | null }).toolCalls : undefined}
+                      citations={msg.parsedCitations}
+                      onCitationClick={onCitationClick} />
 
                     {/* Copy button (assistant only) */}
                     {msg.role === 'assistant' && msg.content && (
