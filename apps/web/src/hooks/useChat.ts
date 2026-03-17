@@ -49,6 +49,18 @@ function classifyError(err: unknown, source: 'fetch' | 'response' | 'sse'): Chat
   return { type: 'unknown', message: msg || 'Something went wrong. Please try again.', retryable: true };
 }
 
+function formatInsightContext(insight: { type: string; summary: string; data: unknown }): string {
+  let msg = `[Insight context: ${insight.type}]\n\n${insight.summary}`;
+  if (insight.data && typeof insight.data === 'object') {
+    const entries = Object.entries(insight.data as Record<string, unknown>);
+    if (entries.length > 0) {
+      msg += '\n\nInsight data:\n' + entries.map(([k, v]) => `- ${k}: ${v}`).join('\n');
+    }
+  }
+  msg += '\n\nHelp me understand this and what I should do about it.';
+  return msg;
+}
+
 export function useChat({ workspaceId }: { workspaceId: string }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -62,6 +74,7 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastFailedMessageRef = useRef<string | null>(null);
+  const pendingInsightRef = useRef<{ conversationId: string; insight: { type: string; title: string; summary: string; data: unknown } } | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -298,6 +311,37 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
     ],
   );
 
+  // Auto-send insight context message when conversation loads
+  useEffect(() => {
+    const pending = pendingInsightRef.current;
+    if (!pending) return;
+    if (!conversationData) return;
+    if (conversationData.id !== pending.conversationId) return;
+
+    // Clear ref immediately to prevent re-firing
+    pendingInsightRef.current = null;
+
+    // If conversation already has messages, just open it (re-engaged insight)
+    if (conversationData.messages.length > 0) return;
+
+    sendMessage(formatInsightContext(pending.insight));
+  }, [conversationData, sendMessage]);
+
+  const startFromInsight = useCallback(
+    (conversationId: string, insight: { type: string; title: string; summary: string; data: unknown }) => {
+      pendingInsightRef.current = { conversationId, insight };
+      setActiveConversationId(conversationId);
+      // Invalidate to ensure fresh conversation data loads, triggering the effect above
+      queryClient.invalidateQueries({
+        queryKey: trpc.chat.getConversation.queryKey({ id: conversationId }),
+      });
+      queryClient.invalidateQueries({
+        queryKey: trpc.chat.listConversations.queryKey({ workspaceId }),
+      });
+    },
+    [queryClient, trpc, workspaceId],
+  );
+
   const retryLastMessage = useCallback(() => {
     const msg = lastFailedMessageRef.current;
     if (msg) {
@@ -340,6 +384,7 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
     streamingContent,
     isStreaming,
     sendMessage,
+    startFromInsight,
     createConversation,
     deleteConversation,
     error,

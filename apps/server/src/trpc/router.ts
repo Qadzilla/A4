@@ -10,6 +10,7 @@ import { financialRouter } from './routers/financial';
 import { folderRouter } from './routers/folder';
 import { healthRouter } from './routers/health';
 import { holdingRouter } from './routers/holding';
+import { insightsRouter } from './routers/insights';
 import { invoiceRouter } from './routers/invoice';
 import { marketDataRouter } from './routers/market-data';
 import { networthRouter } from './routers/networth';
@@ -27,6 +28,7 @@ export const appRouter = router({
   debt: debtRouter,
   health: healthRouter,
   holding: holdingRouter,
+  insights: insightsRouter,
   invoice: invoiceRouter,
   networth: networthRouter,
   workspace: workspaceRouter,

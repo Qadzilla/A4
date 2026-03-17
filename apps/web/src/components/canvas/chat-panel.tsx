@@ -104,6 +104,7 @@ interface ChatPanelProps {
   onDeleteConversation: (id: string) => void;
   toolActivity: ToolActivity[];
   onCitationClick?: (fileId: string) => void;
+  insightBanner?: { title: string } | null;
 }
 
 export const ChatPanel = memo(function ChatPanel({
@@ -126,6 +127,7 @@ export const ChatPanel = memo(function ChatPanel({
   onDeleteConversation,
   toolActivity,
   onCitationClick,
+  insightBanner,
 }: ChatPanelProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -135,6 +137,12 @@ export const ChatPanel = memo(function ChatPanel({
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const justSentRef = useRef(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  // Reset banner dismissed state when conversation changes
+  useEffect(() => {
+    setBannerDismissed(false);
+  }, [activeConversationId]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -280,6 +288,25 @@ export const ChatPanel = memo(function ChatPanel({
           </DropdownMenu>
         )}
       </div>
+
+      {/* Insight context banner */}
+      {insightBanner && !bannerDismissed && (
+        <div className="mx-4 mt-3 bg-[var(--color-paige)]/5 border-l-2 border-[var(--color-paige)] rounded p-3 flex items-start gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+            className="size-3.5 text-[var(--color-paige)] mt-0.5 shrink-0">
+            <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547Z" />
+          </svg>
+          <p className="text-xs text-muted-foreground flex-1" style={{ fontFamily: 'var(--font-chat)' }}>
+            This conversation started from an insight:{' '}
+            <span className="font-medium text-foreground">{insightBanner.title}</span>
+          </p>
+          <button type="button" onClick={() => setBannerDismissed(true)}
+            className="text-muted-foreground hover:text-foreground transition-colors shrink-0 text-sm leading-none p-0.5">
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Messages */}
       <div ref={scrollContainerRef} onScroll={handleScroll}

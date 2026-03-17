@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../db/schema';
-import { buildWorkspaceContext, buildDocumentContext, SYSTEM_PREAMBLE } from '../services/ai-context';
+import { buildWorkspaceContext, buildDocumentContext, buildInsightsSection, SYSTEM_PREAMBLE } from '../services/ai-context';
 
 vi.mock('../services/vector-search', () => ({
   searchDocuments: vi.fn().mockResolvedValue([]),
@@ -163,6 +163,20 @@ function createTestDb() {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+    CREATE TABLE workspace_insights (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      data TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      conversation_id TEXT,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER
+    );
   `);
   return drizzle(sqlite, { schema });
 }
@@ -217,6 +231,11 @@ function insertDebt(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id
 function insertHolding(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; symbol: string; name: string; value: number; targetPct: number; workspaceId: string; userId: string }> = {}) {
   const { id = crypto.randomUUID(), symbol = 'AAPL', name = 'Apple Inc', value = 5200, targetPct = 15, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
   return db.insert(schema.holdings).values({ id, symbol, name, value, targetPct, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+}
+
+function insertInsight(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; workspaceId: string; userId: string; type: string; severity: string; title: string; summary: string; data: string | null; status: string; conversationId: string | null; createdAt: Date; expiresAt: Date | null }> = {}) {
+  const { id = crypto.randomUUID(), workspaceId = 'ws-1', userId = 'user-1', type = 'budget_overspend', severity = 'warning', title = 'Test Insight', summary = 'Test summary', data = null, status = 'active', conversationId = null, createdAt = new Date(NOW), expiresAt = null } = overrides;
+  return db.insert(schema.workspaceInsights).values({ id, workspaceId, userId, type, severity, title, summary, data, status, conversationId, createdAt, expiresAt });
 }
 
 function insertCanvasItem(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; type: string; name: string; workspaceId: string; userId: string }> = {}) {
@@ -477,5 +496,96 @@ describe('buildDocumentContext', () => {
 
     expect(result.section).toBe('');
     expect(result.citations).toEqual([]);
+  });
+});
+
+describe('buildInsightsSection', () => {
+  let db: ReturnType<typeof createTestDb>;
+
+  beforeEach(() => {
+    db = createTestDb();
+  });
+
+  it('returns formatted insights grouped by severity', async () => {
+    await insertInsight(db, { severity: 'critical', title: 'Cash low', summary: 'Balance below $500' });
+    await insertInsight(db, { severity: 'warning', title: 'Budget exceeded', summary: 'Dining over by $180' });
+    await insertInsight(db, { severity: 'warning', title: 'Subscription spike', summary: 'Monthly subs up 20%' });
+    await insertInsight(db, { severity: 'info', title: 'Savings milestone', summary: 'Emergency fund at 3 months' });
+
+    const result = await buildInsightsSection(db, 'user-1', 'ws-1');
+
+    expect(result).toContain('## Active financial insights');
+    expect(result).toContain('### Critical');
+    expect(result).toContain('- **Cash low**: Balance below $500');
+    expect(result).toContain('### Warning');
+    expect(result).toContain('- **Budget exceeded**: Dining over by $180');
+    expect(result).toContain('- **Subscription spike**: Monthly subs up 20%');
+    expect(result).toContain('### Info');
+    expect(result).toContain('- **Savings milestone**: Emergency fund at 3 months');
+  });
+
+  it('returns empty string when no active insights', async () => {
+    const result = await buildInsightsSection(db, 'user-1', 'ws-1');
+    expect(result).toBe('');
+  });
+
+  it('excludes dismissed insights', async () => {
+    await insertInsight(db, { severity: 'warning', title: 'Active one', summary: 'Still relevant', status: 'active' });
+    await insertInsight(db, { severity: 'warning', title: 'Dismissed one', summary: 'No longer relevant', status: 'dismissed' });
+
+    const result = await buildInsightsSection(db, 'user-1', 'ws-1');
+
+    expect(result).toContain('Active one');
+    expect(result).not.toContain('Dismissed one');
+  });
+
+  it('excludes expired insights', async () => {
+    const past = new Date(Date.now() - 86400000); // 1 day ago
+    const future = new Date(Date.now() + 86400000); // 1 day from now
+
+    await insertInsight(db, { severity: 'warning', title: 'Still valid', summary: 'Not expired', expiresAt: future });
+    await insertInsight(db, { severity: 'warning', title: 'Old news', summary: 'Already expired', expiresAt: past });
+
+    const result = await buildInsightsSection(db, 'user-1', 'ws-1');
+
+    expect(result).toContain('Still valid');
+    expect(result).not.toContain('Old news');
+  });
+
+  it('omits severity headings with zero insights', async () => {
+    await insertInsight(db, { severity: 'warning', title: 'Warn 1', summary: 'Warning one' });
+    await insertInsight(db, { severity: 'warning', title: 'Warn 2', summary: 'Warning two' });
+
+    const result = await buildInsightsSection(db, 'user-1', 'ws-1');
+
+    expect(result).toContain('### Warning');
+    expect(result).not.toContain('### Critical');
+    expect(result).not.toContain('### Info');
+  });
+});
+
+describe('buildWorkspaceContext — with insights', () => {
+  let db: ReturnType<typeof createTestDb>;
+
+  beforeEach(() => {
+    db = createTestDb();
+  });
+
+  it('includes insights section in full context', async () => {
+    await insertWorkspace(db);
+    await insertInsight(db, { severity: 'critical', title: 'Cash critically low', summary: 'Only $200 remaining' });
+
+    const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
+
+    expect(result).toContain('## Active financial insights');
+    expect(result).toContain('**Cash critically low**');
+  });
+
+  it('omits insights section when none active', async () => {
+    await insertWorkspace(db);
+
+    const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
+
+    expect(result).not.toContain('## Active financial insights');
   });
 });

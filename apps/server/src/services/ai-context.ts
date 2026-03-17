@@ -1,4 +1,4 @@
-import { and, eq, desc, sql } from 'drizzle-orm';
+import { and, eq, desc, sql, isNull, or, gt } from 'drizzle-orm';
 import type { Citation } from '@a4/shared-schemas';
 import type { DB } from '../db';
 import {
@@ -13,6 +13,7 @@ import {
   invoiceLineItems,
   debts,
   holdings,
+  workspaceInsights,
 } from '../db/schema';
 
 export const SYSTEM_PREAMBLE = `You are Paige, an AI financial analyst embedded in the user's financial workspace.
@@ -67,7 +68,9 @@ Always ground your answers in the data available through your tools.
 ### Document citations
 - When you reference information from uploaded documents, cite the source using [1], [2], etc. These numbers correspond to the document excerpts provided in the "Relevant Documents" section.
 - Always cite your sources when answering questions about file content.
-- If no relevant documents section is provided, do not use citation markers.`;
+- If no relevant documents section is provided, do not use citation markers.
+
+You have access to automatically detected financial insights. When an insight is relevant to the user's question, reference it naturally. For insight-spawned conversations, lead with analysis of the specific insight. Do not repeat the insight verbatim — add value by explaining implications, suggesting actions, or running calculations.`;
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -319,6 +322,48 @@ async function buildCanvasItemsSection(db: DB, userId: string, workspaceId: stri
   return `### Canvas Items (${rows.length} items)\n${lines.join('\n')}`;
 }
 
+export async function buildInsightsSection(db: DB, userId: string, workspaceId: string): Promise<string> {
+  const rows = await db
+    .select({
+      severity: workspaceInsights.severity,
+      title: workspaceInsights.title,
+      summary: workspaceInsights.summary,
+    })
+    .from(workspaceInsights)
+    .where(
+      and(
+        eq(workspaceInsights.userId, userId),
+        eq(workspaceInsights.workspaceId, workspaceId),
+        eq(workspaceInsights.status, 'active'),
+        or(isNull(workspaceInsights.expiresAt), gt(workspaceInsights.expiresAt, new Date())),
+      ),
+    );
+
+  if (rows.length === 0) return '';
+
+  const groups: Record<string, typeof rows> = { critical: [], warning: [], info: [] };
+  for (const r of rows) {
+    const bucket = groups[r.severity];
+    if (bucket) bucket.push(r);
+  }
+
+  const lines: string[] = [
+    '## Active financial insights',
+    '',
+    'The following insights have been automatically detected in this workspace. You may reference these proactively in your responses when relevant:',
+  ];
+
+  for (const [severity, items] of Object.entries(groups)) {
+    if (items.length === 0) continue;
+    lines.push('', `### ${severity.charAt(0).toUpperCase() + severity.slice(1)}`);
+    for (const item of items) {
+      lines.push(`- **${item.title}**: ${item.summary}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 export async function buildWorkspaceContext(db: DB, userId: string, workspaceId: string): Promise<string> {
   // 1. Query workspace
   const [workspace] = await db
@@ -340,6 +385,7 @@ export async function buildWorkspaceContext(db: DB, userId: string, workspaceId:
     buildDebtsSection(db, userId, workspaceId),
     buildHoldingsSection(db, userId, workspaceId),
     buildCanvasItemsSection(db, userId, workspaceId),
+    buildInsightsSection(db, userId, workspaceId),
   ]);
 
   // 3. Filter out empty sections

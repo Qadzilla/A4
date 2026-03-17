@@ -9,7 +9,9 @@ import { CanvasItemRenderer } from '../../../../components/canvas/canvas-item-re
 import { CanvasMinimap } from '../../../../components/canvas/canvas-minimap';
 import { CashFlowCardView } from '../../../../components/canvas/cash-flow-card-view';
 import { ChatPanel } from '../../../../components/canvas/chat-panel';
+import { InsightsPanel } from '../../../../components/canvas/insights-panel';
 import { useChat } from '../../../../hooks/useChat';
+import { useInsights } from '../../../../hooks/useInsights';
 import { ChartCardView } from '../../../../components/canvas/chart-card-view';
 import { EmbedCardView } from '../../../../components/canvas/embed-card-view';
 import { DebtPlannerCardView } from '../../../../components/canvas/debt-planner-card-view';
@@ -235,9 +237,11 @@ export default function WorkspaceDetailPage() {
   const { data: workspace } = useQuery(trpc.workspace.getById.queryOptions({ id: id! }));
   const [message, setMessage] = useState('');
   const chat = useChat({ workspaceId: id! });
+  const insights = useInsights({ workspaceId: id! });
   const [topic, setTopic] = useState('general');
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
-  const [panelMode, setPanelMode] = useState<'tools' | 'chat'>('tools');
+  const [panelMode, setPanelMode] = useState<'tools' | 'chat' | 'insights'>('tools');
+  const [engagedInsightTitle, setEngagedInsightTitle] = useState<Record<string, string>>({});
   const [uploadedFiles, setUploadedFiles] = useState<FileCardData[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -984,6 +988,11 @@ export default function WorkspaceDetailPage() {
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
               </svg>
               <span className="text-[12px] font-medium">Tools</span>
+              {(insights.unreadCount ?? 0) > 0 && (
+                <span className="flex size-4 items-center justify-center rounded-full bg-destructive/15 text-[9px] font-medium text-destructive">
+                  {insights.unreadCount}
+                </span>
+              )}
             </button>
           )}
 
@@ -1229,7 +1238,26 @@ export default function WorkspaceDetailPage() {
               isPanelCollapsed && 'invisible',
             )}
           >
-            {panelMode === 'chat' ? (
+            {panelMode === 'insights' ? (
+              <InsightsPanel
+                insights={insights.insights}
+                isLoading={insights.isLoading}
+                isGenerating={insights.isGenerating}
+                onDismiss={insights.dismissInsight}
+                onEngage={async (id) => {
+                  try {
+                    const result = await insights.engageInsight(id);
+                    setEngagedInsightTitle((prev) => ({ ...prev, [result.conversationId]: result.insight.title }));
+                    chat.startFromInsight(result.conversationId, result.insight);
+                    setPanelMode('chat');
+                  } catch {
+                    // Error is silent — user stays on insights panel
+                  }
+                }}
+                onClose={() => setPanelMode('tools')}
+                unreadCount={insights.unreadCount}
+              />
+            ) : panelMode === 'chat' ? (
               <ChatPanel
                 messages={chat.messages}
                 message={message}
@@ -1250,6 +1278,18 @@ export default function WorkspaceDetailPage() {
                 onDeleteConversation={chat.deleteConversation}
                 toolActivity={chat.toolActivity}
                 onCitationClick={handleCitationClick}
+                insightBanner={
+                  chat.activeConversationId && engagedInsightTitle[chat.activeConversationId]
+                    ? { title: engagedInsightTitle[chat.activeConversationId] }
+                    : chat.activeConversationId
+                      ? (() => {
+                          const matched = insights.insights.find(
+                            (i: any) => i.conversationId === chat.activeConversationId,
+                          );
+                          return matched ? { title: matched.title } : null;
+                        })()
+                      : null
+                }
               />
             ) : (
             <>
@@ -1607,8 +1647,34 @@ export default function WorkspaceDetailPage() {
               </>
             ) : null}
 
-            {/* AI Chat bar pinned to bottom */}
-            <div className="mt-auto border-t border-border/60 p-2">
+            {/* Insights + AI Chat bar pinned to bottom */}
+            <div className="mt-auto border-t border-border/60 p-2 space-y-0.5">
+              <button
+                type="button"
+                onClick={() => setPanelMode('insights')}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-100"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-4"
+                >
+                  <path d="M9 18h6" />
+                  <path d="M10 22h4" />
+                  <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+                </svg>
+                Insights
+                {(insights.unreadCount ?? 0) > 0 && (
+                  <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-destructive/15 text-[10px] font-medium text-destructive">
+                    {insights.unreadCount}
+                  </span>
+                )}
+              </button>
               <button
                 type="button"
                 onClick={() => setPanelMode('chat')}

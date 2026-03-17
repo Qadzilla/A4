@@ -437,3 +437,21 @@ export const aiUsage = sqliteTable('ai_usage', {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+// Proactive insights
+export const workspaceInsights = sqliteTable('workspace_insights', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  type: text('type').notNull(),
+  severity: text('severity').notNull(),
+  title: text('title').notNull(),
+  summary: text('summary').notNull(),
+  data: text('data'),
+  status: text('status').notNull().default('active'),
+  conversationId: text('conversation_id'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  expiresAt: integer('expires_at', { mode: 'timestamp' }),
+});
