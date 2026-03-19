@@ -30,6 +30,7 @@ function createTestDb() {
       user_id TEXT NOT NULL,
       title TEXT,
       model TEXT NOT NULL DEFAULT 'claude-sonnet-4-6',
+      summary TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );

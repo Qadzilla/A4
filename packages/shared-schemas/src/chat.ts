@@ -21,6 +21,7 @@ export const conversationSchema = z.object({
   userId: z.string(),
   title: z.string().max(200).nullable(),
   model: z.string().default('claude-sonnet-4-6'),
+  summary: z.string().nullable().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -95,6 +96,7 @@ export const conversationListItemSchema = z.object({
   id: z.string().uuid(),
   title: z.string().max(200).nullable(),
   model: z.string(),
+  summary: z.string().nullable().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
   messageCount: z.number().int().nonnegative(),

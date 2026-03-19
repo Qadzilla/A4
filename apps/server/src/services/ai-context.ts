@@ -1,4 +1,4 @@
-import { and, eq, desc, sql, isNull, or, gt } from 'drizzle-orm';
+import { and, eq, ne, desc, sql, isNull, isNotNull, or, gt } from 'drizzle-orm';
 import type { Citation } from '@a4/shared-schemas';
 import type { DB } from '../db';
 import {
@@ -14,6 +14,7 @@ import {
   debts,
   holdings,
   workspaceInsights,
+  conversations,
 } from '../db/schema';
 
 export const SYSTEM_PREAMBLE = `You are Paige, an AI financial analyst embedded in the user's financial workspace.
@@ -58,7 +59,9 @@ Always ground your answers in the data available through your tools.
 ### Restrictions
 - You cannot delete canvas items. If the user asks to delete something, explain they must do it manually from the canvas.
 - You cannot modify or read vault-encrypted data (secrets). Never include encrypted data in responses.
-- You cannot access data from other workspaces. If the user asks about data in a different workspace, let them know they need to switch workspaces.
+
+### Cross-workspace queries
+You HAVE the ability to access data from the user's OTHER workspaces. Use the list_workspaces tool to discover all workspaces, then use query_workspace to pull data from any of them. You MUST use these tools when the user asks about data across workspaces (e.g., "total cash across all accounts", "compare my personal and business expenses", "what's my total balance", or any question implying data from multiple workspaces). Always call list_workspaces first to discover available workspaces before querying. Never assume workspace IDs — always look them up.
 
 ### Response formatting
 - Format numbers as currency ($12,345.67) and percentages (12.5%) — never use raw unformatted numbers.
@@ -70,7 +73,40 @@ Always ground your answers in the data available through your tools.
 - Always cite your sources when answering questions about file content.
 - If no relevant documents section is provided, do not use citation markers.
 
-You have access to automatically detected financial insights. When an insight is relevant to the user's question, reference it naturally. For insight-spawned conversations, lead with analysis of the specific insight. Do not repeat the insight verbatim — add value by explaining implications, suggesting actions, or running calculations.`;
+You have access to automatically detected financial insights. When an insight is relevant to the user's question, reference it naturally. For insight-spawned conversations, lead with analysis of the specific insight. Do not repeat the insight verbatim — add value by explaining implications, suggesting actions, or running calculations.
+
+You have memory of prior conversations with this user via session summaries. When prior context is relevant (e.g., the user follows up on a topic from a previous session), reference it naturally. Say "Last time we discussed X" or "Following up on your question about Y". Do not fabricate prior conversation history — only reference what appears in the Prior conversation context section.
+
+## Complex analysis patterns
+
+When the user asks a complex financial question, follow these structured reasoning approaches. Call tools in the order shown, then synthesize a recommendation.
+
+### "Can I afford X?" pattern
+1. get_accounts → check liquid cash for down payment/upfront costs
+2. get_networth → assess overall financial health
+3. Run the relevant calculator (calculate_loan for mortgages, calculate_projection for investments)
+4. get_budgets → check monthly cash flow capacity against new obligations
+5. Synthesize: state whether the user can afford it, quantify the margin, note risks
+
+### "Compare options" pattern
+1. list_workspaces → check if relevant data spans workspaces
+2. Use create_scenario_comparison to build side-by-side cards
+3. Highlight the key differentiators (total cost, monthly impact, timeline)
+4. Make a recommendation with reasoning, not just numbers
+
+### "Cross-workspace totals" pattern
+1. list_workspaces → discover all workspaces
+2. query_workspace for each relevant workspace
+3. Aggregate the numbers yourself (sum, average, compare)
+4. Present a unified view with per-workspace breakdown
+
+### "Financial health check" pattern
+1. get_accounts → liquid position
+2. get_networth → net worth trend
+3. get_budgets → spending vs. income
+4. get_debts → debt-to-income ratio
+5. get_holdings → investment allocation
+6. Synthesize: traffic-light summary (green/yellow/red) for each area, overall score, top 3 action items`;
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -364,7 +400,111 @@ export async function buildInsightsSection(db: DB, userId: string, workspaceId: 
   return lines.join('\n');
 }
 
-export async function buildWorkspaceContext(db: DB, userId: string, workspaceId: string): Promise<string> {
+function relativeTime(date: Date): string {
+  const deltaMs = Date.now() - date.getTime();
+  const minutes = Math.floor(deltaMs / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+}
+
+const MEMORY_CHAR_BUDGET = 2000;
+
+export async function buildConversationMemorySection(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+  currentConversationId: string,
+): Promise<string> {
+  const rows = await db
+    .select({
+      id: conversations.id,
+      title: conversations.title,
+      summary: conversations.summary,
+      updatedAt: conversations.updatedAt,
+    })
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.userId, userId),
+        eq(conversations.workspaceId, workspaceId),
+        isNotNull(conversations.summary),
+        ne(conversations.id, currentConversationId),
+      ),
+    )
+    .orderBy(desc(conversations.updatedAt))
+    .limit(5);
+
+  if (rows.length === 0) return '';
+
+  const bullets: string[] = [];
+  let charCount = 0;
+
+  for (const row of rows) {
+    const title = row.title ?? 'Untitled conversation';
+    const time = relativeTime(row.updatedAt);
+    const bullet = `- **${title}** (${time}): ${row.summary}`;
+
+    if (charCount + bullet.length > MEMORY_CHAR_BUDGET && bullets.length > 0) {
+      // Try to truncate at last period
+      const remaining = MEMORY_CHAR_BUDGET - charCount;
+      const truncated = bullet.slice(0, remaining);
+      const lastPeriod = truncated.lastIndexOf('.');
+      if (lastPeriod > bullet.indexOf(':')) {
+        bullets.push(`${truncated.slice(0, lastPeriod + 1)}`);
+      }
+      break;
+    }
+
+    charCount += bullet.length;
+    bullets.push(bullet);
+  }
+
+  if (bullets.length === 0) return '';
+
+  return `## Prior conversation context
+
+You have discussed the following topics with this user in previous sessions. Reference these when relevant — do not repeat them verbatim, but use them to provide continuity:
+
+${bullets.join('\n')}`;
+}
+
+export async function buildWorkspaceListSection(
+  db: DB, userId: string, currentWorkspaceId: string,
+): Promise<string> {
+  const rows = await db
+    .select({
+      id: workspaces.id,
+      name: workspaces.name,
+      type: workspaces.type,
+      description: workspaces.description,
+    })
+    .from(workspaces)
+    .where(and(eq(workspaces.userId, userId), ne(workspaces.id, currentWorkspaceId)));
+
+  if (rows.length === 0) return '';
+
+  const tableRows = rows.map(
+    (r) => `| ${r.name} (id: ${r.id}) | ${r.type} | ${r.description || 'No description'} |`,
+  );
+
+  return `## User's other workspaces
+
+The user has these other workspaces you can query using the query_workspace tool:
+
+| Workspace | Type | Description |
+|-----------|------|-------------|
+${tableRows.join('\n')}`;
+}
+
+export async function buildWorkspaceDataSummary(
+  db: DB, userId: string, workspaceId: string, currentConversationId?: string,
+): Promise<string> {
   // 1. Query workspace
   const [workspace] = await db
     .select({ id: workspaces.id, name: workspaces.name, type: workspaces.type })
@@ -376,7 +516,7 @@ export async function buildWorkspaceContext(db: DB, userId: string, workspaceId:
   }
 
   // 2. Run all section builders in parallel
-  const sections = await Promise.all([
+  const builders: Promise<string>[] = [
     buildAccountsSection(db, userId, workspaceId),
     buildBudgetSection(db, userId, workspaceId),
     buildNetworthSection(db, userId, workspaceId),
@@ -386,16 +526,24 @@ export async function buildWorkspaceContext(db: DB, userId: string, workspaceId:
     buildHoldingsSection(db, userId, workspaceId),
     buildCanvasItemsSection(db, userId, workspaceId),
     buildInsightsSection(db, userId, workspaceId),
-  ]);
+    buildWorkspaceListSection(db, userId, workspaceId),
+  ];
+  if (currentConversationId) {
+    builders.push(buildConversationMemorySection(db, userId, workspaceId, currentConversationId));
+  }
+  const sections = await Promise.all(builders);
 
   // 3. Filter out empty sections
   const nonEmpty = sections.filter((s) => s !== '');
 
   // 4. Assemble
   const header = `## Workspace: "${workspace.name}"\nType: ${workspace.type}`;
-  const contextBody = [header, ...nonEmpty].join('\n\n');
+  return [header, ...nonEmpty].join('\n\n');
+}
 
-  return `${SYSTEM_PREAMBLE}\n\n## Current workspace context\n\n${contextBody}`;
+export async function buildWorkspaceContext(db: DB, userId: string, workspaceId: string, currentConversationId?: string): Promise<string> {
+  const dataSummary = await buildWorkspaceDataSummary(db, userId, workspaceId, currentConversationId);
+  return `${SYSTEM_PREAMBLE}\n\n## Current workspace context\n\n${dataSummary}`;
 }
 
 const TOKEN_BUDGET_CHARS = 8000;

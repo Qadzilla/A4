@@ -95,6 +95,39 @@ function mapAnthropicError(error: unknown): AnthropicServiceError {
   );
 }
 
+export interface ChatCompletionOptions {
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  systemPrompt: string;
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export async function chatCompletion(options: ChatCompletionOptions): Promise<string> {
+  const {
+    messages,
+    systemPrompt,
+    model = 'claude-sonnet-4-6',
+    maxTokens = 4096,
+    temperature,
+  } = options;
+  const anthropic = getClient();
+
+  try {
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages,
+      ...(temperature !== undefined && { temperature }),
+    });
+    const block = response.content[0];
+    return block && block.type === 'text' ? block.text : '';
+  } catch (error) {
+    throw mapAnthropicError(error);
+  }
+}
+
 // For testing — reset the lazy singleton
 export function _resetClient(): void {
   client = null;

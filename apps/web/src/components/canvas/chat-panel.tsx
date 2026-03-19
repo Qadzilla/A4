@@ -54,32 +54,70 @@ function PaigeAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 }
 
 
-function ToolActivityList({ items }: { items: ToolActivity[] }) {
+function getToolLabel(t: ToolActivity, workspaceNames: Record<string, string>): string {
+  if (t.toolName === 'list_workspaces') {
+    return t.status === 'running' ? 'Listing your workspaces...' : 'Listed workspaces';
+  }
+  if (t.toolName === 'query_workspace') {
+    const wsId = t.toolInput?.workspace_id as string | undefined;
+    const wsName = (wsId && workspaceNames[wsId]) || 'another workspace';
+    if (t.status === 'running') return `Querying ${wsName}...`;
+    if (t.status === 'error') return `Access denied for ${wsName}`;
+    return `Retrieved data from ${wsName}`;
+  }
+  if (t.toolName === 'create_scenario_comparison') {
+    const scenarios = t.toolInput?.scenarios as unknown[] | undefined;
+    const count = scenarios?.length ?? 0;
+    if (t.status === 'running') return count > 0 ? `Creating ${count}-scenario comparison…` : 'Creating scenario comparison…';
+    if (t.status === 'error') return 'Scenario comparison failed';
+    return count > 0 ? `Created ${count}-scenario comparison` : 'Created scenario comparison';
+  }
+  return t.toolName;
+}
+
+const CROSS_WORKSPACE_TOOLS = new Set(['list_workspaces', 'query_workspace']);
+
+function ExternalLinkIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-2.5 inline ml-0.5 opacity-60">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
+}
+
+function ToolActivityList({ items, workspaceNames }: { items: ToolActivity[]; workspaceNames: Record<string, string> }) {
   if (items.length === 0) return null;
   return (
     <div className="mt-1.5 space-y-0.5 border-l-2 border-[var(--color-paige)]/20 pl-2">
-      {items.map((t) => (
-        <div key={t.toolCallId} data-testid="tool-activity-item"
-          className="flex items-center gap-1.5 text-[11px] transition-all duration-200"
-          style={{ fontFamily: 'var(--font-chat-mono)' }}>
-          {t.status === 'running' ? (
-            <>
-              <span className="size-1.5 rounded-full bg-[var(--color-paige)] animate-pulse" />
-              <span className="text-muted-foreground">{t.toolName}</span>
-            </>
-          ) : t.status === 'error' ? (
-            <>
-              <span className="text-yellow-600 dark:text-yellow-400">✕</span>
-              <span className="text-muted-foreground">{t.toolName}</span>
-            </>
-          ) : (
-            <>
-              <span className="text-muted-foreground/60">✓</span>
-              <span className="text-muted-foreground/60">{t.toolName} ({t.durationMs}ms)</span>
-            </>
-          )}
-        </div>
-      ))}
+      {items.map((t) => {
+        const label = getToolLabel(t, workspaceNames);
+        const isCross = CROSS_WORKSPACE_TOOLS.has(t.toolName);
+        return (
+          <div key={t.toolCallId} data-testid="tool-activity-item"
+            className="flex items-center gap-1.5 text-[11px] transition-all duration-200"
+            style={{ fontFamily: 'var(--font-chat-mono)' }}>
+            {t.status === 'running' ? (
+              <>
+                <span className="size-1.5 rounded-full bg-[var(--color-paige)] animate-pulse" />
+                <span className="text-muted-foreground">{label}{isCross && <ExternalLinkIcon />}</span>
+              </>
+            ) : t.status === 'error' ? (
+              <>
+                <span className="text-yellow-600 dark:text-yellow-400">✕</span>
+                <span className="text-muted-foreground">{label}{isCross && <ExternalLinkIcon />}</span>
+              </>
+            ) : (
+              <>
+                <span className="text-muted-foreground/60">✓</span>
+                <span className="text-muted-foreground/60">{label}{isCross ? <ExternalLinkIcon /> : ` (${t.durationMs}ms)`}</span>
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -103,6 +141,8 @@ interface ChatPanelProps {
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
   toolActivity: ToolActivity[];
+  hasUsedCrossWorkspace: boolean;
+  workspaceNames: Record<string, string>;
   onCitationClick?: (fileId: string) => void;
   insightBanner?: { title: string } | null;
 }
@@ -126,6 +166,8 @@ export const ChatPanel = memo(function ChatPanel({
   onNewConversation,
   onDeleteConversation,
   toolActivity,
+  hasUsedCrossWorkspace,
+  workspaceNames,
   onCitationClick,
   insightBanner,
 }: ChatPanelProps) {
@@ -201,6 +243,19 @@ export const ChatPanel = memo(function ChatPanel({
               style={{ fontFamily: 'var(--font-chat-mono)', letterSpacing: '0.04em' }}>
               <span className="size-1.5 bg-[var(--color-paige)] animate-pulse" />
               Online
+              {hasUsedCrossWorkspace && (
+                <span data-testid="multi-workspace-badge" className="ml-1.5 px-1.5 py-0.5 text-[9px] bg-[var(--color-paige)]/10 text-[var(--color-paige)] rounded-sm"
+                  style={{ fontFamily: 'var(--font-chat-mono)' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    className="size-2.5 inline mr-0.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M2 12h20" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                  Multi-workspace
+                </span>
+              )}
             </span>
           </div>
         </div>
@@ -402,7 +457,7 @@ export const ChatPanel = memo(function ChatPanel({
 
                   {/* Tool activity indicators (last assistant message only) */}
                   {msg.role === 'assistant' && i === messages.length - 1 && toolActivity.length > 0 && (
-                    <ToolActivityList items={toolActivity} />
+                    <ToolActivityList items={toolActivity} workspaceNames={workspaceNames} />
                   )}
 
                   {/* Timestamp (hover-reveal) */}
@@ -433,7 +488,7 @@ export const ChatPanel = memo(function ChatPanel({
                   </div>
                 </div>
                 {toolActivity.length > 0 && (
-                  <ToolActivityList items={toolActivity} />
+                  <ToolActivityList items={toolActivity} workspaceNames={workspaceNames} />
                 )}
               </div>
             )}

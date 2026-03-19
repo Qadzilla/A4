@@ -9,6 +9,7 @@ import { DEV_AUTH_BYPASS } from '../env';
 import { buildWorkspaceContext, buildDocumentContext } from '../services/ai-context';
 import { AnthropicServiceError, streamChatCompletion } from '../services/anthropic';
 import { getToolDefinitions, safeExecuteTool, type ToolContext } from '../services/ai-tools';
+import { summarizeConversation } from '../services/conversation-summarizer';
 
 const MAX_TOOL_ROUNDS = 10;
 const MAX_TOOLS_PER_ROUND = 20;
@@ -192,7 +193,7 @@ async function iterateStream(
 // --- Canvas update action logic ---
 
 function getCanvasAction(toolName: string): 'create' | 'update' | null {
-  if (toolName === 'create_canvas_item' || toolName === 'create_connection') return 'create';
+  if (toolName === 'create_canvas_item' || toolName === 'create_connection' || toolName === 'create_scenario_comparison') return 'create';
   if (toolName === 'update_canvas_item' || toolName === 'position_items') return 'update';
   return null;
 }
@@ -252,7 +253,7 @@ chatStreamRouter.post('/', async (req, res) => {
 
   try {
     // 6. Build system prompt
-    let systemPrompt = await buildWorkspaceContext(db, userId, conversation.workspaceId);
+    let systemPrompt = await buildWorkspaceContext(db, userId, conversation.workspaceId, conversationId);
 
     // 6b. RAG: inject document context if workspace has chunks
     let citations: Citation[] = [];
@@ -282,6 +283,7 @@ chatStreamRouter.post('/', async (req, res) => {
 
     // 8. Get tool definitions
     const tools = getToolDefinitions();
+    console.log(`[chat-stream] Sending ${tools.length} tools to Claude:`, tools.map(t => t.name).join(', '));
     const toolCtx: ToolContext = { db, userId, workspaceId: conversation.workspaceId };
 
     // 9. Send message_start event (final assistant message ID)
@@ -358,21 +360,29 @@ chatStreamRouter.post('/', async (req, res) => {
           break;
         }
 
-        sendSSE(res, { type: 'tool_call_start', toolName: block.name, toolCallId: block.id });
+        sendSSE(res, { type: 'tool_call_start', toolName: block.name, toolCallId: block.id, toolInput: block.input });
 
+        const toolStartTime = Date.now();
         const safeResult = await safeExecuteTool(block.name, block.input, toolCtx);
         const toolResult = safeResult.result;
         const isError = safeResult.isError;
 
-        sendSSE(res, { type: 'tool_call_end', toolCallId: block.id });
+        sendSSE(res, { type: 'tool_call_end', toolCallId: block.id, toolName: block.name, durationMs: Date.now() - toolStartTime });
 
         // Send canvas_update if applicable
         if (toolResult._canvasUpdate) {
           const action = getCanvasAction(block.name);
           if (action) {
-            const canvasData = { ...toolResult };
-            delete canvasData._canvasUpdate;
-            sendSSE(res, { type: 'canvas_update', action, item: canvasData });
+            if (Array.isArray(toolResult.createdItems)) {
+              // Multi-item creation (scenario comparison)
+              for (const item of toolResult.createdItems as Array<Record<string, unknown>>) {
+                sendSSE(res, { type: 'canvas_update', action, item });
+              }
+            } else {
+              const canvasData = { ...toolResult };
+              delete canvasData._canvasUpdate;
+              sendSSE(res, { type: 'canvas_update', action, item: canvasData });
+            }
           }
         }
 
@@ -485,6 +495,9 @@ chatStreamRouter.post('/', async (req, res) => {
         costCents: calculateCostCents(conversation.model, totalInputTokens, totalOutputTokens),
         createdAt: new Date(),
       });
+
+      // Fire-and-forget summarization
+      summarizeConversation(db, conversationId);
     }
   } catch (error) {
     if (error instanceof AnthropicServiceError) {

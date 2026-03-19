@@ -384,6 +384,7 @@ export const conversations = sqliteTable('conversations', {
   userId: text('user_id').notNull(),
   title: text('title'),
   model: text('model').notNull().default('claude-sonnet-4-6'),
+  summary: text('summary'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),

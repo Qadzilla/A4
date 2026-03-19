@@ -990,7 +990,74 @@ const TOOLS: ToolRegistration[] = [
     },
   },
 
-  // 25. search_documents
+  // 25. list_workspaces
+  {
+    definition: {
+      name: 'list_workspaces',
+      description:
+        'List ALL workspaces owned by the current user, including the current one and all others. You MUST call this first before using query_workspace. Use this whenever the user asks about data across multiple workspaces or total/aggregate figures.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {},
+        required: [],
+      },
+    },
+    execute: async (_input, ctx) => {
+      const rows = await ctx.db
+        .select({
+          id: workspaces.id,
+          name: workspaces.name,
+          type: workspaces.type,
+          description: workspaces.description,
+        })
+        .from(workspaces)
+        .where(eq(workspaces.userId, ctx.userId));
+
+      return { workspaces: rows };
+    },
+  },
+
+  // 26. query_workspace
+  {
+    definition: {
+      name: 'query_workspace',
+      description:
+        'Query financial data from another workspace owned by the user. Call list_workspaces first to get workspace IDs, then call this for each workspace you need data from. Use for cross-workspace totals, comparisons, or any question about data outside the current workspace.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          workspace_id: {
+            type: 'string',
+            description: 'The ID of the workspace to query.',
+          },
+          question: {
+            type: 'string',
+            description: 'The question or topic to query about in the target workspace.',
+          },
+        },
+        required: ['workspace_id', 'question'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const { verifyWorkspaceAccess, dispatchWorkspaceQuery } = await import('./cross-workspace');
+      const workspaceId = input.workspace_id as string;
+      const question = input.question as string;
+
+      if (!workspaceId || !question) {
+        return { error: 'Both workspace_id and question are required.' };
+      }
+
+      const hasAccess = await verifyWorkspaceAccess(ctx.db, ctx.userId, workspaceId);
+      if (!hasAccess) {
+        return { error: "You don't have access to that workspace." };
+      }
+
+      const result = await dispatchWorkspaceQuery(ctx.db, ctx.userId, workspaceId, question);
+      return { result };
+    },
+  },
+
+  // 27. search_documents
   {
     definition: {
       name: 'search_documents',
@@ -1038,6 +1105,51 @@ const TOOLS: ToolRegistration[] = [
       } catch {
         return { results: [], message: 'Document search is not available. Embedding service may be unavailable.' };
       }
+    },
+  },
+
+  // 28. create_scenario_comparison
+  {
+    definition: {
+      name: 'create_scenario_comparison',
+      description:
+        'Create 2-4 financial calculator cards on the canvas with a comparison summary page. Use for "what if" comparisons like "15 vs 30 year mortgage" or "max 401k vs match only".',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          comparison_name: {
+            type: 'string',
+            description: 'Title for the comparison (e.g. "Mortgage: 15-Year vs 30-Year")',
+          },
+          scenarios: {
+            type: 'array',
+            description: 'Array of 2-4 scenarios. Each needs a label, card type, and calculator parameters.',
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string' },
+                type: {
+                  type: 'string',
+                  description:
+                    'One of: projection-card, loan-calculator-card, tax-estimator-card, breakeven-card, depreciation-card, rent-vs-buy-card',
+                },
+                params: { type: 'object', description: 'Calculator parameters (same fields as calculate_* tools)' },
+              },
+              required: ['label', 'type', 'params'],
+            },
+          },
+        },
+        required: ['comparison_name', 'scenarios'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const { executeScenarioComparison } = await import('./scenario-engine');
+      const comparisonName = input.comparison_name as string;
+      const scenarios = input.scenarios as Array<{ label: string; type: string; params: Record<string, unknown> }>;
+      return executeScenarioComparison(ctx.db, ctx, comparisonName, scenarios as any) as unknown as Record<
+        string,
+        unknown
+      >;
     },
   },
 ];

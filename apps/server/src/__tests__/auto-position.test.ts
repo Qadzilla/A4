@@ -130,12 +130,12 @@ describe('createDefaultData', () => {
     expect(data).toEqual({ label: 'Metric', value: '0', format: 'number' });
   });
 
-  it('returns undefined for header-card', () => {
-    expect(createDefaultData('header-card')).toBeUndefined();
+  it('returns { text: "" } for header-card', () => {
+    expect(createDefaultData('header-card')).toEqual({ text: '' });
   });
 
-  it('returns undefined for a4-page', () => {
-    expect(createDefaultData('a4-page')).toBeUndefined();
+  it('returns { text: "" } for a4-page', () => {
+    expect(createDefaultData('a4-page')).toEqual({ text: '' });
   });
 
   it('returns undefined for unknown types', () => {

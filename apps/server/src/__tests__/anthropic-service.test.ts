@@ -38,7 +38,7 @@ vi.mock('@anthropic-ai/sdk', () => {
   return { default: MockAnthropic, APIError };
 });
 
-import { _resetClient, streamChatCompletion, AnthropicServiceError } from '../services/anthropic';
+import { _resetClient, streamChatCompletion, chatCompletion, AnthropicServiceError } from '../services/anthropic';
 import { env } from '../env';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -200,6 +200,67 @@ describe('AnthropicService', () => {
       const callArgs = mockCreate.mock.calls[0]![0];
       expect(callArgs).not.toHaveProperty('tools');
       expect(callArgs).not.toHaveProperty('tool_choice');
+    });
+  });
+
+  describe('chatCompletion', () => {
+    it('returns text from non-streaming response', async () => {
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: 'Summary text' }],
+      });
+
+      const result = await chatCompletion({
+        messages: [{ role: 'user', content: 'Summarize this' }],
+        systemPrompt: 'You are a summarizer.',
+      });
+
+      expect(result).toBe('Summary text');
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4096,
+        }),
+      );
+      // Should NOT have stream: true
+      const callArgs = mockCreate.mock.calls[0]![0];
+      expect(callArgs.stream).toBeUndefined();
+    });
+
+    it('passes temperature and model options', async () => {
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: 'Result' }],
+      });
+
+      await chatCompletion({
+        messages: [{ role: 'user', content: 'test' }],
+        systemPrompt: 'test',
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 200,
+        temperature: 0,
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 200,
+          temperature: 0,
+        }),
+      );
+    });
+
+    it('throws AnthropicServiceError on API failure', async () => {
+      mockCreate.mockRejectedValueOnce(new Anthropic.APIError(500, undefined, 'Server error', undefined));
+
+      try {
+        await chatCompletion({
+          messages: [{ role: 'user', content: 'test' }],
+          systemPrompt: 'test',
+        });
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(AnthropicServiceError);
+        expect((e as AnthropicServiceError).type).toBe('ANTHROPIC_UNKNOWN_ERROR');
+      }
     });
   });
 

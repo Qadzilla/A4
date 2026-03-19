@@ -78,6 +78,7 @@ function createTestDb() {
       user_id TEXT NOT NULL,
       title TEXT,
       model TEXT NOT NULL DEFAULT 'claude-sonnet-4-6',
+      summary TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -457,11 +458,15 @@ describe('POST /api/chat/stream', () => {
       type: 'tool_call_start',
       toolName: 'get_accounts',
       toolCallId: 'tool-1',
+      toolInput: {},
     });
-    expect(events.find((e) => e.type === 'tool_call_end')).toEqual({
+    const toolEnd = events.find((e) => e.type === 'tool_call_end');
+    expect(toolEnd).toMatchObject({
       type: 'tool_call_end',
       toolCallId: 'tool-1',
+      toolName: 'get_accounts',
     });
+    expect(typeof toolEnd!.durationMs).toBe('number');
     expect(events.find((e) => e.type === 'tool_result')).toEqual({
       type: 'tool_result',
       toolCallId: 'tool-1',

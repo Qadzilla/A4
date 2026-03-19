@@ -10,6 +10,7 @@ export interface ToolActivity {
   status: 'running' | 'complete' | 'error';
   startedAt: number;
   durationMs?: number;
+  toolInput?: Record<string, unknown>;
 }
 
 export type ChatErrorType = 'network' | 'rate_limit' | 'api_error' | 'unknown';
@@ -71,6 +72,8 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<ChatError | null>(null);
   const [toolActivity, setToolActivity] = useState<ToolActivity[]>([]);
+  const [workspaceNames, setWorkspaceNames] = useState<Record<string, string>>({});
+  const [hasUsedCrossWorkspace, setHasUsedCrossWorkspace] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastFailedMessageRef = useRef<string | null>(null);
@@ -144,6 +147,8 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
     async (content: string) => {
       setError(null);
       setToolActivity([]);
+      setHasUsedCrossWorkspace(false);
+      setWorkspaceNames({});
 
       // Abort any in-flight stream
       if (isStreaming) {
@@ -197,6 +202,7 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
           });
         } catch (fetchErr) {
           if ((fetchErr as Error).name === 'AbortError') return;
+          console.error('[useChat] fetch failed:', fetchErr, 'conversationId:', conversationId);
           lastFailedMessageRef.current = content;
           setError(classifyError(fetchErr, 'fetch'));
           setIsStreaming(false);
@@ -243,8 +249,11 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
                 case 'tool_call_start':
                   setToolActivity((prev) => [
                     ...prev,
-                    { toolCallId: event.toolCallId, toolName: event.toolName, status: 'running', startedAt: Date.now() },
+                    { toolCallId: event.toolCallId, toolName: event.toolName, toolInput: event.toolInput, status: 'running', startedAt: Date.now() },
                   ]);
+                  if (event.toolName === 'query_workspace') {
+                    setHasUsedCrossWorkspace(true);
+                  }
                   break;
                 case 'tool_call_end':
                   setToolActivity((prev) =>
@@ -262,6 +271,17 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
                         t.toolCallId === event.toolCallId ? { ...t, status: 'error' } : t,
                       ),
                     );
+                  }
+                  // Populate workspace name cache from list_workspaces result
+                  if (event.toolName === 'list_workspaces' && !event.isError) {
+                    const data = event.result as { workspaces?: { id: string; name: string }[] };
+                    if (data?.workspaces) {
+                      setWorkspaceNames((prev) => {
+                        const next = { ...prev };
+                        for (const ws of data.workspaces!) next[ws.id] = ws.name;
+                        return next;
+                      });
+                    }
                   }
                   break;
                 case 'canvas_update':
@@ -293,6 +313,7 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
         }
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
+        console.error('[useChat] outer catch:', err);
         lastFailedMessageRef.current = content;
         setError(classifyError(err, 'fetch'));
         setIsStreaming(false);
@@ -392,5 +413,7 @@ export function useChat({ workspaceId }: { workspaceId: string }) {
     retryLastMessage,
     isLoadingConversation,
     toolActivity,
+    hasUsedCrossWorkspace,
+    workspaceNames,
   };
 }

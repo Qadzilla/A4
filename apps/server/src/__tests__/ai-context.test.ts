@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../db/schema';
-import { buildWorkspaceContext, buildDocumentContext, buildInsightsSection, SYSTEM_PREAMBLE } from '../services/ai-context';
+import { buildWorkspaceContext, buildDocumentContext, buildInsightsSection, buildConversationMemorySection, buildWorkspaceListSection, SYSTEM_PREAMBLE } from '../services/ai-context';
 
 vi.mock('../services/vector-search', () => ({
   searchDocuments: vi.fn().mockResolvedValue([]),
@@ -177,15 +177,25 @@ function createTestDb() {
       created_at INTEGER NOT NULL,
       expires_at INTEGER
     );
+    CREATE TABLE conversations (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      title TEXT,
+      model TEXT NOT NULL DEFAULT 'claude-sonnet-4-6',
+      summary TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
   `);
   return drizzle(sqlite, { schema });
 }
 
 const NOW = Date.now();
 
-function insertWorkspace(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; userId: string; type: string }> = {}) {
-  const { id = 'ws-1', name = 'Personal Finance 2026', userId = 'user-1', type = 'workspace' } = overrides;
-  return db.insert(schema.workspaces).values({ id, name, userId, type, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertWorkspace(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; userId: string; type: string; description: string }> = {}) {
+  const { id = 'ws-1', name = 'Personal Finance 2026', userId = 'user-1', type = 'workspace', description } = overrides;
+  return db.insert(schema.workspaces).values({ id, name, userId, type, description, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
 }
 
 function insertAccount(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; institution: string; type: string; balance: number; workspaceId: string; userId: string }> = {}) {
@@ -421,6 +431,28 @@ describe('SYSTEM_PREAMBLE — tool guidelines', () => {
   });
 });
 
+describe('SYSTEM_PREAMBLE — reasoning patterns', () => {
+  it('includes Complex analysis patterns section', () => {
+    expect(SYSTEM_PREAMBLE).toContain('## Complex analysis patterns');
+  });
+
+  it('includes all 4 reasoning patterns', () => {
+    expect(SYSTEM_PREAMBLE).toContain('### "Can I afford X?" pattern');
+    expect(SYSTEM_PREAMBLE).toContain('### "Compare options" pattern');
+    expect(SYSTEM_PREAMBLE).toContain('### "Cross-workspace totals" pattern');
+    expect(SYSTEM_PREAMBLE).toContain('### "Financial health check" pattern');
+  });
+
+  it('references cross-workspace tools in patterns', () => {
+    expect(SYSTEM_PREAMBLE).toContain('list_workspaces');
+    expect(SYSTEM_PREAMBLE).toContain('query_workspace');
+  });
+
+  it('references scenario comparison tool', () => {
+    expect(SYSTEM_PREAMBLE).toContain('create_scenario_comparison');
+  });
+});
+
 describe('buildDocumentContext', () => {
   let db: ReturnType<typeof createTestDb>;
 
@@ -564,6 +596,11 @@ describe('buildInsightsSection', () => {
   });
 });
 
+function insertConversation(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; title: string; summary: string | null; workspaceId: string; userId: string; updatedAt: Date }> = {}) {
+  const { id = crypto.randomUUID(), title = 'Test conversation', summary = null, workspaceId = 'ws-1', userId = 'user-1', updatedAt = new Date(NOW) } = overrides;
+  return db.insert(schema.conversations).values({ id, title, summary, workspaceId, userId, model: 'claude-sonnet-4-6', createdAt: new Date(NOW), updatedAt });
+}
+
 describe('buildWorkspaceContext — with insights', () => {
   let db: ReturnType<typeof createTestDb>;
 
@@ -587,5 +624,203 @@ describe('buildWorkspaceContext — with insights', () => {
     const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
 
     expect(result).not.toContain('## Active financial insights');
+  });
+});
+
+describe('buildConversationMemorySection', () => {
+  let db: ReturnType<typeof createTestDb>;
+
+  beforeEach(() => {
+    db = createTestDb();
+  });
+
+  it('returns formatted section with summarized conversations', async () => {
+    await insertConversation(db, { id: 'c1', title: 'Budget review', summary: 'Discussed Q1 budget allocations.' });
+    await insertConversation(db, { id: 'c2', title: 'Tax planning', summary: 'Reviewed estimated tax payments for 2026.' });
+    await insertConversation(db, { id: 'c3', title: 'Investment check', summary: 'Analyzed portfolio performance and rebalancing.' });
+    await insertConversation(db, { id: 'c4', title: 'No summary yet', summary: null });
+
+    const result = await buildConversationMemorySection(db, 'user-1', 'ws-1', 'current-convo');
+
+    expect(result).toContain('## Prior conversation context');
+    expect(result).toContain('Budget review');
+    expect(result).toContain('Tax planning');
+    expect(result).toContain('Investment check');
+    expect(result).not.toContain('No summary yet');
+  });
+
+  it('excludes current conversation', async () => {
+    await insertConversation(db, { id: 'c1', title: 'First', summary: 'Summary one.' });
+    await insertConversation(db, { id: 'c2', title: 'Second', summary: 'Summary two.' });
+    await insertConversation(db, { id: 'c3', title: 'Current', summary: 'Summary three.' });
+
+    const result = await buildConversationMemorySection(db, 'user-1', 'ws-1', 'c3');
+
+    expect(result).toContain('First');
+    expect(result).toContain('Second');
+    expect(result).not.toContain('Current');
+  });
+
+  it('returns empty string when no summarized conversations exist', async () => {
+    await insertConversation(db, { id: 'c1', summary: null });
+    await insertConversation(db, { id: 'c2', summary: null });
+
+    const result = await buildConversationMemorySection(db, 'user-1', 'ws-1', 'other');
+
+    expect(result).toBe('');
+  });
+
+  it('limits to 5 most recent conversations', async () => {
+    for (let i = 0; i < 8; i++) {
+      await insertConversation(db, {
+        id: `c${i}`,
+        title: `Convo ${i}`,
+        summary: `Summary for conversation ${i}.`,
+        updatedAt: new Date(NOW - i * 3600000),
+      });
+    }
+
+    const result = await buildConversationMemorySection(db, 'user-1', 'ws-1', 'current');
+
+    const bulletCount = (result.match(/^- \*\*/gm) ?? []).length;
+    expect(bulletCount).toBe(5);
+  });
+
+  it('respects 2000 character budget', async () => {
+    for (let i = 0; i < 5; i++) {
+      await insertConversation(db, {
+        id: `c${i}`,
+        title: `Long conversation ${i}`,
+        summary: `${'This is a detailed summary with lots of financial information. '.repeat(12)}End.`,
+        updatedAt: new Date(NOW - i * 3600000),
+      });
+    }
+
+    const result = await buildConversationMemorySection(db, 'user-1', 'ws-1', 'current');
+
+    const bulletCount = (result.match(/^- \*\*/gm) ?? []).length;
+    expect(bulletCount).toBeGreaterThanOrEqual(2);
+    expect(bulletCount).toBeLessThan(5);
+  });
+
+  it('orders by updatedAt descending — most recent first', async () => {
+    await insertConversation(db, { id: 'c-old', title: 'Oldest', summary: 'Old convo.', updatedAt: new Date(NOW - 86400000 * 3) });
+    await insertConversation(db, { id: 'c-mid', title: 'Middle', summary: 'Mid convo.', updatedAt: new Date(NOW - 86400000) });
+    await insertConversation(db, { id: 'c-new', title: 'Newest', summary: 'New convo.', updatedAt: new Date(NOW) });
+
+    const result = await buildConversationMemorySection(db, 'user-1', 'ws-1', 'current');
+
+    const newestIdx = result.indexOf('Newest');
+    const middleIdx = result.indexOf('Middle');
+    const oldestIdx = result.indexOf('Oldest');
+    expect(newestIdx).toBeLessThan(middleIdx);
+    expect(middleIdx).toBeLessThan(oldestIdx);
+  });
+});
+
+describe('buildWorkspaceContext — with conversation memory', () => {
+  let db: ReturnType<typeof createTestDb>;
+
+  beforeEach(() => {
+    db = createTestDb();
+  });
+
+  it('includes conversation memory section when currentConversationId provided', async () => {
+    await insertWorkspace(db);
+    await insertConversation(db, { id: 'c1', title: 'Past chat', summary: 'Discussed savings goals.' });
+    await insertConversation(db, { id: 'c2', title: 'Another chat', summary: 'Reviewed monthly expenses.' });
+
+    const result = await buildWorkspaceContext(db, 'user-1', 'ws-1', 'current-id');
+
+    expect(result).toContain('## Prior conversation context');
+    expect(result).toContain('Past chat');
+    expect(result).toContain('Another chat');
+  });
+
+  it('omits conversation memory section when currentConversationId not provided', async () => {
+    await insertWorkspace(db);
+    await insertConversation(db, { id: 'c1', title: 'Past chat', summary: 'Discussed savings goals.' });
+    await insertConversation(db, { id: 'c2', title: 'Another chat', summary: 'Reviewed monthly expenses.' });
+
+    const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
+
+    // The section header "## Prior conversation context" should not appear (the phrase exists in SYSTEM_PREAMBLE but not as a section)
+    expect(result).not.toContain('## Prior conversation context');
+    expect(result).not.toContain('Discussed savings goals');
+  });
+});
+
+describe('buildWorkspaceListSection', () => {
+  let db: ReturnType<typeof createTestDb>;
+
+  beforeEach(async () => {
+    db = createTestDb();
+    // user-1 has 3 workspaces, user-2 has 1
+    await insertWorkspace(db, { id: 'ws-1', name: 'Personal Finance', userId: 'user-1', type: 'workspace', description: 'My personal finances' });
+    await insertWorkspace(db, { id: 'ws-2', name: 'Side Business', userId: 'user-1', type: 'workspace', description: 'Freelance income tracking' });
+    await insertWorkspace(db, { id: 'ws-3', name: 'Investment Portfolio', userId: 'user-1', type: 'portfolio' });
+    await insertWorkspace(db, { id: 'ws-other', name: 'Other User WS', userId: 'user-2', type: 'workspace', description: 'Not mine' });
+  });
+
+  it('returns formatted table of other workspaces', async () => {
+    const result = await buildWorkspaceListSection(db, 'user-1', 'ws-1');
+
+    expect(result).toContain("## User's other workspaces");
+    expect(result).toContain('| Workspace | Type | Description |');
+    expect(result).toContain('Side Business (id: ws-2)');
+    expect(result).toContain('Investment Portfolio (id: ws-3)');
+  });
+
+  it('returns empty string when user has only one workspace', async () => {
+    const result = await buildWorkspaceListSection(db, 'user-2', 'ws-other');
+    expect(result).toBe('');
+  });
+
+  it('excludes current workspace from list', async () => {
+    const result = await buildWorkspaceListSection(db, 'user-1', 'ws-1');
+
+    expect(result).not.toContain('Personal Finance (id: ws-1)');
+    expect(result).toContain('Side Business (id: ws-2)');
+    expect(result).toContain('Investment Portfolio (id: ws-3)');
+  });
+
+  it('shows workspace IDs for tool use', async () => {
+    const result = await buildWorkspaceListSection(db, 'user-1', 'ws-1');
+
+    expect(result).toContain('id: ws-2');
+    expect(result).toContain('id: ws-3');
+  });
+
+  it('handles workspaces with no description', async () => {
+    const result = await buildWorkspaceListSection(db, 'user-1', 'ws-1');
+
+    expect(result).toContain('Freelance income tracking');
+    expect(result).toContain('No description');
+  });
+});
+
+describe('buildWorkspaceContext — with workspace list', () => {
+  let db: ReturnType<typeof createTestDb>;
+
+  beforeEach(async () => {
+    db = createTestDb();
+  });
+
+  it('includes workspace list section when user has multiple workspaces', async () => {
+    await insertWorkspace(db, { id: 'ws-1', name: 'Personal', userId: 'user-1' });
+    await insertWorkspace(db, { id: 'ws-2', name: 'Business', userId: 'user-1', description: 'My biz' });
+
+    const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
+
+    expect(result).toContain("## User's other workspaces");
+    expect(result).toContain('Business (id: ws-2)');
+  });
+
+  it('omits workspace list section when user has one workspace', async () => {
+    await insertWorkspace(db, { id: 'ws-1', name: 'Solo', userId: 'user-1' });
+
+    const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
+
+    expect(result).not.toContain("## User's other workspaces");
   });
 });

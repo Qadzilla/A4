@@ -104,6 +104,51 @@ describe('conversationSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('allows optional summary field', () => {
+    const result = conversationSchema.safeParse({
+      id: UUID,
+      workspaceId: UUID,
+      userId: 'user_123',
+      title: 'My Chat',
+      model: 'claude-sonnet-4-6',
+      summary: 'Discussion about Q1 budget.',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.summary).toBe('Discussion about Q1 budget.');
+    }
+  });
+
+  it('allows null summary', () => {
+    const result = conversationSchema.safeParse({
+      id: UUID,
+      workspaceId: UUID,
+      userId: 'user_123',
+      title: 'My Chat',
+      summary: null,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.summary).toBeNull();
+    }
+  });
+
+  it('validates without summary field', () => {
+    const result = conversationSchema.safeParse({
+      id: UUID,
+      workspaceId: UUID,
+      userId: 'user_123',
+      title: 'My Chat',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe('createConversationSchema', () => {
@@ -222,6 +267,22 @@ describe('conversationListItemSchema', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.title).toBeNull();
+    }
+  });
+
+  it('allows optional summary field', () => {
+    const result = conversationListItemSchema.safeParse({
+      id: UUID,
+      title: 'Budget Discussion',
+      model: 'claude-sonnet-4-6',
+      summary: 'Talked about Q1 numbers.',
+      createdAt: NOW,
+      updatedAt: NOW,
+      messageCount: 5,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.summary).toBe('Talked about Q1 numbers.');
     }
   });
 });

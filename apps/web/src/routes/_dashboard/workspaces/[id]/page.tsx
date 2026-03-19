@@ -1277,6 +1277,8 @@ export default function WorkspaceDetailPage() {
                 onNewConversation={() => chat.setActiveConversationId(null)}
                 onDeleteConversation={chat.deleteConversation}
                 toolActivity={chat.toolActivity}
+                hasUsedCrossWorkspace={chat.hasUsedCrossWorkspace}
+                workspaceNames={chat.workspaceNames}
                 onCitationClick={handleCitationClick}
                 insightBanner={
                   chat.activeConversationId && engagedInsightTitle[chat.activeConversationId]
