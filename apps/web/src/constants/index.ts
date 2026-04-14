@@ -5,7 +5,7 @@ export const ROUTES = {
   SSO_CALLBACK: '/sso-callback',
 
   // Dashboard
-  HOME: '/',
+  HOME: '/dashboard',
   WORKSPACES: '/workspaces',
   WORKSPACE_DETAIL: '/workspaces/:id',
   TRASH: '/trash',

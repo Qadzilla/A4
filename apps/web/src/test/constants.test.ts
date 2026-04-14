@@ -7,7 +7,7 @@ describe('ROUTES', () => {
   });
 
   it('has correct home path', () => {
-    expect(ROUTES.HOME).toBe('/');
+    expect(ROUTES.HOME).toBe('/dashboard');
   });
 
   it('has correct usage path', () => {

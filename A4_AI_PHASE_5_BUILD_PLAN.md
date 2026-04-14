@@ -1200,7 +1200,7 @@ All of these must be true when BU-01 through BU-09 are complete:
 - [x] **BU-06** — Cross-workspace tool activity shows target workspace name; "Multi-workspace" badge appears in chat header; dark mode renders correctly; builds successfully
 - [x] **BU-07** — `create_scenario_comparison` tool creates 2-4 calculator cards + 1 comparison page; cards positioned side-by-side with 40px gap; existing calc functions reused; scenario engine tests pass
 - [x] **BU-08** — 4 reasoning patterns in system prompt guide multi-step analysis; Paige chains tools correctly for "Can I afford X?", "Compare options", "Cross-workspace totals", "Financial health check" questions; context tests pass
-- [ ] **BU-09** — E2E tests cover cross-workspace queries, scenario modeling, and conversation memory; dark mode verified for all new UI; keyboard accessible; all 3 spec files pass
+- [x] **BU-09** — E2E tests cover cross-workspace queries, scenario modeling, and conversation memory; dark mode verified for all new UI; keyboard accessible; all 3 spec files pass
 
 **Phase 5 success criteria (from A4_AI_PIPELINE.md):**
 - [x] "Total cash across all accounts" works across 2+ workspaces

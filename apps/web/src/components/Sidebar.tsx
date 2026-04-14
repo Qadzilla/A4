@@ -612,7 +612,7 @@ export function Sidebar() {
         {navItems.map((item) => {
           const isWorkspacesItem = item.href === ROUTES.WORKSPACES;
           const isActive =
-            item.href === '/' ? location.pathname === '/' : location.pathname.startsWith(item.href);
+            item.href === ROUTES.HOME ? location.pathname === ROUTES.HOME : location.pathname.startsWith(item.href);
 
           if (isWorkspacesItem && !sidebarCollapsed) {
             const hasWorkspaces = topLevel.length > 0;

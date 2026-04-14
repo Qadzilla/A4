@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  body {
+    width: 1200px;
+    height: 630px;
+    background: #0A0A0A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    color: white;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Subtle dot grid */
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='2' height='2' fill='rgba(255,255,255,0.06)'/%3E%3C/svg%3E");
+  }
+
+  /* Top border accent */
+  body::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent 0%, #10B981 30%, #10B981 70%, transparent 100%);
+  }
+
+  .container {
+    display: flex;
+    align-items: center;
+    gap: 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .logo-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .logo-box {
+    position: relative;
+    width: 120px;
+    height: 156px;
+  }
+
+  .text-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 600px;
+  }
+
+  .title {
+    font-size: 52px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .subtitle {
+    font-size: 22px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.5;
+    font-weight: 400;
+  }
+
+  .pills {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 100px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.05em;
+  }
+
+  .pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10B981;
+  }
+
+  /* Decorative mini cards in background */
+  .bg-card {
+    position: absolute;
+    background: #161616;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .bg-card-1 {
+    top: 40px;
+    right: 60px;
+    width: 140px;
+    height: 70px;
+    padding: 10px 12px;
+    opacity: 0.3;
+  }
+
+  .bg-card-2 {
+    bottom: 50px;
+    right: 120px;
+    width: 120px;
+    height: 55px;
+    padding: 10px 12px;
+    opacity: 0.2;
+  }
+
+  .bg-card-3 {
+    bottom: 60px;
+    left: 50px;
+    width: 100px;
+    height: 50px;
+    padding: 8px 10px;
+    opacity: 0.15;
+  }
+
+  .bg-card-label {
+    font-size: 7px;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+
+  .bg-card-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #10B981;
+  }
+
+  .bg-card-value-sm {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+  }
+</style>
+</head>
+<body>
+  <!-- Decorative background cards -->
+  <div class="bg-card bg-card-1">
+    <div class="bg-card-label">Revenue</div>
+    <div class="bg-card-value">$284,600</div>
+  </div>
+  <div class="bg-card bg-card-2">
+    <div class="bg-card-label">Net Worth</div>
+    <div class="bg-card-value-sm">$1.24M</div>
+  </div>
+  <div class="bg-card bg-card-3">
+    <div class="bg-card-label">Runway</div>
+    <div class="bg-card-value-sm">29mo</div>
+  </div>
+
+  <div class="container">
+    <!-- Logo -->
+    <div class="logo-area">
+      <svg width="120" height="156" viewBox="0 0 68 84" fill="none">
+        <path d="M6 76 L6 4 L62 4" stroke="#10B981" stroke-width="1.5" stroke-linejoin="miter" fill="none" opacity="0.2"/>
+        <path d="M62 4 L62 76 L6 76" stroke="#10B981" stroke-width="2.5" stroke-linejoin="miter" fill="none"/>
+        <text x="34" y="49" text-anchor="middle" font-family="'DM Sans', sans-serif" font-size="23" font-weight="600" letter-spacing="-0.5" fill="white">A4</text>
+      </svg>
+    </div>
+
+    <!-- Text -->
+    <div class="text-area">
+      <div class="title">Your AI-powered<br>financial workspace.</div>
+      <div class="subtitle">Upload documents, build dashboards, and let AI analyze your entire financial picture.</div>
+      <div class="pills">
+        <div class="pill"><span class="dot"></span>27 CANVAS TOOLS</div>
+        <div class="pill"><span class="dot"></span>AI ASSISTANT</div>
+        <div class="pill"><span class="dot"></span>VAULT ENCRYPTION</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

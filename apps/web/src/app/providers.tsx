@@ -45,7 +45,7 @@ export function Providers({ children }: { children: ReactNode }) {
       publishableKey={CLERK_PUBLISHABLE_KEY as string}
       signInUrl={ROUTES.SIGN_IN}
       signUpUrl={ROUTES.SIGN_UP}
-      afterSignOutUrl={ROUTES.SIGN_IN}
+      afterSignOutUrl="/"
     >
       <TRPCWrapper>{children}</TRPCWrapper>
     </ClerkProvider>

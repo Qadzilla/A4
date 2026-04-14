@@ -1,7 +1,7 @@
 # A4 — AI Pipeline: Architecture, Implementation Plan & End Goals
 
 > **Created:** 2026-03-12
-> **Status:** Pre-implementation. Chat panel UI skeleton complete. No backend AI integration yet.
+> **Status:** All 5 phases complete. Full AI pipeline operational — chat, tools, RAG, proactive insights, cross-workspace reasoning.
 > **Related docs:** [Architecture](./A4_ARCHITECTURE.md) | [Systems](./A4_SYSTEMS.md) | [Roadmap](./A4_ROADMAP.md) | [Financial Autonomy](./A4_FINANCIAL_AUTONOMY.md)
 
 ---
@@ -767,31 +767,31 @@ The Drizzle ORM abstraction makes this migration straightforward — schema defi
 ## Success Metrics (per phase)
 
 ### Phase 1 — Chat works
-- [ ] User sends a message → gets a streaming response within 2 seconds
-- [ ] Response references actual workspace data (account balances, budget numbers)
-- [ ] Conversations persist across page reloads
-- [ ] Token usage is tracked and visible
+- [x] User sends a message → gets a streaming response within 2 seconds
+- [x] Response references actual workspace data (account balances, budget numbers)
+- [x] Conversations persist across page reloads
+- [x] Token usage is tracked and visible
 
 ### Phase 2 — Tool use
-- [ ] "Create a budget card" → budget card appears on canvas
-- [ ] "What's my net worth?" → AI calls `get_networth` and answers with real numbers
-- [ ] Multi-tool chains work (AI calls 3+ tools in sequence to answer a complex question)
-- [ ] Tool calls are visible in the chat UI (user sees what the AI is doing)
+- [x] "Create a budget card" → budget card appears on canvas
+- [x] "What's my net worth?" → AI calls `get_networth` and answers with real numbers
+- [x] Multi-tool chains work (AI calls 3+ tools in sequence to answer a complex question)
+- [x] Tool calls are visible in the chat UI (user sees what the AI is doing)
 
 ### Phase 3 — RAG
-- [ ] Upload a bank statement PDF → ask "what did I spend on dining?" → correct answer with citation
-- [ ] Search works across multiple documents in the workspace
-- [ ] Citations link back to the source file card
+- [x] Upload a bank statement PDF → ask "what did I spend on dining?" → correct answer with citation
+- [x] Search works across multiple documents in the workspace
+- [x] Citations link back to the source file card
 
 ### Phase 4 — Proactive
-- [ ] On workspace open, user sees 1-3 relevant insights without asking
-- [ ] Insights are actionable (not just "your spending went up" but "your dining spend is 90% over budget — here's the breakdown")
-- [ ] User can dismiss or act on insights
+- [x] On workspace open, user sees 1-3 relevant insights without asking
+- [x] Insights are actionable (not just "your spending went up" but "your dining spend is 90% over budget — here's the breakdown")
+- [x] User can dismiss or act on insights
 
 ### Phase 5 — Multi-workspace
-- [ ] "Total cash across all accounts" works across 2+ workspaces
-- [ ] Complex scenario modeling produces comparative analysis
-- [ ] Conversation context carries useful information from prior sessions
+- [x] "Total cash across all accounts" works across 2+ workspaces
+- [x] Complex scenario modeling produces comparative analysis
+- [x] Conversation context carries useful information from prior sessions
 
 ---
 
