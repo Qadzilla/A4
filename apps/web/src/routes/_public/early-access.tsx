@@ -1,5 +1,5 @@
 import { DEV_AUTH_BYPASS } from '@/lib/clerk';
-import { Logo } from '@/components/landing/Logo';
+import CanvasBackground from '@/components/landing/CanvasBackground';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import { Check } from 'lucide-react';
 import { Link } from 'react-router';
@@ -14,15 +14,20 @@ function EarlyAccessContent({
   onSignOut?: () => void;
 }) {
   return (
-    <div className="relative min-h-screen bg-[#0D0D0D] text-white overflow-hidden flex flex-col">
-      {/* Ambient glow */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-[500px] w-[800px] rounded-full bg-primary/10 blur-[120px]" />
+    <div
+      className="relative min-h-screen text-white overflow-hidden flex flex-col"
+      style={{
+        backgroundColor: '#0A0A0A',
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='2' height='2' fill='rgba(255, 255, 255, 0.10)'/%3E%3C/svg%3E")`,
+      }}
+    >
+      {/* Animated canvas background (same as landing hero) */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <CanvasBackground />
+      </div>
 
-      {/* Header */}
-      <header className="relative z-10 flex items-center justify-between px-6 py-5 md:px-10">
-        <Link to="/" className="flex items-center gap-2">
-          <Logo variant="dark" className="h-8 w-auto" />
-        </Link>
+      {/* Header — sign out only, no logo */}
+      <header className="relative z-10 flex items-center justify-end px-6 py-5 md:px-10">
         {onSignOut && (
           <button
             type="button"
@@ -38,7 +43,15 @@ function EarlyAccessContent({
       <main className="relative z-10 flex flex-1 items-center justify-center px-6 pb-24">
         {/* CSS animation (not framer-motion) so the page is never stuck
             invisible when rAF is throttled (background tabs, prerenders) */}
-        <div className="w-full max-w-lg text-center animate-fade-in">
+        <div
+          className="w-full max-w-xl bg-[#161616]/90 backdrop-blur-md p-8 md:p-12 text-center animate-fade-in"
+          style={{
+            borderTop: '1.5px solid rgba(16, 185, 129, 0.2)',
+            borderLeft: '1.5px solid rgba(16, 185, 129, 0.2)',
+            borderRight: '2.5px solid #10B981',
+            borderBottom: '2.5px solid #10B981',
+          }}
+        >
           <div className="mx-auto mb-8 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/30">
             <Check className="h-7 w-7 text-primary" strokeWidth={2.5} />
           </div>
@@ -75,8 +88,10 @@ function EarlyAccessContent({
             </ul>
           </div>
 
+          {/* ?from=wall tells RootGate to show the landing instead of
+              bouncing signed-in users straight back here */}
           <Link
-            to="/"
+            to="/?from=wall"
             className="mt-10 inline-flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors"
           >
             ← Back to a4ai.io

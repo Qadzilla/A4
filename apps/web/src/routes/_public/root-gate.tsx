@@ -1,7 +1,7 @@
 import { DEV_AUTH_BYPASS } from '@/lib/clerk';
 import { useClerk } from '@clerk/clerk-react';
 import { lazy, Suspense } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 
 const LandingPage = lazy(() => import('@/routes/_public/landing'));
 
@@ -15,11 +15,14 @@ function LoadingSpinner() {
 
 function ClerkGate() {
   const { loaded, user } = useClerk();
+  const [params] = useSearchParams();
 
   // Don't block the (public) landing page on Clerk — render it immediately
   // and only redirect once Clerk has loaded AND confirmed a signed-in user.
   // If Clerk fails to load (bad domain, network), visitors still see the site.
-  if (loaded && user) return <Navigate to="/dashboard" replace />;
+  // ?from=wall (the wall's "Back to a4ai.io" link) suppresses the redirect so
+  // signed-in users can actually view the landing page.
+  if (loaded && user && !params.has('from')) return <Navigate to="/dashboard" replace />;
 
   return (
     <Suspense fallback={<LoadingSpinner />}>
