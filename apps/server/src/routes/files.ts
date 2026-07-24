@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { mkdir, unlink } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { eq } from 'drizzle-orm';
 import { Router, type Router as RouterType } from 'express';
 import multer from 'multer';
 import { db } from '../db';
 import { documentChunks, files } from '../db/schema';
-import { DEV_AUTH_BYPASS } from '../env';
+import { DEV_AUTH_BYPASS, USE_R2 } from '../env';
+import { storage } from '../services/storage';
 // Lazy import to avoid loading OpenAI SDK at server startup
 const lazyEmbedFile = () => import('../services/embedding-pipeline').then((m) => m.embedFile);
 
@@ -37,18 +37,22 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-const diskStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'data', 'uploads', '_tmp');
-    mkdir(uploadDir, { recursive: true }).then(() => cb(null, uploadDir)).catch(cb as any);
-  },
-  filename: (_req, _file, cb) => {
-    cb(null, `${randomUUID()}.tmp`);
-  },
-});
+// Use memory storage when R2 is active (buffer goes straight to R2).
+// Use disk storage for local dev (avoids holding large files in memory).
+const multerStorage = USE_R2
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (_req, _file, cb) => {
+        const uploadDir = path.join(process.cwd(), 'data', 'uploads', '_tmp');
+        mkdir(uploadDir, { recursive: true }).then(() => cb(null, uploadDir)).catch(cb as any);
+      },
+      filename: (_req, _file, cb) => {
+        cb(null, `${randomUUID()}.tmp`);
+      },
+    });
 
 const upload = multer({
-  storage: diskStorage,
+  storage: multerStorage,
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -99,12 +103,21 @@ filesRouter.post('/upload', (req, res, next) => {
 
       const fileId = randomUUID();
       const ext = path.extname(file.originalname) || '';
-      const uploadDir = path.join(process.cwd(), 'data', 'uploads', userId);
-      const storagePath = path.join(uploadDir, `${fileId}${ext}`);
+      // Store a relative key: {userId}/{fileId}{ext}
+      const storageKey = `${userId}/${fileId}${ext}`;
 
-      await mkdir(uploadDir, { recursive: true });
-      const { rename } = await import('node:fs/promises');
-      await rename(file.path, storagePath);
+      // Get the buffer — either from memory (R2 mode) or read from disk tmp
+      let buffer: Buffer;
+      if (file.buffer) {
+        buffer = file.buffer;
+      } else {
+        const { readFile, unlink } = await import('node:fs/promises');
+        buffer = await readFile(file.path);
+        // Clean up tmp file after reading
+        await unlink(file.path).catch(() => {});
+      }
+
+      await storage.put(storageKey, buffer, file.mimetype);
 
       await db.insert(files).values({
         id: fileId,
@@ -114,7 +127,7 @@ filesRouter.post('/upload', (req, res, next) => {
         fileSize: file.size,
         mimeType: file.mimetype,
         extension: ext,
-        storagePath,
+        storagePath: storageKey,
       });
 
       res.json({
@@ -150,14 +163,14 @@ filesRouter.get('/:fileId', async (req, res) => {
     return;
   }
 
-  if (!existsSync(fileRecord.storagePath)) {
-    res.status(404).json({ error: 'File not found on disk' });
-    return;
+  try {
+    const buffer = await storage.get(fileRecord.storagePath);
+    res.setHeader('Content-Type', fileRecord.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${fileRecord.fileName}"`);
+    res.send(buffer);
+  } catch {
+    res.status(404).json({ error: 'File not found in storage' });
   }
-
-  res.setHeader('Content-Type', fileRecord.mimeType);
-  res.setHeader('Content-Disposition', `inline; filename="${fileRecord.fileName}"`);
-  res.sendFile(fileRecord.storagePath);
 });
 
 // DELETE /api/files/:fileId
@@ -174,12 +187,7 @@ filesRouter.delete('/:fileId', async (req, res) => {
     return;
   }
 
-  try {
-    await unlink(fileRecord.storagePath);
-  } catch {
-    // File may already be deleted from disk
-  }
-
+  await storage.delete(fileRecord.storagePath);
   await db.delete(documentChunks).where(eq(documentChunks.fileId, req.params.fileId));
   await db.delete(files).where(eq(files.id, req.params.fileId));
   res.json({ success: true });

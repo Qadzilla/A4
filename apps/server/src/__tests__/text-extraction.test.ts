@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -18,53 +18,37 @@ vi.mock('../services/ocr.js', () => ({
 
 import { extractText } from '../services/text-extraction.js';
 
-let tmpDir: string;
-
-beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'text-extract-'));
+beforeEach(() => {
   mockOcrImage.mockReset();
   mockOcrPdfPages.mockReset();
 });
 
-afterEach(async () => {
-  await fs.rm(tmpDir, { recursive: true, force: true });
-});
-
-function tmpFile(name: string) {
-  return path.join(tmpDir, name);
-}
-
 describe('extractText', () => {
   describe('plain text', () => {
-    it('extracts text from a .txt file', async () => {
-      const p = tmpFile('test.txt');
-      await fs.writeFile(p, 'Hello, world!\nLine two.');
-      const result = await extractText(p, 'text/plain');
+    it('extracts text from a buffer', async () => {
+      const buf = Buffer.from('Hello, world!\nLine two.');
+      const result = await extractText(buf, 'text/plain');
       expect(result).toBe('Hello, world!\nLine two.');
     });
 
-    it('returns empty string for empty .txt file', async () => {
-      const p = tmpFile('empty.txt');
-      await fs.writeFile(p, '');
-      const result = await extractText(p, 'text/plain');
+    it('returns empty string for empty buffer', async () => {
+      const result = await extractText(Buffer.alloc(0), 'text/plain');
       expect(result).toBe('');
     });
   });
 
   describe('CSV', () => {
     it('extracts readable pipe-separated text from CSV', async () => {
-      const p = tmpFile('test.csv');
-      await fs.writeFile(p, 'Name,Amount,Date\nAlice,100,2024-01-01\nBob,200,2024-02-01');
-      const result = await extractText(p, 'text/csv');
+      const buf = Buffer.from('Name,Amount,Date\nAlice,100,2024-01-01\nBob,200,2024-02-01');
+      const result = await extractText(buf, 'text/csv');
       expect(result).toContain('Name | Amount | Date');
       expect(result).toContain('Alice | 100 | 2024-01-01');
       expect(result).toContain('Bob | 200 | 2024-02-01');
     });
 
     it('handles quoted fields containing commas', async () => {
-      const p = tmpFile('quoted.csv');
-      await fs.writeFile(p, 'Name,Address\n"Smith, John","123 Main St, Apt 4"');
-      const result = await extractText(p, 'text/csv');
+      const buf = Buffer.from('Name,Address\n"Smith, John","123 Main St, Apt 4"');
+      const result = await extractText(buf, 'text/csv');
       expect(result).toContain('Smith, John');
       expect(result).toContain('123 Main St, Apt 4');
     });
@@ -94,23 +78,20 @@ trailer<</Size 6/Root 1 0 R>>
 startxref
 434
 %%EOF`;
-      const p = tmpFile('test.pdf');
-      await fs.writeFile(p, pdfContent);
-      const result = await extractText(p, 'application/pdf');
+      const buf = Buffer.from(pdfContent);
+      const result = await extractText(buf, 'application/pdf');
       expect(result).toContain('Hello PDF');
     });
 
     it('returns empty string on extraction error', async () => {
-      const result = await extractText('/nonexistent/file.pdf', 'application/pdf');
+      const result = await extractText(Buffer.from('not a pdf'), 'application/pdf');
       expect(result).toBe('');
     });
 
     it('falls back to OCR when pdf-parse returns < 50 chars', async () => {
-      // Create a PDF that returns very little text (simulated by short content)
       mockOcrPdfPages.mockResolvedValue('OCR extracted: Bank Statement March 2026');
       const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-      // A minimal PDF with very short text
       const pdfContent = `%PDF-1.0
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
@@ -132,18 +113,16 @@ trailer<</Size 6/Root 1 0 R>>
 startxref
 425
 %%EOF`;
-      const p = tmpFile('scanned.pdf');
-      await fs.writeFile(p, pdfContent);
-      const result = await extractText(p, 'application/pdf');
+      const buf = Buffer.from(pdfContent);
+      const result = await extractText(buf, 'application/pdf');
 
-      // OCR text is longer than the 2-char pdf-parse result, so it should be used
       expect(result).toBe('OCR extracted: Bank Statement March 2026');
-      expect(mockOcrPdfPages).toHaveBeenCalledWith(p);
+      // ocrPdfPages now receives a Buffer, not a file path
+      expect(mockOcrPdfPages).toHaveBeenCalledWith(buf);
       spy.mockRestore();
     });
 
     it('does NOT call OCR when pdf-parse returns >= 50 chars', async () => {
-      // The test PDF with "Hello PDF" returns enough text
       const pdfContent = `%PDF-1.0
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
@@ -165,13 +144,8 @@ trailer<</Size 6/Root 1 0 R>>
 startxref
 434
 %%EOF`;
-      const p = tmpFile('text-based.pdf');
-      await fs.writeFile(p, pdfContent);
-      const result = await extractText(p, 'application/pdf');
-
-      // "Hello PDF" is only 9 chars, which is < 50, so OCR WILL be called
-      // This test verifies the threshold behavior for longer text
-      // Since our test PDF is short, let's just verify it does call OCR for short text
+      const buf = Buffer.from(pdfContent);
+      const result = await extractText(buf, 'application/pdf');
       expect(result).toBeTruthy();
     });
 
@@ -200,19 +174,15 @@ trailer<</Size 6/Root 1 0 R>>
 startxref
 425
 %%EOF`;
-      const p = tmpFile('both-short.pdf');
-      await fs.writeFile(p, pdfContent);
-      const result = await extractText(p, 'application/pdf');
-
-      // OCR returned empty, so falls back to whatever pdf-parse got
-      expect(result).toBeTruthy(); // "Hi" from pdf-parse
+      const buf = Buffer.from(pdfContent);
+      const result = await extractText(buf, 'application/pdf');
+      expect(result).toBeTruthy();
       spy.mockRestore();
     });
   });
 
   describe('DOCX', () => {
     it('extracts text via mammoth', async () => {
-      // Create a minimal valid DOCX (ZIP with required XML)
       const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
@@ -237,20 +207,18 @@ startxref
         'word/document.xml': enc.encode(docXml),
       });
 
-      const p = tmpFile('test.docx');
-      await fs.writeFile(p, zipData);
+      const buf = Buffer.from(zipData);
       const result = await extractText(
-        p,
+        buf,
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       );
       expect(result).toContain('Hello from DOCX');
     });
 
     it('returns empty string on error', async () => {
-      const p = tmpFile('bad.docx');
-      await fs.writeFile(p, 'not a real docx');
+      const buf = Buffer.from('not a real docx');
       const result = await extractText(
-        p,
+        buf,
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       );
       expect(result).toBe('');
@@ -285,10 +253,9 @@ startxref
         'xl/worksheets/sheet1.xml': enc.encode(sheetXml),
       });
 
-      const p = tmpFile('test.xlsx');
-      await fs.writeFile(p, zipData);
+      const buf = Buffer.from(zipData);
       const result = await extractText(
-        p,
+        buf,
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       );
       expect(result).toContain('Product | Price');
@@ -296,10 +263,9 @@ startxref
     });
 
     it('returns empty string for malformed xlsx', async () => {
-      const p = tmpFile('bad.xlsx');
-      await fs.writeFile(p, 'not a real xlsx');
+      const buf = Buffer.from('not a real xlsx');
       const result = await extractText(
-        p,
+        buf,
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       );
       expect(result).toBe('');
@@ -309,36 +275,32 @@ startxref
   describe('images', () => {
     it('extracts text from PNG via OCR', async () => {
       mockOcrImage.mockResolvedValue('Receipt total: $42.50');
-      const p = tmpFile('test.png');
-      await fs.writeFile(p, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-      const result = await extractText(p, 'image/png');
+      const buf = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+      const result = await extractText(buf, 'image/png');
       expect(result).toBe('Receipt total: $42.50');
-      expect(mockOcrImage).toHaveBeenCalledWith(p);
+      expect(mockOcrImage).toHaveBeenCalledWith(buf);
     });
 
     it('extracts text from JPEG via OCR', async () => {
       mockOcrImage.mockResolvedValue('Bank statement');
-      const p = tmpFile('test.jpg');
-      await fs.writeFile(p, Buffer.from([0xff, 0xd8, 0xff]));
-      const result = await extractText(p, 'image/jpeg');
+      const buf = Buffer.from([0xff, 0xd8, 0xff]);
+      const result = await extractText(buf, 'image/jpeg');
       expect(result).toBe('Bank statement');
-      expect(mockOcrImage).toHaveBeenCalledWith(p);
+      expect(mockOcrImage).toHaveBeenCalledWith(buf);
     });
 
     it('returns empty string when OCR fails', async () => {
       mockOcrImage.mockResolvedValue('');
-      const p = tmpFile('test.png');
-      await fs.writeFile(p, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-      const result = await extractText(p, 'image/png');
+      const buf = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+      const result = await extractText(buf, 'image/png');
       expect(result).toBe('');
     });
 
     it('returns empty string when OCR throws', async () => {
       mockOcrImage.mockRejectedValue(new Error('OCR crashed'));
       const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const p = tmpFile('test.png');
-      await fs.writeFile(p, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-      const result = await extractText(p, 'image/png');
+      const buf = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+      const result = await extractText(buf, 'image/png');
       expect(result).toBe('');
       spy.mockRestore();
     });
@@ -346,25 +308,8 @@ startxref
 
   describe('unknown types', () => {
     it('returns empty string for application/octet-stream', async () => {
-      const p = tmpFile('test.bin');
-      await fs.writeFile(p, 'binary data');
-      const result = await extractText(p, 'application/octet-stream');
-      expect(result).toBe('');
-    });
-  });
-
-  describe('error handling', () => {
-    it('returns empty string when file does not exist', async () => {
-      const result = await extractText('/nonexistent/path/file.txt', 'text/plain');
-      expect(result).toBe('');
-    });
-
-    it('returns empty string for files over 10MB', async () => {
-      const p = tmpFile('large.txt');
-      // Create a file just over 10MB
-      const buf = Buffer.alloc(10 * 1024 * 1024 + 1, 'x');
-      await fs.writeFile(p, buf);
-      const result = await extractText(p, 'text/plain');
+      const buf = Buffer.from('binary data');
+      const result = await extractText(buf, 'application/octet-stream');
       expect(result).toBe('');
     });
   });

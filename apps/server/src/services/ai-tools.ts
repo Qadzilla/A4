@@ -7,6 +7,7 @@ import {
   canvasConnections,
   accounts,
   budgetCategories,
+  budgetGroups,
   subscriptions,
   invoices,
   invoiceLineItems,
@@ -1150,6 +1151,509 @@ const TOOLS: ToolRegistration[] = [
         string,
         unknown
       >;
+    },
+  },
+
+  // 29. populate_budget
+  {
+    definition: {
+      name: 'populate_budget',
+      description:
+        'Populate a budget card with groups and categories. Call this AFTER create_canvas_item for a budget-card. Creates budget groups (e.g. "Fixed Expenses") and categories (e.g. "Rent" $800) in the database so the card displays them.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          groups: {
+            type: 'array',
+            description: 'Budget groups to create. Each group contains categories.',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Group name (e.g. "Fixed Expenses", "Variable Expenses")' },
+                categories: {
+                  type: 'array',
+                  description: 'Categories within this group',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'Category name (e.g. "Rent", "Groceries")' },
+                      budgeted: { type: 'number', description: 'Budgeted amount' },
+                      actual: { type: 'number', description: 'Actual spent amount (default 0)' },
+                      notes: { type: 'string', description: 'Optional notes' },
+                    },
+                    required: ['name', 'budgeted'],
+                  },
+                },
+              },
+              required: ['name', 'categories'],
+            },
+          },
+          ungrouped: {
+            type: 'array',
+            description: 'Categories without a group (optional)',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Category name' },
+                budgeted: { type: 'number', description: 'Budgeted amount' },
+                actual: { type: 'number', description: 'Actual spent amount (default 0)' },
+                notes: { type: 'string', description: 'Optional notes' },
+              },
+              required: ['name', 'budgeted'],
+            },
+          },
+        },
+        required: [],
+      },
+    },
+    execute: async (input, ctx) => {
+      const GROUP_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+      const now = new Date();
+      let created = 0;
+
+      const groups = input.groups as Array<{
+        name: string;
+        categories: Array<{ name: string; budgeted: number; actual?: number; notes?: string }>;
+      }> | undefined;
+
+      if (groups) {
+        for (let i = 0; i < groups.length; i++) {
+          const group = groups[i]!;
+          const groupId = crypto.randomUUID();
+          await ctx.db.insert(budgetGroups).values({
+            id: groupId,
+            workspaceId: ctx.workspaceId,
+            userId: ctx.userId,
+            name: group.name,
+            color: GROUP_COLORS[i % GROUP_COLORS.length]!,
+          });
+
+          for (const cat of group.categories) {
+            await ctx.db.insert(budgetCategories).values({
+              id: crypto.randomUUID(),
+              workspaceId: ctx.workspaceId,
+              userId: ctx.userId,
+              name: cat.name,
+              budgeted: cat.budgeted,
+              actual: cat.actual ?? 0,
+              notes: cat.notes ?? null,
+              groupId,
+            });
+            created++;
+          }
+        }
+      }
+
+      const ungrouped = input.ungrouped as Array<{ name: string; budgeted: number; actual?: number; notes?: string }> | undefined;
+      if (ungrouped) {
+        for (const cat of ungrouped) {
+          await ctx.db.insert(budgetCategories).values({
+            id: crypto.randomUUID(),
+            workspaceId: ctx.workspaceId,
+            userId: ctx.userId,
+            name: cat.name,
+            budgeted: cat.budgeted,
+            actual: cat.actual ?? 0,
+            notes: cat.notes ?? null,
+            groupId: null,
+          });
+          created++;
+        }
+      }
+
+      return { success: true, categoriesCreated: created, _canvasUpdate: true };
+    },
+  },
+
+  // 30. populate_invoice
+  {
+    definition: {
+      name: 'populate_invoice',
+      description:
+        'Populate an invoice card with header info and line items. Call this AFTER create_canvas_item for an invoice-card. Creates the invoice record and its line items in the database.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          invoiceNumber: { type: 'string', description: 'Invoice number (e.g. "INV-001")' },
+          date: { type: 'string', description: 'Invoice date YYYY-MM-DD' },
+          dueDate: { type: 'string', description: 'Due date YYYY-MM-DD' },
+          fromName: { type: 'string', description: 'Sender name' },
+          fromEmail: { type: 'string', description: 'Sender email' },
+          fromAddress: { type: 'string', description: 'Sender address' },
+          toName: { type: 'string', description: 'Recipient name' },
+          toEmail: { type: 'string', description: 'Recipient email' },
+          toAddress: { type: 'string', description: 'Recipient address' },
+          taxRate: { type: 'number', description: 'Tax rate as percentage (default 0)' },
+          status: { type: 'string', description: 'Invoice status: draft, sent, paid, overdue (default "draft")' },
+          notes: { type: 'string', description: 'Optional notes' },
+          lineItems: {
+            type: 'array',
+            description: 'Line items on the invoice',
+            items: {
+              type: 'object',
+              properties: {
+                description: { type: 'string', description: 'Item description' },
+                quantity: { type: 'number', description: 'Quantity' },
+                unitPrice: { type: 'number', description: 'Unit price' },
+              },
+              required: ['description', 'quantity', 'unitPrice'],
+            },
+          },
+        },
+        required: ['invoiceNumber', 'date', 'dueDate', 'lineItems'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const invoiceId = crypto.randomUUID();
+      await ctx.db.insert(invoices).values({
+        id: invoiceId,
+        workspaceId: ctx.workspaceId,
+        userId: ctx.userId,
+        invoiceNumber: input.invoiceNumber as string,
+        date: input.date as string,
+        dueDate: input.dueDate as string,
+        fromName: (input.fromName as string) ?? null,
+        fromEmail: (input.fromEmail as string) ?? null,
+        fromAddress: (input.fromAddress as string) ?? null,
+        toName: (input.toName as string) ?? null,
+        toEmail: (input.toEmail as string) ?? null,
+        toAddress: (input.toAddress as string) ?? null,
+        taxRate: (input.taxRate as number) ?? 0,
+        status: (input.status as string) ?? 'draft',
+        notes: (input.notes as string) ?? null,
+      });
+
+      const items = input.lineItems as Array<{ description: string; quantity: number; unitPrice: number }>;
+      for (let i = 0; i < items.length; i++) {
+        const li = items[i]!;
+        await ctx.db.insert(invoiceLineItems).values({
+          id: crypto.randomUUID(),
+          invoiceId,
+          description: li.description,
+          quantity: li.quantity,
+          unitPrice: li.unitPrice,
+          sortOrder: i,
+        });
+      }
+
+      return { success: true, invoiceId, lineItemsCreated: items.length, _canvasUpdate: true };
+    },
+  },
+
+  // 31. populate_receipt
+  {
+    definition: {
+      name: 'populate_receipt',
+      description:
+        'Populate a receipt card with receipt entries. Call this AFTER create_canvas_item for a receipt-card. Creates receipt records in the database.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          receipts: {
+            type: 'array',
+            description: 'Receipt entries to create',
+            items: {
+              type: 'object',
+              properties: {
+                date: { type: 'string', description: 'Receipt date YYYY-MM-DD' },
+                merchant: { type: 'string', description: 'Merchant / vendor name' },
+                amount: { type: 'number', description: 'Total amount including tax' },
+                tax: { type: 'number', description: 'Tax amount (default 0)' },
+                paymentMethod: { type: 'string', description: 'Payment method: cash, card, check, transfer, other (default "card")' },
+                status: { type: 'string', description: 'Status: pending, reviewed, reimbursed (default "pending")' },
+                notes: { type: 'string', description: 'Optional notes' },
+              },
+              required: ['date', 'merchant', 'amount'],
+            },
+          },
+        },
+        required: ['receipts'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const items = input.receipts as Array<{
+        date: string; merchant: string; amount: number;
+        tax?: number; paymentMethod?: string; status?: string; notes?: string;
+      }>;
+      for (const r of items) {
+        await ctx.db.insert(receipts).values({
+          id: crypto.randomUUID(),
+          workspaceId: ctx.workspaceId,
+          userId: ctx.userId,
+          date: r.date,
+          merchant: r.merchant,
+          amount: r.amount,
+          tax: r.tax ?? 0,
+          paymentMethod: r.paymentMethod ?? 'card',
+          status: r.status ?? 'pending',
+          notes: r.notes ?? null,
+        });
+      }
+      return { success: true, receiptsCreated: items.length, _canvasUpdate: true };
+    },
+  },
+
+  // 32. populate_subscriptions
+  {
+    definition: {
+      name: 'populate_subscriptions',
+      description:
+        'Populate a subscription card with subscription entries. Call this AFTER create_canvas_item for a subscription-card. Creates subscription records in the database.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          subscriptions: {
+            type: 'array',
+            description: 'Subscription entries to create',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Subscription name (e.g. "Netflix", "AWS")' },
+                amount: { type: 'number', description: 'Recurring amount' },
+                frequency: { type: 'string', description: 'Billing frequency: weekly, biweekly, monthly, quarterly, annual (default "monthly")' },
+                startDate: { type: 'string', description: 'Start date YYYY-MM-DD (default today)' },
+                nextBillingDate: { type: 'string', description: 'Next billing date YYYY-MM-DD (default today)' },
+                status: { type: 'string', description: 'Status: active, paused, cancelled (default "active")' },
+                notes: { type: 'string', description: 'Optional notes' },
+              },
+              required: ['name', 'amount'],
+            },
+          },
+        },
+        required: ['subscriptions'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const items = input.subscriptions as Array<{
+        name: string; amount: number; frequency?: string;
+        startDate?: string; nextBillingDate?: string; status?: string; notes?: string;
+      }>;
+      const today = new Date().toISOString().slice(0, 10);
+      for (const s of items) {
+        await ctx.db.insert(subscriptions).values({
+          id: crypto.randomUUID(),
+          workspaceId: ctx.workspaceId,
+          userId: ctx.userId,
+          name: s.name,
+          amount: s.amount,
+          frequency: s.frequency ?? 'monthly',
+          startDate: s.startDate ?? today,
+          nextBillingDate: s.nextBillingDate ?? today,
+          status: s.status ?? 'active',
+          notes: s.notes ?? null,
+        });
+      }
+      return { success: true, subscriptionsCreated: items.length, _canvasUpdate: true };
+    },
+  },
+
+  // 33. populate_accounts
+  {
+    definition: {
+      name: 'populate_accounts',
+      description:
+        'Populate an account card with account entries. Call this AFTER create_canvas_item for an account-card. Creates account records in the database.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          accounts: {
+            type: 'array',
+            description: 'Account entries to create',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Account name (e.g. "Chase Checking")' },
+                institution: { type: 'string', description: 'Financial institution (e.g. "Chase")' },
+                type: { type: 'string', description: 'Account type: checking, savings, credit-card, investment, loan, other' },
+                balance: { type: 'number', description: 'Current balance' },
+                notes: { type: 'string', description: 'Optional notes' },
+              },
+              required: ['name', 'institution', 'type', 'balance'],
+            },
+          },
+        },
+        required: ['accounts'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const items = input.accounts as Array<{
+        name: string; institution: string; type: string; balance: number; notes?: string;
+      }>;
+      for (const a of items) {
+        await ctx.db.insert(accounts).values({
+          id: crypto.randomUUID(),
+          workspaceId: ctx.workspaceId,
+          userId: ctx.userId,
+          name: a.name,
+          institution: a.institution,
+          type: a.type,
+          balance: a.balance,
+          notes: a.notes ?? null,
+        });
+      }
+      return { success: true, accountsCreated: items.length, _canvasUpdate: true };
+    },
+  },
+
+  // 34. populate_holdings
+  {
+    definition: {
+      name: 'populate_holdings',
+      description:
+        'Populate a portfolio card with stock/fund holdings. Call this AFTER create_canvas_item for a portfolio-card. Creates holding records in the database.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          holdings: {
+            type: 'array',
+            description: 'Holdings to create',
+            items: {
+              type: 'object',
+              properties: {
+                symbol: { type: 'string', description: 'Ticker symbol (e.g. "AAPL", "VTI")' },
+                name: { type: 'string', description: 'Full name (e.g. "Apple Inc.")' },
+                value: { type: 'number', description: 'Current market value' },
+                targetPct: { type: 'number', description: 'Target allocation percentage (0-100)' },
+              },
+              required: ['symbol', 'name', 'value', 'targetPct'],
+            },
+          },
+        },
+        required: ['holdings'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const items = input.holdings as Array<{
+        symbol: string; name: string; value: number; targetPct: number;
+      }>;
+      for (const h of items) {
+        await ctx.db.insert(holdings).values({
+          id: crypto.randomUUID(),
+          workspaceId: ctx.workspaceId,
+          userId: ctx.userId,
+          symbol: h.symbol,
+          name: h.name,
+          value: h.value,
+          targetPct: h.targetPct,
+        });
+      }
+      return { success: true, holdingsCreated: items.length, _canvasUpdate: true };
+    },
+  },
+
+  // 35. populate_networth
+  {
+    definition: {
+      name: 'populate_networth',
+      description:
+        'Populate a net worth card with asset/liability categories and entries. Call this AFTER create_canvas_item for a networth-card. Creates categories and entries in the database.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          categories: {
+            type: 'array',
+            description: 'Net worth categories with entries',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Category name (e.g. "Cash & Savings", "Real Estate")' },
+                kind: { type: 'string', description: '"asset" or "liability"' },
+                entries: {
+                  type: 'array',
+                  description: 'Entries within this category',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'Entry name (e.g. "Checking Account", "Mortgage")' },
+                      value: { type: 'number', description: 'Dollar value' },
+                      notes: { type: 'string', description: 'Optional notes' },
+                    },
+                    required: ['name', 'value'],
+                  },
+                },
+              },
+              required: ['name', 'kind', 'entries'],
+            },
+          },
+        },
+        required: ['categories'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const cats = input.categories as Array<{
+        name: string; kind: string;
+        entries: Array<{ name: string; value: number; notes?: string }>;
+      }>;
+      let entriesCreated = 0;
+      for (const cat of cats) {
+        const categoryId = crypto.randomUUID();
+        await ctx.db.insert(networthCategories).values({
+          id: categoryId,
+          workspaceId: ctx.workspaceId,
+          userId: ctx.userId,
+          name: cat.name,
+          kind: cat.kind as 'asset' | 'liability',
+        });
+        for (const entry of cat.entries) {
+          await ctx.db.insert(networthEntries).values({
+            id: crypto.randomUUID(),
+            workspaceId: ctx.workspaceId,
+            userId: ctx.userId,
+            name: entry.name,
+            categoryId,
+            value: entry.value,
+            notes: entry.notes ?? null,
+          });
+          entriesCreated++;
+        }
+      }
+      return { success: true, categoriesCreated: cats.length, entriesCreated, _canvasUpdate: true };
+    },
+  },
+
+  // 36. populate_debts
+  {
+    definition: {
+      name: 'populate_debts',
+      description:
+        'Populate a debt planner card with debt entries. Call this AFTER create_canvas_item for a debt-planner-card. Creates debt records in the database.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          debts: {
+            type: 'array',
+            description: 'Debt entries to create',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Debt name (e.g. "Student Loan", "Credit Card")' },
+                balance: { type: 'number', description: 'Current balance owed' },
+                annualInterestRate: { type: 'number', description: 'Annual interest rate as percentage (e.g. 6.5)' },
+                minimumPayment: { type: 'number', description: 'Minimum monthly payment' },
+              },
+              required: ['name', 'balance', 'annualInterestRate', 'minimumPayment'],
+            },
+          },
+        },
+        required: ['debts'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const items = input.debts as Array<{
+        name: string; balance: number; annualInterestRate: number; minimumPayment: number;
+      }>;
+      for (const d of items) {
+        await ctx.db.insert(debts).values({
+          id: crypto.randomUUID(),
+          workspaceId: ctx.workspaceId,
+          userId: ctx.userId,
+          name: d.name,
+          balance: d.balance,
+          annualInterestRate: d.annualInterestRate,
+          minimumPayment: d.minimumPayment,
+        });
+      }
+      return { success: true, debtsCreated: items.length, _canvasUpdate: true };
     },
   },
 ];

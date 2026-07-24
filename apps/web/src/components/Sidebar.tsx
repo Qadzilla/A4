@@ -1,5 +1,7 @@
 import { ROUTES } from '@/constants';
+import { useDevUser } from '@/hooks/useDevUser';
 import { DEV_AUTH_BYPASS } from '@/lib/clerk';
+import { useClerk } from '@clerk/clerk-react';
 import { useTRPC } from '@/lib/trpc';
 import { useCanvasStore } from '@/stores/canvas-store';
 import { useUIStore } from '@/stores/ui-store';
@@ -128,6 +130,11 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { sidebarCollapsed, toggleSidebar, theme, setTheme } = useUIStore();
+  const clerk = DEV_AUTH_BYPASS ? null : useClerk();
+  const { user } = useDevUser();
+  const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'User';
+  const email = user.primaryEmailAddress?.emailAddress ?? '';
+  const initial = (user.firstName?.[0] ?? email[0] ?? 'U').toUpperCase();
   const trpc = useTRPC();
   const { data: workspaces = [] } = useQuery(trpc.workspace.list.queryOptions());
   const [workspacesOpen, setWorkspacesOpen] = useState(true);
@@ -366,15 +373,15 @@ export function Sidebar() {
               <div className="flex items-center gap-2 overflow-hidden">
                 {/* Avatar */}
                 <div className="size-8 shrink-0 bg-gradient-to-br from-primary to-primary/60 rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm shadow-sm ring-1 ring-black/5 dark:ring-white/10">
-                  Z
+                  {initial}
                 </div>
 
                 {/* User Info (Hidden when collapsed) */}
                 {!sidebarCollapsed && (
                   <div className="flex flex-col items-start text-left truncate">
-                    <span className="font-semibold text-sm leading-none truncate w-full">Zaid</span>
+                    <span className="font-semibold text-sm leading-none truncate w-full">{displayName}</span>
                     <span className="text-xs text-muted-foreground leading-none mt-1 truncate w-full">
-                      dev@a4.ai
+                      {email}
                     </span>
                   </div>
                 )}
@@ -405,11 +412,11 @@ export function Sidebar() {
           >
             <div className="px-2 py-2 flex items-center gap-3">
               <div className="size-10 shrink-0 bg-gradient-to-br from-primary to-primary/60 rounded-full flex items-center justify-center text-primary-foreground font-bold text-lg shadow-sm ring-1 ring-black/5 dark:ring-white/10">
-                Z
+                {initial}
               </div>
               <div className="flex flex-col">
-                <span className="font-semibold text-sm">Zaid</span>
-                <span className="text-xs text-muted-foreground">@dev-user</span>
+                <span className="font-semibold text-sm">{displayName}</span>
+                <span className="text-xs text-muted-foreground">{email}</span>
               </div>
             </div>
 
@@ -583,7 +590,7 @@ export function Sidebar() {
                 if (DEV_AUTH_BYPASS) {
                   window.location.href = ROUTES.SIGN_IN;
                 } else {
-                  window.location.href = ROUTES.SIGN_IN;
+                  clerk?.signOut({ redirectUrl: ROUTES.SIGN_IN });
                 }
               }}
             >

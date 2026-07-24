@@ -1,7 +1,10 @@
+import { useDevUser } from '@/hooks/useDevUser';
+import { useTRPC } from '@/lib/trpc';
 import { Button, cn } from '@a4/ui';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-type Tab = 'profile' | 'security' | 'notifications';
+type Tab = 'profile' | 'plan' | 'notifications';
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -24,8 +27,8 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: 'security',
-    label: 'Security',
+    id: 'plan',
+    label: 'Plan & Usage',
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -37,7 +40,9 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
         strokeLinejoin="round"
         className="size-4"
       >
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
       </svg>
     ),
   },
@@ -63,12 +68,16 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 function ProfileTab() {
+  const { user } = useDevUser();
+  const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'User';
+  const email = user.primaryEmailAddress?.emailAddress ?? '';
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="space-y-6">
         <div>
           <h2 className="text-xl font-bold mb-1">Personal Information</h2>
-          <p className="text-sm text-muted-foreground">Update your personal details.</p>
+          <p className="text-sm text-muted-foreground">Your account details managed by your identity provider.</p>
         </div>
 
         <div className="grid gap-6 max-w-lg">
@@ -77,7 +86,7 @@ function ProfileTab() {
               Display Name
             </label>
             <div className="p-3 border border-border/60 rounded-xl bg-muted/20 text-sm font-medium">
-              Zaid
+              {displayName}
             </div>
           </div>
           <div className="space-y-2">
@@ -85,18 +94,10 @@ function ProfileTab() {
               Email Address
             </label>
             <div className="p-3 border border-border/60 rounded-xl bg-muted/20 text-sm font-medium flex items-center justify-between">
-              dev@a4.ai
+              {email}
               <span className="text-[10px] bg-green-500/10 text-green-500 border border-green-500/20 px-2 py-0.5 rounded-full font-bold uppercase">
                 Verified
               </span>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-muted-foreground tracking-wider ml-1">
-              User ID
-            </label>
-            <div className="p-3 border border-border/60 rounded-xl bg-muted/20 text-sm font-mono text-muted-foreground">
-              dev-user-8392
             </div>
           </div>
         </div>
@@ -124,31 +125,96 @@ function ProfileTab() {
   );
 }
 
-function SecurityTab() {
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function PlanTab() {
+  const trpc = useTRPC();
+  const { data: plan } = useQuery(trpc.billing.getCurrentPlan.queryOptions());
+  const { data: usage } = useQuery(trpc.billing.getUsage.queryOptions());
+
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground animate-in fade-in slide-in-from-right-4 duration-300">
-      <div className="p-4 rounded-full bg-muted/30 mb-4">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="size-8 opacity-50"
-        >
-          <path d="m15.5 7.5-1 1" />
-          <path d="m21 2-9.3 9.3" />
-          <path d="M3.5 21c1.406-1.406 3.373-4.415 5.063-6.813a2 2 0 0 1 3.25 0c1.69 2.398 3.657 5.407 5.063 6.813" />
-          <path d="M7.5 15.5 6 17" />
-          <circle cx="12" cy="12" r="1" />
-        </svg>
+    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+      {/* Current Plan */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold mb-1">Current Plan</h2>
+          <p className="text-sm text-muted-foreground">Your subscription and account limits.</p>
+        </div>
+
+        {plan && (
+          <div className="p-5 border border-border/60 rounded-xl bg-muted/10 max-w-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-lg">{plan.name}</h3>
+                <p className="text-sm text-muted-foreground">All features included during early access</p>
+              </div>
+              <span className="text-xs bg-green-500/10 text-green-500 border border-green-500/20 px-3 py-1 rounded-full font-bold uppercase">
+                {plan.status}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="p-3 bg-muted/20 rounded-lg">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Workspaces</p>
+                <p className="font-bold mt-1">Up to {plan.limits.workspaces}</p>
+              </div>
+              <div className="p-3 bg-muted/20 rounded-lg">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Files / workspace</p>
+                <p className="font-bold mt-1">Up to {plan.limits.filesPerWorkspace}</p>
+              </div>
+              <div className="p-3 bg-muted/20 rounded-lg">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Max file size</p>
+                <p className="font-bold mt-1">{plan.limits.fileSizeMb} MB</p>
+              </div>
+              <div className="p-3 bg-muted/20 rounded-lg">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">AI messages / day</p>
+                <p className="font-bold mt-1">Up to {plan.limits.aiMessagesPerDay}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-      <h3 className="text-lg font-bold mb-1">Security Settings</h3>
-      <p className="text-sm max-w-xs mx-auto">
-        Two-factor authentication and password management coming soon.
-      </p>
+
+      {/* Usage */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold mb-1">Usage</h2>
+          <p className="text-sm text-muted-foreground">Your current resource usage across all workspaces.</p>
+        </div>
+
+        {usage && (
+          <div className="grid gap-4 max-w-lg">
+            <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl">
+              <div>
+                <p className="text-sm font-medium">Workspaces</p>
+                <p className="text-xs text-muted-foreground">Active workspaces created</p>
+              </div>
+              <span className="font-mono font-bold text-lg tabular-nums">{usage.workspaces}</span>
+            </div>
+            <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl">
+              <div>
+                <p className="text-sm font-medium">Uploaded Files</p>
+                <p className="text-xs text-muted-foreground">Documents across all workspaces</p>
+              </div>
+              <span className="font-mono font-bold text-lg tabular-nums">{usage.files}</span>
+            </div>
+            <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl">
+              <div>
+                <p className="text-sm font-medium">AI Tokens Used</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatTokens(usage.aiTokens.input)} in / {formatTokens(usage.aiTokens.output)} out
+                </p>
+              </div>
+              <span className="font-mono font-bold text-lg tabular-nums">
+                {formatTokens(usage.aiTokens.input + usage.aiTokens.output)}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -215,7 +281,7 @@ export default function SettingsPage() {
         {/* Content */}
         <div className="flex-1 space-y-8 bg-card border border-border/60 rounded-3xl p-8 shadow-sm h-fit">
           {activeTab === 'profile' && <ProfileTab />}
-          {activeTab === 'security' && <SecurityTab />}
+          {activeTab === 'plan' && <PlanTab />}
           {activeTab === 'notifications' && <NotificationsTab />}
         </div>
       </div>

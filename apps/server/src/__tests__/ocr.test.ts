@@ -28,16 +28,6 @@ vi.mock('mupdf', () => ({
   },
 }));
 
-const mockReadFile = vi.fn().mockResolvedValue(Buffer.from('fake-pdf'));
-vi.mock('node:fs/promises', async (importOriginal) => {
-  const actual = (await importOriginal()) as any;
-  return {
-    ...actual,
-    default: { ...actual, readFile: (...args: any[]) => mockReadFile(...args) },
-    readFile: (...args: any[]) => mockReadFile(...args),
-  };
-});
-
 import { ocrImage, ocrPdfPages } from '../services/ocr.js';
 
 beforeEach(() => {
@@ -105,10 +95,11 @@ describe('ocrPdfPages', () => {
       .mockResolvedValueOnce({ data: { text: 'Page 1 text' } })
       .mockResolvedValueOnce({ data: { text: 'Page 2 text' } });
 
-    const result = await ocrPdfPages('/path/to/scanned.pdf');
+    const buf = Buffer.from('fake-pdf');
+    const result = await ocrPdfPages(buf);
 
     expect(result).toBe('Page 1 text\n\nPage 2 text');
-    expect(mockOpenDocument).toHaveBeenCalled();
+    expect(mockOpenDocument).toHaveBeenCalledWith(buf, 'application/pdf');
     expect(mockSetParameters).toHaveBeenCalledWith({
       tessedit_pageseg_mode: 6,
       preserve_interword_spaces: '1',
@@ -124,7 +115,7 @@ describe('ocrPdfPages', () => {
     mockCountPages.mockReturnValue(25);
     mockRecognize.mockResolvedValue({ data: { text: 'text' } });
 
-    await ocrPdfPages('/path/to/long.pdf');
+    await ocrPdfPages(Buffer.from('fake-pdf'));
 
     expect(mockLoadPage).toHaveBeenCalledTimes(10);
   });
@@ -132,7 +123,7 @@ describe('ocrPdfPages', () => {
   it('returns empty string when document has no pages', async () => {
     mockCountPages.mockReturnValue(0);
 
-    const result = await ocrPdfPages('/path/to/empty.pdf');
+    const result = await ocrPdfPages(Buffer.from('fake-pdf'));
 
     expect(result).toBe('');
     expect(mockCreateWorker).not.toHaveBeenCalled();
@@ -144,7 +135,7 @@ describe('ocrPdfPages', () => {
     });
 
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = await ocrPdfPages('/path/to/bad.pdf');
+    const result = await ocrPdfPages(Buffer.from('bad-pdf'));
 
     expect(result).toBe('');
     spy.mockRestore();
@@ -154,7 +145,7 @@ describe('ocrPdfPages', () => {
     mockCountPages.mockReturnValue(3);
     mockRecognize.mockResolvedValue({ data: { text: 'text' } });
 
-    await ocrPdfPages('/path/to/multi.pdf');
+    await ocrPdfPages(Buffer.from('fake-pdf'));
 
     expect(mockCreateWorker).toHaveBeenCalledTimes(1);
     expect(mockRecognize).toHaveBeenCalledTimes(3);

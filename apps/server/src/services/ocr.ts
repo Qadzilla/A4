@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises';
-
 export const MIN_PDF_TEXT_LENGTH = 50;
 const MAX_OCR_PAGES = 10;
 const PDF_RENDER_SCALE = 4; // 4x scale — better recognition of thin characters like minus signs
@@ -24,11 +22,10 @@ export async function ocrImage(input: string | Buffer): Promise<string> {
   }
 }
 
-export async function ocrPdfPages(filePath: string): Promise<string> {
+export async function ocrPdfPages(buffer: Buffer): Promise<string> {
   try {
     const mupdf = await import('mupdf');
-    const pdfBuffer = await fs.readFile(filePath);
-    const doc = mupdf.Document.openDocument(pdfBuffer, 'application/pdf');
+    const doc = mupdf.Document.openDocument(buffer, 'application/pdf');
     const pageCount = Math.min(doc.countPages(), MAX_OCR_PAGES);
 
     if (pageCount === 0) {

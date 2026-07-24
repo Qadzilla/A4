@@ -439,6 +439,20 @@ export const aiUsage = sqliteTable('ai_usage', {
     .$defaultFn(() => new Date()),
 });
 
+// User profiles (app-specific preferences; identity lives in Clerk)
+export const userProfiles = sqliteTable('user_profiles', {
+  userId: text('user_id').primaryKey(),
+  firstName: text('first_name'),
+  lastName: text('last_name'),
+  onboardingCompleted: integer('onboarding_completed', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // Proactive insights
 export const workspaceInsights = sqliteTable('workspace_insights', {
   id: text('id').primaryKey(),

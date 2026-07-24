@@ -16,9 +16,21 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   POLYGON_API_KEY: z.string().default(''),
   POLYGON_WS_URL: z.string().default('wss://socket.polygon.io'),
+  // Cloudflare R2 (S3-compatible) — optional, falls back to local disk
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET_NAME: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
+
+export const USE_R2 = !!(
+  env.R2_ACCOUNT_ID &&
+  env.R2_ACCESS_KEY_ID &&
+  env.R2_SECRET_ACCESS_KEY &&
+  env.R2_BUCKET_NAME
+);
 
 export const DEV_AUTH_BYPASS = isDev && !env.CLERK_SECRET_KEY;
 

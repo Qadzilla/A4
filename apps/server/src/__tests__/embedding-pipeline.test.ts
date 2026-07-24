@@ -6,6 +6,13 @@ import * as schema from '../db/schema';
 import { documentChunks, files } from '../db/schema';
 
 // Mock dependencies
+vi.mock('../services/storage', () => ({
+  storage: {
+    get: vi.fn().mockResolvedValue(Buffer.from('fake file content')),
+    put: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+}));
 vi.mock('../services/text-extraction', () => ({
   extractText: vi.fn(),
 }));
@@ -93,7 +100,7 @@ describe('embedFile', () => {
     const result = await embedFile('file-1', db);
 
     expect(result.chunksCreated).toBe(2);
-    expect(mockExtractText).toHaveBeenCalledWith('/uploads/report.pdf', 'application/pdf');
+    expect(mockExtractText).toHaveBeenCalledWith(expect.any(Buffer), 'application/pdf');
     expect(mockChunkText).toHaveBeenCalledWith('Hello world. This is a test.');
     expect(mockEmbedTexts).toHaveBeenCalledWith(['Hello world.', 'This is a test.']);
 

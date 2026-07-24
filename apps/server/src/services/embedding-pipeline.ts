@@ -3,6 +3,7 @@ import type { DB } from '../db';
 import { documentChunks, files } from '../db/schema';
 import { chunkText } from './chunking';
 import { embedTexts } from './embedding';
+import { storage } from './storage';
 import { extractText } from './text-extraction';
 
 export async function embedFile(
@@ -16,7 +17,8 @@ export async function embedFile(
   }
 
   // Extract text
-  const text = await extractText(file.storagePath, file.mimeType);
+  const buffer = await storage.get(file.storagePath);
+  const text = await extractText(buffer, file.mimeType);
   if (!text || text.trim().length === 0) {
     return { chunksCreated: 0 };
   }

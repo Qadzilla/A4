@@ -10,6 +10,15 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          blocknote: ['@blocknote/core', '@blocknote/mantine', '@blocknote/react'],
+        },
+      },
+    },
+  },
   server: {
     port: 3000,
     proxy: {

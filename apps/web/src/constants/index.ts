@@ -12,4 +12,5 @@ export const ROUTES = {
   FRAMEWORKS: '/frameworks',
   USAGE: '/usage',
   SETTINGS: '/settings',
+  ONBOARDING: '/onboarding',
 } as const;

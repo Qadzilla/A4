@@ -12,6 +12,7 @@ dist/
 .env
 .env.local
 .env.*.local
+.env.production
 
 # IDE
 .vscode/
@@ -41,3 +42,12 @@ drizzle/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Local dev data (uploads live in R2 in prod; local files are personal test docs)
+apps/server/data/
+
+# OCR model binary (downloaded at runtime by tesseract.js)
+eng.traineddata
+
+# TypeScript incremental build state
+*.tsbuildinfo

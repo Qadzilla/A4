@@ -1,50 +1,14 @@
 import { Button, Modal, ModalContent, ModalFooter, ModalHeader, ModalTitle, cn } from '@a4/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
-import { AccountCardView } from '../../../../components/canvas/account-card-view';
-import { BalanceSheetCardView } from '../../../../components/canvas/balance-sheet-card-view';
-import { BudgetCardView } from '../../../../components/canvas/budget-card-view';
 import { CanvasItemRenderer } from '../../../../components/canvas/canvas-item-renderer';
 import { CanvasMinimap } from '../../../../components/canvas/canvas-minimap';
-import { CashFlowCardView } from '../../../../components/canvas/cash-flow-card-view';
-import { ChatPanel } from '../../../../components/canvas/chat-panel';
-import { InsightsPanel } from '../../../../components/canvas/insights-panel';
-import { useChat } from '../../../../hooks/useChat';
-import { useInsights } from '../../../../hooks/useInsights';
-import { ChartCardView } from '../../../../components/canvas/chart-card-view';
-import { EmbedCardView } from '../../../../components/canvas/embed-card-view';
-import { DebtPlannerCardView } from '../../../../components/canvas/debt-planner-card-view';
-import { NetWorthCardView } from '../../../../components/canvas/networth-card-view';
-import { PortfolioCardView } from '../../../../components/canvas/portfolio-card-view';
-import { RentVsBuyCardView } from '../../../../components/canvas/rent-vs-buy-card-view';
-import { DataToolPanel } from '../../../../components/canvas/data-tool-panel';
-import { DocumentView } from '../../../../components/canvas/document-view';
-import { FileCardView } from '../../../../components/canvas/file-card-view';
-import { FinanceToolPanel } from '../../../../components/canvas/finance-tool-panel';
-import { GeneralToolPanel } from '../../../../components/canvas/general-tool-panel';
-import { InvoiceCardView } from '../../../../components/canvas/invoice-card-view';
-import { KpiCardView } from '../../../../components/canvas/kpi-card-view';
-import { LedgerCardView } from '../../../../components/canvas/ledger-card-view';
-import { LoanCalculatorCardView } from '../../../../components/canvas/loan-calculator-card-view';
-import { ProjectionCardView } from '../../../../components/canvas/projection-card-view';
-import { BreakevenCardView } from '../../../../components/canvas/breakeven-card-view';
-import { DepreciationCardView } from '../../../../components/canvas/depreciation-card-view';
-import { PnlCardView } from '../../../../components/canvas/pnl-card-view';
-import { ReceiptCardView } from '../../../../components/canvas/receipt-card-view';
-import { ReportsToolPanel } from '../../../../components/canvas/reports-tool-panel';
-import { SecretCardView } from '../../../../components/canvas/secret-card-view';
-import { SecretToolPanel } from '../../../../components/canvas/secret-tool-panel';
-import { SubscriptionCardView } from '../../../../components/canvas/subscription-card-view';
 import { TabBar } from '../../../../components/canvas/tab-bar';
-import { TableCardView } from '../../../../components/canvas/table-card-view';
-import { TaxEstimatorCardView } from '../../../../components/canvas/tax-estimator-card-view';
-import { TaxToolPanel } from '../../../../components/canvas/tax-tool-panel';
-import { TimerCardView } from '../../../../components/canvas/timer-card-view';
-import { VaultSetupModal } from '../../../../components/vault/vault-setup-modal';
-import { VaultUnlockModal } from '../../../../components/vault/vault-unlock-modal';
 import { useAuthToken } from '../../../../hooks/useAuthToken';
 import { useCanvasDrop } from '../../../../hooks/useCanvasDrop';
+import { useChat } from '../../../../hooks/useChat';
+import { useInsights } from '../../../../hooks/useInsights';
 import { useWorkspaceThumbnail } from '../../../../hooks/useWorkspaceThumbnail';
 import { bezierPath, getAnchorScreenPos } from '../../../../lib/canvas-utils';
 import type { AnchorPosition, CanvasConnection } from '../../../../lib/canvas-utils';
@@ -59,6 +23,50 @@ import { useTRPC } from '../../../../lib/trpc';
 import { getCachedKey } from '../../../../lib/vault-crypto';
 import type { CanvasItem } from '../../../../stores/canvas-store';
 import { useCanvasStore } from '../../../../stores/canvas-store';
+
+// ── Lazy-loaded tab views (only one shown at a time) ──────────────────────
+const AccountCardView = lazy(() => import('../../../../components/canvas/account-card-view').then(m => ({ default: m.AccountCardView })));
+const BalanceSheetCardView = lazy(() => import('../../../../components/canvas/balance-sheet-card-view').then(m => ({ default: m.BalanceSheetCardView })));
+const BreakevenCardView = lazy(() => import('../../../../components/canvas/breakeven-card-view').then(m => ({ default: m.BreakevenCardView })));
+const BudgetCardView = lazy(() => import('../../../../components/canvas/budget-card-view').then(m => ({ default: m.BudgetCardView })));
+const CashFlowCardView = lazy(() => import('../../../../components/canvas/cash-flow-card-view').then(m => ({ default: m.CashFlowCardView })));
+const ChartCardView = lazy(() => import('../../../../components/canvas/chart-card-view').then(m => ({ default: m.ChartCardView })));
+const DebtPlannerCardView = lazy(() => import('../../../../components/canvas/debt-planner-card-view').then(m => ({ default: m.DebtPlannerCardView })));
+const DepreciationCardView = lazy(() => import('../../../../components/canvas/depreciation-card-view').then(m => ({ default: m.DepreciationCardView })));
+const DocumentView = lazy(() => import('../../../../components/canvas/document-view').then(m => ({ default: m.DocumentView })));
+const EmbedCardView = lazy(() => import('../../../../components/canvas/embed-card-view').then(m => ({ default: m.EmbedCardView })));
+const FileCardView = lazy(() => import('../../../../components/canvas/file-card-view').then(m => ({ default: m.FileCardView })));
+const InvoiceCardView = lazy(() => import('../../../../components/canvas/invoice-card-view').then(m => ({ default: m.InvoiceCardView })));
+const KpiCardView = lazy(() => import('../../../../components/canvas/kpi-card-view').then(m => ({ default: m.KpiCardView })));
+const LedgerCardView = lazy(() => import('../../../../components/canvas/ledger-card-view').then(m => ({ default: m.LedgerCardView })));
+const LoanCalculatorCardView = lazy(() => import('../../../../components/canvas/loan-calculator-card-view').then(m => ({ default: m.LoanCalculatorCardView })));
+const NetWorthCardView = lazy(() => import('../../../../components/canvas/networth-card-view').then(m => ({ default: m.NetWorthCardView })));
+const PnlCardView = lazy(() => import('../../../../components/canvas/pnl-card-view').then(m => ({ default: m.PnlCardView })));
+const PortfolioCardView = lazy(() => import('../../../../components/canvas/portfolio-card-view').then(m => ({ default: m.PortfolioCardView })));
+const ProjectionCardView = lazy(() => import('../../../../components/canvas/projection-card-view').then(m => ({ default: m.ProjectionCardView })));
+const ReceiptCardView = lazy(() => import('../../../../components/canvas/receipt-card-view').then(m => ({ default: m.ReceiptCardView })));
+const RentVsBuyCardView = lazy(() => import('../../../../components/canvas/rent-vs-buy-card-view').then(m => ({ default: m.RentVsBuyCardView })));
+const SecretCardView = lazy(() => import('../../../../components/canvas/secret-card-view').then(m => ({ default: m.SecretCardView })));
+const SubscriptionCardView = lazy(() => import('../../../../components/canvas/subscription-card-view').then(m => ({ default: m.SubscriptionCardView })));
+const TableCardView = lazy(() => import('../../../../components/canvas/table-card-view').then(m => ({ default: m.TableCardView })));
+const TaxEstimatorCardView = lazy(() => import('../../../../components/canvas/tax-estimator-card-view').then(m => ({ default: m.TaxEstimatorCardView })));
+const TimerCardView = lazy(() => import('../../../../components/canvas/timer-card-view').then(m => ({ default: m.TimerCardView })));
+
+// ── Lazy-loaded side panels ───────────────────────────────────────────────
+const ChatPanel = lazy(() => import('../../../../components/canvas/chat-panel').then(m => ({ default: m.ChatPanel })));
+const InsightsPanel = lazy(() => import('../../../../components/canvas/insights-panel').then(m => ({ default: m.InsightsPanel })));
+
+// ── Lazy-loaded tool panels ───────────────────────────────────────────────
+const GeneralToolPanel = lazy(() => import('../../../../components/canvas/general-tool-panel').then(m => ({ default: m.GeneralToolPanel })));
+const SecretToolPanel = lazy(() => import('../../../../components/canvas/secret-tool-panel').then(m => ({ default: m.SecretToolPanel })));
+const DataToolPanel = lazy(() => import('../../../../components/canvas/data-tool-panel').then(m => ({ default: m.DataToolPanel })));
+const FinanceToolPanel = lazy(() => import('../../../../components/canvas/finance-tool-panel').then(m => ({ default: m.FinanceToolPanel })));
+const ReportsToolPanel = lazy(() => import('../../../../components/canvas/reports-tool-panel').then(m => ({ default: m.ReportsToolPanel })));
+const TaxToolPanel = lazy(() => import('../../../../components/canvas/tax-tool-panel').then(m => ({ default: m.TaxToolPanel })));
+
+// ── Lazy-loaded vault modals ──────────────────────────────────────────────
+const VaultSetupModal = lazy(() => import('../../../../components/vault/vault-setup-modal').then(m => ({ default: m.VaultSetupModal })));
+const VaultUnlockModal = lazy(() => import('../../../../components/vault/vault-unlock-modal').then(m => ({ default: m.VaultUnlockModal })));
 
 /** Save canvas state using fetch with keepalive — survives page unload / refresh. */
 function saveCanvasKeepalive(
@@ -822,60 +830,63 @@ export default function WorkspaceDetailPage() {
         onFocusItem={focusItem}
       />
 
-      {activeItem &&
-        (activeItem.type === 'secret-card' ? (
-          <SecretCardView item={activeItem} onRequestUnlock={requestVaultUnlock} />
-        ) : activeItem.type === 'table-card' ? (
-          <TableCardView item={activeItem} />
-        ) : activeItem.type === 'kpi-card' ? (
-          <KpiCardView item={activeItem} />
-        ) : activeItem.type === 'chart-card' ? (
-          <ChartCardView item={activeItem} />
-        ) : activeItem.type === 'file-card' ? (
-          <FileCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'timer-card' ? (
-          <TimerCardView item={activeItem} />
-        ) : activeItem.type === 'invoice-card' ? (
-          <InvoiceCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'budget-card' ? (
-          <BudgetCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'ledger-card' ? (
-          <LedgerCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'receipt-card' ? (
-          <ReceiptCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'subscription-card' ? (
-          <SubscriptionCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'account-card' ? (
-          <AccountCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'pnl-card' ? (
-          <PnlCardView item={activeItem} />
-        ) : activeItem.type === 'balance-sheet-card' ? (
-          <BalanceSheetCardView item={activeItem} />
-        ) : activeItem.type === 'cash-flow-card' ? (
-          <CashFlowCardView item={activeItem} />
-        ) : activeItem.type === 'tax-estimator-card' ? (
-          <TaxEstimatorCardView item={activeItem} />
-        ) : activeItem.type === 'loan-calculator-card' ? (
-          <LoanCalculatorCardView item={activeItem} />
-        ) : activeItem.type === 'projection-card' ? (
-          <ProjectionCardView item={activeItem} />
-        ) : activeItem.type === 'breakeven-card' ? (
-          <BreakevenCardView item={activeItem} />
-        ) : activeItem.type === 'depreciation-card' ? (
-          <DepreciationCardView item={activeItem} />
-        ) : activeItem.type === 'networth-card' ? (
-          <NetWorthCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'debt-planner-card' ? (
-          <DebtPlannerCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'portfolio-card' ? (
-          <PortfolioCardView item={activeItem} workspaceId={id!} />
-        ) : activeItem.type === 'rent-vs-buy-card' ? (
-          <RentVsBuyCardView item={activeItem} />
-        ) : activeItem.type === 'embed-card' ? (
-          <EmbedCardView item={activeItem} />
-        ) : (
-          <DocumentView item={activeItem} />
-        ))}
+      {activeItem && (
+        <Suspense fallback={<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Loading...</div>}>
+          {activeItem.type === 'secret-card' ? (
+            <SecretCardView item={activeItem} onRequestUnlock={requestVaultUnlock} />
+          ) : activeItem.type === 'table-card' ? (
+            <TableCardView item={activeItem} />
+          ) : activeItem.type === 'kpi-card' ? (
+            <KpiCardView item={activeItem} />
+          ) : activeItem.type === 'chart-card' ? (
+            <ChartCardView item={activeItem} />
+          ) : activeItem.type === 'file-card' ? (
+            <FileCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'timer-card' ? (
+            <TimerCardView item={activeItem} />
+          ) : activeItem.type === 'invoice-card' ? (
+            <InvoiceCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'budget-card' ? (
+            <BudgetCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'ledger-card' ? (
+            <LedgerCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'receipt-card' ? (
+            <ReceiptCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'subscription-card' ? (
+            <SubscriptionCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'account-card' ? (
+            <AccountCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'pnl-card' ? (
+            <PnlCardView item={activeItem} />
+          ) : activeItem.type === 'balance-sheet-card' ? (
+            <BalanceSheetCardView item={activeItem} />
+          ) : activeItem.type === 'cash-flow-card' ? (
+            <CashFlowCardView item={activeItem} />
+          ) : activeItem.type === 'tax-estimator-card' ? (
+            <TaxEstimatorCardView item={activeItem} />
+          ) : activeItem.type === 'loan-calculator-card' ? (
+            <LoanCalculatorCardView item={activeItem} />
+          ) : activeItem.type === 'projection-card' ? (
+            <ProjectionCardView item={activeItem} />
+          ) : activeItem.type === 'breakeven-card' ? (
+            <BreakevenCardView item={activeItem} />
+          ) : activeItem.type === 'depreciation-card' ? (
+            <DepreciationCardView item={activeItem} />
+          ) : activeItem.type === 'networth-card' ? (
+            <NetWorthCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'debt-planner-card' ? (
+            <DebtPlannerCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'portfolio-card' ? (
+            <PortfolioCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'rent-vs-buy-card' ? (
+            <RentVsBuyCardView item={activeItem} />
+          ) : activeItem.type === 'embed-card' ? (
+            <EmbedCardView item={activeItem} />
+          ) : (
+            <DocumentView item={activeItem} />
+          )}
+        </Suspense>
+      )}
       <div className={cn('relative flex flex-1 min-h-0', activeItem && 'hidden')}>
         {/* Main area — workspace canvas */}
         <div
@@ -1238,6 +1249,7 @@ export default function WorkspaceDetailPage() {
               isPanelCollapsed && 'invisible',
             )}
           >
+            <Suspense fallback={null}>
             {panelMode === 'insights' ? (
               <InsightsPanel
                 insights={insights.insights}
@@ -1648,7 +1660,9 @@ export default function WorkspaceDetailPage() {
                 <TaxToolPanel onDragStart={startDrag} />
               </>
             ) : null}
-
+            </>
+            )}
+          </Suspense>
             {/* Insights + AI Chat bar pinned to bottom */}
             <div className="mt-auto border-t border-border/60 p-2 space-y-0.5">
               <button
@@ -1702,8 +1716,6 @@ export default function WorkspaceDetailPage() {
                 )}
               </button>
             </div>
-            </>
-            )}
           </div>
         </aside>
       </div>
@@ -1726,6 +1738,7 @@ export default function WorkspaceDetailPage() {
 
       {/* Vault modals — conditionally rendered to avoid extra useSyncExternalStore
           subscriptions from their internal useQuery/useMutation hooks */}
+      <Suspense fallback={null}>
       {showVaultSetup && (
         <VaultSetupModal
           open={showVaultSetup}
@@ -1755,6 +1768,7 @@ export default function WorkspaceDetailPage() {
           }}
         />
       )}
+      </Suspense>
     </div>
   );
 }

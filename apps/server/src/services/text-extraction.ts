@@ -1,83 +1,63 @@
-import fs from 'node:fs/promises';
 import Papa from 'papaparse';
 import { unzipSync } from 'fflate';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-export async function extractText(filePath: string, mimeType: string): Promise<string> {
-  try {
-    const stat = await fs.stat(filePath);
-    if (stat.size > MAX_FILE_SIZE) {
-      console.warn(`[text-extraction] File too large (${stat.size} bytes), skipping: ${filePath}`);
-      return '';
-    }
-  } catch {
-    console.warn(`[text-extraction] Cannot stat file: ${filePath}`);
-    return '';
-  }
-
+export async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
   if (mimeType === 'text/plain') {
-    return extractPlainText(filePath);
+    return extractPlainText(buffer);
   }
   if (mimeType === 'text/csv') {
-    return extractCsv(filePath);
+    return extractCsv(buffer);
   }
   if (mimeType === 'application/pdf') {
-    return extractPdf(filePath);
+    return extractPdf(buffer);
   }
   if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-    return extractDocx(filePath);
+    return extractDocx(buffer);
   }
   if (
     mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
     mimeType === 'application/vnd.ms-excel'
   ) {
-    return extractXlsx(filePath);
+    return extractXlsx(buffer);
   }
   if (mimeType.startsWith('image/')) {
-    return extractImage(filePath);
+    return extractImage(buffer);
   }
 
   console.warn(`[text-extraction] Unsupported MIME type: ${mimeType}`);
   return '';
 }
 
-async function extractPlainText(filePath: string): Promise<string> {
-  try {
-    return await fs.readFile(filePath, 'utf-8');
-  } catch (err) {
-    console.warn(`[text-extraction] Failed to read text file: ${filePath}`, err);
-    return '';
-  }
+function extractPlainText(buffer: Buffer): string {
+  return buffer.toString('utf-8');
 }
 
-async function extractCsv(filePath: string): Promise<string> {
+function extractCsv(buffer: Buffer): string {
   try {
-    const content = await fs.readFile(filePath, 'utf-8');
+    const content = buffer.toString('utf-8');
     const result = Papa.parse<string[]>(content, { header: false, skipEmptyLines: true });
     return (result.data as string[][])
       .map((row) => row.join(' | '))
       .join('\n');
   } catch (err) {
-    console.warn(`[text-extraction] Failed to parse CSV: ${filePath}`, err);
+    console.warn('[text-extraction] Failed to parse CSV:', err);
     return '';
   }
 }
 
-async function extractImage(filePath: string): Promise<string> {
+async function extractImage(buffer: Buffer): Promise<string> {
   try {
     const { ocrImage } = await import('./ocr.js');
-    return await ocrImage(filePath);
+    return await ocrImage(buffer);
   } catch (err) {
-    console.warn(`[text-extraction] Failed to OCR image: ${filePath}`, err);
+    console.warn('[text-extraction] Failed to OCR image:', err);
     return '';
   }
 }
 
-async function extractPdf(filePath: string): Promise<string> {
+async function extractPdf(buffer: Buffer): Promise<string> {
   try {
     const { PDFParse } = await import('pdf-parse');
-    const buffer = await fs.readFile(filePath);
     const parser = new PDFParse({ data: new Uint8Array(buffer) });
     const result = await parser.getText();
     const text = result.text.trim();
@@ -87,38 +67,37 @@ async function extractPdf(filePath: string): Promise<string> {
     }
 
     // Text-layer is too short — likely a scanned PDF, try OCR
-    console.log(`[text-extraction] PDF text too short (${text.length} chars), attempting OCR: ${filePath}`);
+    console.log(`[text-extraction] PDF text too short (${text.length} chars), attempting OCR`);
     try {
       const { ocrPdfPages } = await import('./ocr.js');
-      const ocrText = await ocrPdfPages(filePath);
+      const ocrText = await ocrPdfPages(buffer);
       if (ocrText.length > text.length) {
         return ocrText;
       }
     } catch (ocrErr) {
-      console.warn(`[text-extraction] PDF OCR fallback failed: ${filePath}`, ocrErr);
+      console.warn('[text-extraction] PDF OCR fallback failed:', ocrErr);
     }
 
     return text;
   } catch (err) {
-    console.warn(`[text-extraction] Failed to parse PDF: ${filePath}`, err);
+    console.warn('[text-extraction] Failed to parse PDF:', err);
     return '';
   }
 }
 
-async function extractDocx(filePath: string): Promise<string> {
+async function extractDocx(buffer: Buffer): Promise<string> {
   try {
     const mammoth = await import('mammoth');
-    const result = await mammoth.extractRawText({ path: filePath });
+    const result = await mammoth.extractRawText({ buffer });
     return result.value;
   } catch (err) {
-    console.warn(`[text-extraction] Failed to parse DOCX: ${filePath}`, err);
+    console.warn('[text-extraction] Failed to parse DOCX:', err);
     return '';
   }
 }
 
-async function extractXlsx(filePath: string): Promise<string> {
+function extractXlsx(buffer: Buffer): string {
   try {
-    const buffer = await fs.readFile(filePath);
     const decompressed = unzipSync(new Uint8Array(buffer));
 
     const decoder = new TextDecoder();
@@ -176,7 +155,7 @@ async function extractXlsx(filePath: string): Promise<string> {
 
     return grid.map((row) => row.join(' | ')).join('\n');
   } catch (err) {
-    console.warn(`[text-extraction] Failed to parse XLSX: ${filePath}`, err);
+    console.warn('[text-extraction] Failed to parse XLSX:', err);
     return '';
   }
 }

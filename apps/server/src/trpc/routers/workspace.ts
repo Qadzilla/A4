@@ -7,7 +7,17 @@ import { TRPCError } from '@trpc/server';
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { canvasConnections, canvasItems, workspaces } from '../../db/schema';
+import { ITEM_DEFAULTS, createDefaultData, defaultNames } from '../../services/canvas-defaults';
 import { protectedProcedure, router } from '../trpc';
+
+const TEMPLATE_CARDS: Record<string, string[]> = {
+  'personal-finance': ['budget-card', 'account-card', 'networth-card'],
+  'small-business': ['invoice-card', 'pnl-card', 'cash-flow-card'],
+  'investment-portfolio': ['portfolio-card', 'projection-card', 'kpi-card'],
+  freelancer: ['invoice-card', 'receipt-card', 'tax-estimator-card'],
+  'real-estate': ['loan-calculator-card', 'rent-vs-buy-card', 'depreciation-card'],
+  blank: [],
+};
 
 export const workspaceRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -206,5 +216,63 @@ export const workspaceRouter = router({
       await ctx.db.delete(workspaces).where(eq(workspaces.id, input.id));
 
       return { success: true };
+    }),
+
+  createWithTemplate: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(100),
+        description: z.string().max(500).optional(),
+        template: z.enum([
+          'personal-finance',
+          'small-business',
+          'investment-portfolio',
+          'freelancer',
+          'real-estate',
+          'blank',
+        ]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const wsId = crypto.randomUUID();
+      const now = new Date();
+
+      await ctx.db.insert(workspaces).values({
+        id: wsId,
+        name: input.name,
+        description: input.description ?? null,
+        userId: ctx.userId,
+        createdAt: now,
+        updatedAt: now,
+        type: 'workspace',
+      });
+
+      const cardTypes = TEMPLATE_CARDS[input.template] ?? [];
+      const GAP = 40;
+      let xOffset = 80;
+      const yOffset = 80;
+
+      for (const cardType of cardTypes) {
+        const dims = ITEM_DEFAULTS[cardType] ?? { width: 320, height: 280 };
+        const data = createDefaultData(cardType);
+
+        await ctx.db.insert(canvasItems).values({
+          id: crypto.randomUUID(),
+          workspaceId: wsId,
+          userId: ctx.userId,
+          type: cardType,
+          name: defaultNames[cardType] ?? 'Untitled',
+          x: xOffset,
+          y: yOffset,
+          width: dims.width,
+          height: dims.height,
+          zIndex: 1,
+          data: data ? JSON.stringify(data) : null,
+        });
+
+        xOffset += dims.width + GAP;
+      }
+
+      return { id: wsId };
     }),
 });

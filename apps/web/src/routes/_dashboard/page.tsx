@@ -1,7 +1,8 @@
+import { useDevUser } from '@/hooks/useDevUser';
 import { useTRPC } from '@/lib/trpc';
 import { cn } from '@a4/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 type ChatMode = 'project' | 'quick';
@@ -10,8 +11,17 @@ export default function HomePage() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useDevUser();
+  const { data: profile, isLoading: profileLoading } = useQuery(trpc.user.getProfile.queryOptions());
   const { data: workspaces = [] } = useQuery(trpc.workspace.list.queryOptions());
   const recentWorkspaces = workspaces.filter((ws) => !ws.deletedAt).slice(0, 3);
+
+  // Redirect to onboarding if user hasn't completed it
+  useEffect(() => {
+    if (!profileLoading && profile && !profile.onboardingCompleted) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [profile, profileLoading, navigate]);
 
   // Lookup for parent folder names
   const workspaceById = new Map(workspaces.map((ws) => [ws.id, ws]));
@@ -49,7 +59,7 @@ export default function HomePage() {
       {/* Hero Greeting */}
       <div className="mb-12 text-center space-y-4">
         <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight">
-          Hi Zaid, what do you want to build?
+          Hi {user.firstName}, what do you want to build?
         </h1>
         <p className="text-muted-foreground text-lg">
           Start a new project or analyze your existing financial data.

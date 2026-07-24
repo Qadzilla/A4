@@ -19,6 +19,7 @@ vi.mock('../env', () => ({
   get DEV_AUTH_BYPASS() {
     return true;
   },
+  USE_R2: false,
 }));
 
 const mockEmbedFile = vi.fn().mockResolvedValue({ chunksCreated: 3 });
@@ -26,7 +27,16 @@ vi.mock('../services/embedding-pipeline', () => ({
   embedFile: (...args: any[]) => mockEmbedFile(...args),
 }));
 
-// Mock fs operations to avoid real disk writes
+// Mock storage to avoid real disk writes
+vi.mock('../services/storage', () => ({
+  storage: {
+    put: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue(Buffer.from('fake content')),
+    delete: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+// Mock fs operations for multer disk storage tmp dir
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = (await importOriginal()) as any;
   return {
@@ -34,6 +44,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     mkdir: vi.fn().mockResolvedValue(undefined),
     writeFile: vi.fn().mockResolvedValue(undefined),
     unlink: vi.fn().mockResolvedValue(undefined),
+    readFile: vi.fn().mockResolvedValue(Buffer.from('fake content')),
   };
 });
 
@@ -266,7 +277,7 @@ describe('file delete → chunk cleanup', () => {
         fileSize: 1024,
         mimeType: 'application/pdf',
         extension: '.pdf',
-        storagePath: '/tmp/fake/test.pdf',
+        storagePath: 'dev-user-001/test.pdf',
       })
       .run();
 
@@ -326,7 +337,7 @@ describe('file delete → chunk cleanup', () => {
         fileSize: 1024,
         mimeType: 'application/pdf',
         extension: '.pdf',
-        storagePath: '/tmp/fake/test.pdf',
+        storagePath: 'dev-user-001/test.pdf',
       })
       .run();
 
@@ -349,7 +360,7 @@ describe('file delete → chunk cleanup', () => {
         fileSize: 512,
         mimeType: 'application/pdf',
         extension: '.pdf',
-        storagePath: '/tmp/fake/other.pdf',
+        storagePath: 'dev-user-001/other.pdf',
       })
       .run();
     db.insert(documentChunks)
