@@ -4,22 +4,36 @@ import { motion } from 'framer-motion';
 
 const TYPING_SPEED = 50;
 const DELETING_SPEED = 30;
-const PAUSE_DURATION = 2000;
+const PAUSE_DURATION = 2800;
 
-const projectPrompts = [
-  "Build a monthly budget from my uploaded bank statements",
-  "Set up a portfolio tracker for my brokerage accounts",
-  "Create a P&L statement from my Q2 invoices and expenses",
-  "Map out my tax deductions from this year's receipts",
-  "Build a runway projection using our burn rate and revenue",
-];
-
-const analysisPrompts = [
-  "How is my portfolio allocated across sectors?",
-  "What's my effective tax rate based on current income?",
-  "Which budget categories are over limit this month?",
-  "Compare this quarter's revenue to last quarter",
-  "What's my net worth trend over the past 6 months?",
+// Each pair is one persona's two-beat story: a professional "do this for me"
+// project, then the same persona's plain-English question. The rotation walks
+// pairs in order (project → analysis → next pair), so both halves always show.
+const promptPairs = [
+  {
+    project: 'Build a budget from my last six months of bank statements',
+    analysis: 'What did I actually spend on food delivery this year?',
+  },
+  {
+    project: "Create a P&L from this quarter's invoices and expenses",
+    analysis: 'Which of my clients still owes me money?',
+  },
+  {
+    project: 'Project our runway if we hire two engineers in October',
+    analysis: 'If revenue grows 8% a month, when do we break even?',
+  },
+  {
+    project: 'Track my portfolio across all three of my brokerage accounts',
+    analysis: 'Am I too concentrated in tech right now?',
+  },
+  {
+    project: "Find every subscription I'm still paying for",
+    analysis: 'Can I afford a $2,100/month apartment on my income?',
+  },
+  {
+    project: "Turn this year's receipts into an itemized deduction list",
+    analysis: 'Roughly what will I owe in taxes next April?',
+  },
 ];
 
 type ChatMode = 'project' | 'quick';
@@ -31,12 +45,12 @@ export function HeroChatInput() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFocused, setIsFocused] = useState(false); // Just for visual effect
 
-  const prompts = mode === 'project' ? projectPrompts : analysisPrompts;
+  const pair = promptPairs[promptIndex % promptPairs.length];
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
 
-    const currentPrompt = prompts[promptIndex % prompts.length] ?? '';
+    const currentPrompt = (mode === 'project' ? pair?.project : pair?.analysis) ?? '';
 
     if (isDeleting) {
       if (text.length > 0) {
@@ -44,10 +58,13 @@ export function HeroChatInput() {
           setText(currentPrompt.substring(0, text.length - 1));
         }, DELETING_SPEED);
       } else {
-        // Done deleting — switch mode, advance index
-        const nextMode: ChatMode = mode === 'project' ? 'quick' : 'project';
-        setMode(nextMode);
-        setPromptIndex((prev) => prev + 1);
+        // Done deleting — project → analysis within the pair, then next pair
+        if (mode === 'project') {
+          setMode('quick');
+        } else {
+          setMode('project');
+          setPromptIndex((prev) => prev + 1);
+        }
         setIsDeleting(false);
       }
     } else {
@@ -63,7 +80,7 @@ export function HeroChatInput() {
     }
 
     return () => clearTimeout(timeout);
-  }, [text, isDeleting, promptIndex, mode, prompts]);
+  }, [text, isDeleting, promptIndex, mode, pair]);
 
   return (
     <div
