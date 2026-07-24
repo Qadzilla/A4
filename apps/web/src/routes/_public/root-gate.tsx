@@ -16,9 +16,10 @@ function LoadingSpinner() {
 function ClerkGate() {
   const { loaded, user } = useClerk();
 
-  if (!loaded) return <LoadingSpinner />;
-
-  if (user) return <Navigate to="/dashboard" replace />;
+  // Don't block the (public) landing page on Clerk — render it immediately
+  // and only redirect once Clerk has loaded AND confirmed a signed-in user.
+  // If Clerk fails to load (bad domain, network), visitors still see the site.
+  if (loaded && user) return <Navigate to="/dashboard" replace />;
 
   return (
     <Suspense fallback={<LoadingSpinner />}>
