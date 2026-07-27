@@ -14,7 +14,7 @@
 | 2 | **Add error boundary + 404 route** — unhandled routes show blank, React crashes kill app | 1-2 hrs | **Done** |
 | 3 | **Set real Clerk keys** — dev bypass must be disabled in prod | 30 min | **Done** |
 | 4 | **Move .env out of git** — real Anthropic/OpenAI keys are committed | 30 min | **Done** (verified: no .env files were ever committed to git history) |
-| 5 | **Deploy frontend** (Vercel) + **backend** (Railway/Fly) | 1 day | Not started |
+| 5 | **Deploy frontend** (Vercel) + **backend** (Railway/Fly) | 1 day | **Done** (frontend: Vercel early-access mode; backend: Railway project `a4-server`, Dockerfile + tsx runtime, SQLite on `/data` volume, all secrets set, `https://a4-server-production.up.railway.app` — health/MCP/CORS verified live. Product routes still unplugged; re-enable per `DEPLOY.md`) |
 | 6 | **File storage → cloud** (R2/S3) — currently local filesystem, won't persist on serverless | 1-2 days | **Done** (storage abstraction: `LocalStorageBackend` for dev, `R2StorageBackend` for prod via `@aws-sdk/client-s3`; text extraction + OCR refactored to accept Buffers; backward compat for old absolute-path DB rows) |
 | 7 | **CORS + FRONTEND_URL** — hardcoded to localhost:3000, API calls fail in prod | 15 min | **Done** (not hardcoded — `FRONTEND_URL` env var already configurable, documented in `.env.production`) |
 

@@ -13,7 +13,7 @@
 | Sign-up / sign-in (Clerk, real accounts) | Live |
 | Early-access wall (`/dashboard`) | Live — all post-auth redirects land here |
 | Product routes (`/workspaces`, `/settings`, …) | 404 — removed from `apps/web/src/app/router.tsx` |
-| Backend (`apps/server`) | **Not deployed** |
+| Backend (`apps/server`) | **Live on Railway** — `https://a4-server-production.up.railway.app` (not yet consumed by the frontend; the wall stays until routes are restored) |
 
 Key files:
 - `apps/web/src/routes/_public/early-access.tsx` — the wall
@@ -59,10 +59,30 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_live_… pnpm --dir apps/web build
 The `dist/` output should contain only landing / sign-in / sign-up /
 early-access / 404 chunks — no workspace or dashboard chunks.
 
+## Backend (Railway) — deployed 2026-07-27
+
+Project `a4-server` (service `a4-server`, environment `production`) on the
+`qadzilla's Projects` workspace. Managed via the Railway CLI (`railway link`
+already configured in this repo checkout).
+
+- **Build:** repo-root `Dockerfile` (pnpm workspace filtered to `@a4/server`,
+  tsx runtime — no compile step). Config in `railway.json` (healthcheck
+  `/health`, on-failure restarts).
+- **Database:** SQLite at `/data/a4.db` on the `a4-server-volume` volume.
+  `start.sh` runs `drizzle-kit push --force` ONLY when the DB file is absent
+  (fresh volume); schema changes after that are applied manually.
+- **Env:** all server vars from `.env.production` plus `DATABASE_PATH` and
+  `NODE_ENV=production`, set via `railway variables`. Uploads go to R2
+  (`USE_R2` auto-enabled by the four R2 vars).
+- **URL:** `https://a4-server-production.up.railway.app` — verified:
+  `/health` OK, `/mcp` 401s without a PAT, CORS pinned to `FRONTEND_URL`.
+- **Ops:** `railway logs` / `railway deployment list` / `railway up --detach`
+  to redeploy after committing changes.
+
 ## Re-enabling the full product later
 
 1. Restore the dashboard routes in `apps/web/src/app/router.tsx` from git
    history (commit that added the early-access wall).
-2. Deploy `apps/server` (Railway/Fly), set its env from `.env.production`, and
-   point `VITE_API_URL` at it.
+2. Point `VITE_API_URL` at the Railway URL in the Vercel project env
+   (backend is already live, see above).
 3. Remaining launch items live in `A4_NOW.md`.
