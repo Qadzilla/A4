@@ -9,6 +9,11 @@ import {
   invalidateKeyCache,
   validateProviderApiKey,
 } from '../../services/key-vault';
+import {
+  createAccessToken,
+  listAccessTokens,
+  revokeAccessToken,
+} from '../../services/personal-access-tokens';
 import { protectedProcedure, router } from '../trpc';
 
 const keyProviderSchema = z.enum(['anthropic', 'openai']);
@@ -137,6 +142,25 @@ export const userRouter = router({
         .delete(userApiKeys)
         .where(and(eq(userApiKeys.userId, ctx.userId), eq(userApiKeys.provider, input.provider)));
       invalidateKeyCache(ctx.userId, input.provider);
+      return { success: true };
+    }),
+
+  // ── Personal access tokens (MCP) ──
+  // The raw token appears exactly once, in the create response.
+
+  listAccessTokens: protectedProcedure.query(({ ctx }) => listAccessTokens(ctx.userId, ctx.db)),
+
+  createAccessToken: protectedProcedure
+    .input(z.object({ name: z.string().min(1).max(60) }))
+    .mutation(({ ctx, input }) => createAccessToken(ctx.userId, input.name, ctx.db)),
+
+  revokeAccessToken: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const revoked = await revokeAccessToken(input.id, ctx.userId, ctx.db);
+      if (!revoked) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Token not found' });
+      }
       return { success: true };
     }),
 });

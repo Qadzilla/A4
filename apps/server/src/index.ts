@@ -73,6 +73,22 @@ app.use('/api/chat/stream', chatStreamRouter);
 // File upload/download/delete routes (Express, not tRPC — multipart)
 app.use('/api/files', filesRouter);
 
+// MCP endpoint for external agents (PAT auth, not Clerk) — same limiter
+// family as the chat endpoint since tool calls hit the same AI surface
+app.use(
+  '/mcp',
+  express.json({ limit: '1mb' }),
+  rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+);
+app.all('/mcp', (req, res, next) => {
+  import('./mcp/server').then((m) => m.handleMcpRequest(req, res)).catch(next);
+});
+
 // Health check endpoint (non-tRPC)
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

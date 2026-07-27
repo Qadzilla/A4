@@ -338,17 +338,131 @@ function ApiKeyRow({
   );
 }
 
+function AccessTokensSection() {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState('');
+  const [freshToken, setFreshToken] = useState<string | null>(null);
+
+  const { data: tokens } = useQuery(trpc.user.listAccessTokens.queryOptions());
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: trpc.user.listAccessTokens.queryKey() });
+
+  const createMutation = useMutation(
+    trpc.user.createAccessToken.mutationOptions({
+      onSuccess: (data) => {
+        setFreshToken(data.token);
+        setName('');
+        invalidate();
+      },
+    }),
+  );
+  const revokeMutation = useMutation(
+    trpc.user.revokeAccessToken.mutationOptions({ onSuccess: invalidate }),
+  );
+
+  return (
+    <div className="pt-8 border-t border-border/60 space-y-4">
+      <div>
+        <h2 className="text-xl font-bold mb-1">Access Tokens</h2>
+        <p className="text-sm text-muted-foreground max-w-lg">
+          Connect external agents (Claude Desktop, MCP clients) to your A4 workspaces. Tokens are
+          shown once at creation — store them somewhere safe.
+        </p>
+      </div>
+
+      {freshToken && (
+        <div className="p-4 border border-green-500/30 bg-green-500/5 rounded-xl max-w-lg space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-green-600">
+            New token — copy it now, it won't be shown again
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-xs font-mono break-all p-2 bg-muted/30 rounded-lg">
+              {freshToken}
+            </code>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigator.clipboard.writeText(freshToken)}
+            >
+              Copy
+            </Button>
+          </div>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setFreshToken(null)}
+          >
+            Done — hide token
+          </button>
+        </div>
+      )}
+
+      <div className="flex gap-2 max-w-lg">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Token name (e.g. Claude Desktop)"
+          className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-muted/20 focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+        <Button
+          size="sm"
+          className="shadow-sm active:scale-[0.98]"
+          disabled={name.trim().length === 0 || createMutation.isPending}
+          onClick={() => createMutation.mutate({ name: name.trim() })}
+        >
+          Create Token
+        </Button>
+      </div>
+
+      {tokens && tokens.length > 0 && (
+        <div className="grid gap-2 max-w-lg">
+          {tokens.map((t) => (
+            <div
+              key={t.id}
+              className="group flex items-center justify-between p-3 border border-border/60 rounded-xl"
+            >
+              <div>
+                <p className="text-sm font-medium">{t.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t.lastUsedAt
+                    ? `Last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
+                    : 'Never used'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                disabled={revokeMutation.isPending}
+                onClick={() => revokeMutation.mutate({ id: t.id })}
+              >
+                Revoke
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ApiKeysTab() {
   const trpc = useTRPC();
   const { data: status } = useQuery(trpc.user.getApiKeyStatus.queryOptions());
 
+  // Access tokens are independent of BYOK — always rendered
   if (status && !status.enabled) {
     return (
-      <div className="py-12 text-center text-muted-foreground animate-in fade-in duration-300">
-        <h3 className="text-lg font-bold mb-1 text-foreground">Bring Your Own Key</h3>
-        <p className="text-sm max-w-sm mx-auto">
-          BYOK is not configured on this server. AI features run on A4's shared keys.
-        </p>
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="py-8 text-center text-muted-foreground">
+          <h3 className="text-lg font-bold mb-1 text-foreground">Bring Your Own Key</h3>
+          <p className="text-sm max-w-sm mx-auto">
+            BYOK is not configured on this server. AI features run on A4's shared keys.
+          </p>
+        </div>
+        <AccessTokensSection />
       </div>
     );
   }
@@ -377,6 +491,7 @@ function ApiKeysTab() {
           />
         ))}
       </div>
+      <AccessTokensSection />
     </div>
   );
 }

@@ -459,6 +459,19 @@ export const userApiKeys = sqliteTable(
   (table) => [uniqueIndex('user_api_keys_user_provider').on(table.userId, table.provider)],
 );
 
+// Personal access tokens for headless clients (MCP). Only a hash is stored —
+// the raw token is shown once at creation.
+export const personalAccessTokens = sqliteTable('personal_access_tokens', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  name: text('name').notNull(),
+  lastUsedAt: integer('last_used_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // User profiles (app-specific preferences; identity lives in Clerk)
 export const userProfiles = sqliteTable('user_profiles', {
   userId: text('user_id').primaryKey(),
