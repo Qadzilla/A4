@@ -14,7 +14,7 @@ import {
   files,
 } from '../db/schema';
 import { calculateCostCents } from '../routes/chat-stream';
-import { structuredCompletion } from './anthropic';
+import { isByokAnthropicUser, structuredCompletion } from './anthropic';
 import { JOB_TYPES, registerJobHandler } from './job-queue';
 
 const EXTRACTION_MODEL = 'claude-haiku-4-5';
@@ -252,6 +252,7 @@ export async function extractEntitiesFromFile(payload: unknown, db: DB): Promise
       outputSchema: EXTRACTION_OUTPUT_SCHEMA,
       toolName: 'report_entities',
       model: EXTRACTION_MODEL,
+      auth: { userId: file.userId, db },
     });
     totalInputTokens += response.inputTokens;
     totalOutputTokens += response.outputTokens;
@@ -355,6 +356,7 @@ export async function extractEntitiesFromFile(payload: unknown, db: DB): Promise
   }
 
   // Meter the extraction spend (conversationId null = background pipeline)
+  const byok = await isByokAnthropicUser(file.userId, db);
   await db.insert(aiUsage).values({
     id: crypto.randomUUID(),
     userId: file.userId,
@@ -362,7 +364,8 @@ export async function extractEntitiesFromFile(payload: unknown, db: DB): Promise
     model: EXTRACTION_MODEL,
     inputTokens: totalInputTokens,
     outputTokens: totalOutputTokens,
-    costCents: calculateCostCents(EXTRACTION_MODEL, totalInputTokens, totalOutputTokens),
+    costCents: byok ? 0 : calculateCostCents(EXTRACTION_MODEL, totalInputTokens, totalOutputTokens),
+    byok,
     createdAt: now,
   });
 

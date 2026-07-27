@@ -7,6 +7,7 @@ import { conversations, messages } from '../db/schema';
 // Mock the anthropic service
 vi.mock('../services/anthropic', () => ({
   chatCompletion: vi.fn(),
+  isByokAnthropicUser: vi.fn(async () => false),
 }));
 
 import { chatCompletion } from '../services/anthropic';

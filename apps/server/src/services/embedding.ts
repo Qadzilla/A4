@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { DB } from '../db';
 import { env } from '../env';
 
 const EMBEDDING_MODEL = 'text-embedding-3-small';
@@ -6,25 +7,49 @@ const BATCH_SIZE = 100;
 const MAX_RETRIES = 3;
 const INITIAL_BACKOFF_MS = 1000;
 
-// Lazy singleton — created on first use
-let client: OpenAI | null = null;
-
-function getClient(): OpenAI {
-  if (!client) {
-    if (!env.OPENAI_API_KEY) {
-      throw new Error(
-        'OPENAI_API_KEY is not set. Add it to your environment variables to enable embeddings.',
-      );
-    }
-    client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
-  }
-  return client;
+/** Passed by bulk-ingestion call sites so BYOK users embed on their own key. */
+export interface EmbeddingAuthContext {
+  userId: string;
+  db: DB;
 }
 
-export async function embedTexts(texts: string[]): Promise<Float32Array[]> {
+// Clients cached per API key — house key plus one per active BYOK user
+const MAX_CLIENT_CACHE = 20;
+const clients = new Map<string, OpenAI>();
+
+function getClientForKey(apiKey: string): OpenAI {
+  const existing = clients.get(apiKey);
+  if (existing) return existing;
+  if (clients.size >= MAX_CLIENT_CACHE) {
+    const oldest = clients.keys().next().value;
+    if (oldest !== undefined) clients.delete(oldest);
+  }
+  const created = new OpenAI({ apiKey });
+  clients.set(apiKey, created);
+  return created;
+}
+
+async function resolveClient(auth?: EmbeddingAuthContext): Promise<OpenAI> {
+  if (auth) {
+    const { getUserApiKey } = await import('./key-vault');
+    const userKey = await getUserApiKey(auth.userId, 'openai', auth.db);
+    if (userKey) return getClientForKey(userKey);
+  }
+  if (!env.OPENAI_API_KEY) {
+    throw new Error(
+      'OPENAI_API_KEY is not set. Add it to your environment variables to enable embeddings.',
+    );
+  }
+  return getClientForKey(env.OPENAI_API_KEY);
+}
+
+export async function embedTexts(
+  texts: string[],
+  auth?: EmbeddingAuthContext,
+): Promise<Float32Array[]> {
   if (texts.length === 0) return [];
 
-  const openai = getClient();
+  const openai = await resolveClient(auth);
   const results: Float32Array[] = [];
 
   // Process in batches of BATCH_SIZE
@@ -70,7 +95,7 @@ async function callWithRetry(
   }
 }
 
-// For testing — reset the lazy singleton
+// For testing — reset the client cache
 export function _resetClient(): void {
-  client = null;
+  clients.clear();
 }

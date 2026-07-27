@@ -51,13 +51,15 @@ export async function summarizeConversation(db: DB, conversationId: string): Pro
       })
       .join('\n\n');
 
-    // Call Haiku for summarization
+    // Call Haiku for summarization (user's own key when configured)
+    const ownerUserId = allMessages[0]?.userId;
     const summary = await chatCompletion({
       messages: [{ role: 'user', content: promptText }],
       systemPrompt: SUMMARY_SYSTEM_PROMPT,
       model: 'claude-haiku-4-5-20251001',
       maxTokens: 200,
       temperature: 0,
+      ...(ownerUserId && { auth: { userId: ownerUserId, db } }),
     });
 
     // Write summary back

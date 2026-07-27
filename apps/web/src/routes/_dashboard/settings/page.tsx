@@ -1,10 +1,10 @@
 import { useDevUser } from '@/hooks/useDevUser';
 import { useTRPC } from '@/lib/trpc';
 import { Button, cn } from '@a4/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-type Tab = 'profile' | 'plan' | 'notifications';
+type Tab = 'profile' | 'plan' | 'api-keys' | 'notifications';
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -47,6 +47,24 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
+    id: 'api-keys',
+    label: 'API Keys',
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-4"
+      >
+        <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4" />
+      </svg>
+    ),
+  },
+  {
     id: 'notifications',
     label: 'Notifications',
     icon: (
@@ -77,7 +95,9 @@ function ProfileTab() {
       <div className="space-y-6">
         <div>
           <h2 className="text-xl font-bold mb-1">Personal Information</h2>
-          <p className="text-sm text-muted-foreground">Your account details managed by your identity provider.</p>
+          <p className="text-sm text-muted-foreground">
+            Your account details managed by your identity provider.
+          </p>
         </div>
 
         <div className="grid gap-6 max-w-lg">
@@ -150,7 +170,9 @@ function PlanTab() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="font-bold text-lg">{plan.name}</h3>
-                <p className="text-sm text-muted-foreground">All features included during early access</p>
+                <p className="text-sm text-muted-foreground">
+                  All features included during early access
+                </p>
               </div>
               <span className="text-xs bg-green-500/10 text-green-500 border border-green-500/20 px-3 py-1 rounded-full font-bold uppercase">
                 {plan.status}
@@ -158,19 +180,27 @@ function PlanTab() {
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="p-3 bg-muted/20 rounded-lg">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Workspaces</p>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                  Workspaces
+                </p>
                 <p className="font-bold mt-1">Up to {plan.limits.workspaces}</p>
               </div>
               <div className="p-3 bg-muted/20 rounded-lg">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Files / workspace</p>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                  Files / workspace
+                </p>
                 <p className="font-bold mt-1">Up to {plan.limits.filesPerWorkspace}</p>
               </div>
               <div className="p-3 bg-muted/20 rounded-lg">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Max file size</p>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                  Max file size
+                </p>
                 <p className="font-bold mt-1">{plan.limits.fileSizeMb} MB</p>
               </div>
               <div className="p-3 bg-muted/20 rounded-lg">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">AI messages / day</p>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                  AI messages / day
+                </p>
                 <p className="font-bold mt-1">Up to {plan.limits.aiMessagesPerDay}</p>
               </div>
             </div>
@@ -182,7 +212,9 @@ function PlanTab() {
       <div className="space-y-4">
         <div>
           <h2 className="text-xl font-bold mb-1">Usage</h2>
-          <p className="text-sm text-muted-foreground">Your current resource usage across all workspaces.</p>
+          <p className="text-sm text-muted-foreground">
+            Your current resource usage across all workspaces.
+          </p>
         </div>
 
         {usage && (
@@ -205,7 +237,8 @@ function PlanTab() {
               <div>
                 <p className="text-sm font-medium">AI Tokens Used</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatTokens(usage.aiTokens.input)} in / {formatTokens(usage.aiTokens.output)} out
+                  {formatTokens(usage.aiTokens.input)} in / {formatTokens(usage.aiTokens.output)}{' '}
+                  out
                 </p>
               </div>
               <span className="font-mono font-bold text-lg tabular-nums">
@@ -214,6 +247,135 @@ function PlanTab() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+const PROVIDERS = [
+  { id: 'anthropic' as const, label: 'Anthropic', placeholder: 'sk-ant-…' },
+  { id: 'openai' as const, label: 'OpenAI', placeholder: 'sk-…' },
+];
+
+function ApiKeyRow({
+  provider,
+  label,
+  placeholder,
+  configuredHint,
+}: {
+  provider: 'anthropic' | 'openai';
+  label: string;
+  placeholder: string;
+  configuredHint: string | null;
+}) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: trpc.user.getApiKeyStatus.queryKey() });
+
+  const setMutation = useMutation(
+    trpc.user.setApiKey.mutationOptions({
+      onSuccess: () => {
+        setDraft('');
+        setError(null);
+        invalidate();
+      },
+      onError: (err) => setError(err.message),
+    }),
+  );
+  const deleteMutation = useMutation(
+    trpc.user.deleteApiKey.mutationOptions({ onSuccess: invalidate }),
+  );
+
+  return (
+    <div className="p-4 border border-border/60 rounded-xl space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">{label}</p>
+          {configuredHint ? (
+            <p className="text-xs text-muted-foreground font-mono">
+              Key ending in …{configuredHint}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Using A4's shared key</p>
+          )}
+        </div>
+        {configuredHint && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            disabled={deleteMutation.isPending}
+            onClick={() => deleteMutation.mutate({ provider })}
+          >
+            Remove
+          </Button>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="password"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+          className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-muted/20 font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+        <Button
+          size="sm"
+          className="shadow-sm active:scale-[0.98]"
+          disabled={draft.trim().length < 8 || setMutation.isPending}
+          onClick={() => setMutation.mutate({ provider, key: draft.trim() })}
+        >
+          {setMutation.isPending ? 'Validating…' : configuredHint ? 'Replace' : 'Save'}
+        </Button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function ApiKeysTab() {
+  const trpc = useTRPC();
+  const { data: status } = useQuery(trpc.user.getApiKeyStatus.queryOptions());
+
+  if (status && !status.enabled) {
+    return (
+      <div className="py-12 text-center text-muted-foreground animate-in fade-in duration-300">
+        <h3 className="text-lg font-bold mb-1 text-foreground">Bring Your Own Key</h3>
+        <p className="text-sm max-w-sm mx-auto">
+          BYOK is not configured on this server. AI features run on A4's shared keys.
+        </p>
+      </div>
+    );
+  }
+
+  const hintFor = (provider: string) =>
+    status?.keys.find((k) => k.provider === provider)?.keyHint ?? null;
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+      <div>
+        <h2 className="text-xl font-bold mb-1">API Keys</h2>
+        <p className="text-sm text-muted-foreground max-w-lg">
+          Use your own provider keys for Paige and document processing. Keys are validated,
+          encrypted at rest, and never shown again after saving. AI usage on your own keys is not
+          billed against your A4 allowance.
+        </p>
+      </div>
+      <div className="grid gap-4 max-w-lg">
+        {PROVIDERS.map((p) => (
+          <ApiKeyRow
+            key={p.id}
+            provider={p.id}
+            label={p.label}
+            placeholder={p.placeholder}
+            configuredHint={hintFor(p.id)}
+          />
+        ))}
       </div>
     </div>
   );
@@ -282,6 +444,7 @@ export default function SettingsPage() {
         <div className="flex-1 space-y-8 bg-card border border-border/60 rounded-3xl p-8 shadow-sm h-fit">
           {activeTab === 'profile' && <ProfileTab />}
           {activeTab === 'plan' && <PlanTab />}
+          {activeTab === 'api-keys' && <ApiKeysTab />}
           {activeTab === 'notifications' && <NotificationsTab />}
         </div>
       </div>

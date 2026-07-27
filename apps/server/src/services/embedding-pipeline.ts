@@ -27,8 +27,11 @@ export async function embedFile(fileId: string, db: DB): Promise<{ chunksCreated
     return { chunksCreated: 0 };
   }
 
-  // Embed
-  const embeddings = await embedTexts(chunks.map((c) => c.content));
+  // Embed (on the user's own OpenAI key when they've configured one)
+  const embeddings = await embedTexts(
+    chunks.map((c) => c.content),
+    { userId: file.userId, db },
+  );
 
   // Delete existing chunks (idempotent re-embedding)
   await db.delete(documentChunks).where(eq(documentChunks.fileId, fileId));

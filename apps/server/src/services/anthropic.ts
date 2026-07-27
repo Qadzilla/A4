@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { ContentBlockParam, Tool, ToolChoice } from '@anthropic-ai/sdk/resources/messages';
+import type { DB } from '../db';
 import { env } from '../env';
 
 // Custom error type for mapped Anthropic errors
@@ -20,20 +21,68 @@ export class AnthropicServiceError extends Error {
   }
 }
 
-// Lazy singleton — created on first use
-let client: Anthropic | null = null;
+/** Passed by call sites that want the user's own key (BYOK) considered. */
+export interface AuthContext {
+  userId: string;
+  db: DB;
+}
 
-function getClient(): Anthropic {
-  if (!client) {
-    if (!env.ANTHROPIC_API_KEY) {
-      throw new AnthropicServiceError(
-        'ANTHROPIC_AUTH_ERROR',
-        'ANTHROPIC_API_KEY is not set. Add it to your environment variables.',
-      );
-    }
-    client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+interface ResolvedAuth {
+  apiKey: string;
+  byok: boolean;
+}
+
+// Clients are cached per API key — the house key plus one per active BYOK user
+const MAX_CLIENT_CACHE = 20;
+const clients = new Map<string, Anthropic>();
+
+function getClientForKey(apiKey: string): Anthropic {
+  const existing = clients.get(apiKey);
+  if (existing) return existing;
+  if (clients.size >= MAX_CLIENT_CACHE) {
+    const oldest = clients.keys().next().value;
+    if (oldest !== undefined) clients.delete(oldest);
   }
-  return client;
+  const created = new Anthropic({ apiKey });
+  clients.set(apiKey, created);
+  return created;
+}
+
+/** User key when configured, house key otherwise. Throws when neither exists. */
+async function resolveAuth(auth?: AuthContext): Promise<ResolvedAuth> {
+  if (auth) {
+    const { getUserApiKey } = await import('./key-vault');
+    const userKey = await getUserApiKey(auth.userId, 'anthropic', auth.db);
+    if (userKey) return { apiKey: userKey, byok: true };
+  }
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new AnthropicServiceError(
+      'ANTHROPIC_AUTH_ERROR',
+      'ANTHROPIC_API_KEY is not set. Add it to your environment variables.',
+    );
+  }
+  return { apiKey: env.ANTHROPIC_API_KEY, byok: false };
+}
+
+/** True when this user's AI calls run on their own Anthropic key (for usage tagging). */
+export async function isByokAnthropicUser(userId: string, db: DB): Promise<boolean> {
+  const { getUserApiKey } = await import('./key-vault');
+  return (await getUserApiKey(userId, 'anthropic', db)) !== null;
+}
+
+/**
+ * A rejected user key must surface as the user's problem to fix — never
+ * silently burn house quota as a fallback.
+ */
+function mapAuthAwareError(error: unknown, byok: boolean): AnthropicServiceError {
+  const mapped = error instanceof AnthropicServiceError ? error : mapAnthropicError(error);
+  if (byok && mapped.type === 'ANTHROPIC_AUTH_ERROR') {
+    return new AnthropicServiceError(
+      'ANTHROPIC_AUTH_ERROR',
+      'Your Anthropic API key was rejected. Update or remove it in Settings → API Keys.',
+    );
+  }
+  return mapped;
 }
 
 export interface StreamChatOptions {
@@ -43,11 +92,13 @@ export interface StreamChatOptions {
   maxTokens?: number;
   tools?: Tool[];
   toolChoice?: ToolChoice;
+  auth?: AuthContext;
 }
 
 export async function streamChatCompletion(options: StreamChatOptions) {
   const { messages, systemPrompt, model = 'claude-sonnet-4-6', maxTokens = 4096 } = options;
-  const anthropic = getClient();
+  const { apiKey, byok } = await resolveAuth(options.auth);
+  const anthropic = getClientForKey(apiKey);
   const hasTools = options.tools && options.tools.length > 0;
 
   try {
@@ -64,7 +115,7 @@ export async function streamChatCompletion(options: StreamChatOptions) {
     });
     return stream;
   } catch (error) {
-    throw mapAnthropicError(error);
+    throw mapAuthAwareError(error, byok);
   }
 }
 
@@ -101,6 +152,7 @@ export interface ChatCompletionOptions {
   model?: string;
   maxTokens?: number;
   temperature?: number;
+  auth?: AuthContext;
 }
 
 export async function chatCompletion(options: ChatCompletionOptions): Promise<string> {
@@ -111,7 +163,8 @@ export async function chatCompletion(options: ChatCompletionOptions): Promise<st
     maxTokens = 4096,
     temperature,
   } = options;
-  const anthropic = getClient();
+  const { apiKey, byok } = await resolveAuth(options.auth);
+  const anthropic = getClientForKey(apiKey);
 
   try {
     const response = await anthropic.messages.create({
@@ -124,7 +177,7 @@ export async function chatCompletion(options: ChatCompletionOptions): Promise<st
     const block = response.content[0];
     return block && block.type === 'text' ? block.text : '';
   } catch (error) {
-    throw mapAnthropicError(error);
+    throw mapAuthAwareError(error, byok);
   }
 }
 
@@ -136,6 +189,7 @@ export interface StructuredCompletionOptions {
   toolName?: string;
   model?: string;
   maxTokens?: number;
+  auth?: AuthContext;
 }
 
 export interface StructuredCompletionResult {
@@ -161,7 +215,8 @@ export async function structuredCompletion(
     model = 'claude-sonnet-4-6',
     maxTokens = 4096,
   } = options;
-  const anthropic = getClient();
+  const { apiKey, byok } = await resolveAuth(options.auth);
+  const anthropic = getClientForKey(apiKey);
 
   try {
     const response = await anthropic.messages.create({
@@ -194,11 +249,11 @@ export async function structuredCompletion(
     };
   } catch (error) {
     if (error instanceof AnthropicServiceError) throw error;
-    throw mapAnthropicError(error);
+    throw mapAuthAwareError(error, byok);
   }
 }
 
-// For testing — reset the lazy singleton
+// For testing — reset the client cache
 export function _resetClient(): void {
-  client = null;
+  clients.clear();
 }

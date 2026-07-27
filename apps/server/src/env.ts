@@ -14,6 +14,8 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  // Encrypts user-supplied provider keys (BYOK) at rest; feature is disabled when unset
+  KEY_ENCRYPTION_SECRET: z.string().optional(),
   POLYGON_API_KEY: z.string().default(''),
   POLYGON_WS_URL: z.string().default('wss://socket.polygon.io'),
   // Cloudflare R2 (S3-compatible) — optional, falls back to local disk
@@ -33,6 +35,9 @@ export const USE_R2 = !!(
 );
 
 export const DEV_AUTH_BYPASS = isDev && !env.CLERK_SECRET_KEY;
+
+// BYOK (bring-your-own-key) is presence-gated like USE_R2 — no secret, no feature
+export const BYOK_ENABLED = !!env.KEY_ENCRYPTION_SECRET;
 
 if (DEV_AUTH_BYPASS) {
   console.warn('[A4] No CLERK_SECRET_KEY found — running with auth bypassed (dev only)');

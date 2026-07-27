@@ -8,7 +8,11 @@ import { aiUsage, conversations, documentChunks, messages } from '../db/schema';
 import { DEV_AUTH_BYPASS } from '../env';
 import { buildDocumentContext, buildWorkspaceContext } from '../services/ai-context';
 import { type ToolContext, getToolDefinitions, safeExecuteTool } from '../services/ai-tools';
-import { AnthropicServiceError, streamChatCompletion } from '../services/anthropic';
+import {
+  AnthropicServiceError,
+  isByokAnthropicUser,
+  streamChatCompletion,
+} from '../services/anthropic';
 import { summarizeConversation } from '../services/conversation-summarizer';
 
 const MAX_TOOL_ROUNDS = 10;
@@ -326,12 +330,15 @@ chatStreamRouter.post('/', async (req, res) => {
     const assistantMessageId = randomUUID();
     sendSSE(res, { type: 'message_start', messageId: assistantMessageId });
 
-    // 10. Call Anthropic streaming API
+    // 10. Call Anthropic streaming API (user's own key when configured)
+    const auth = { userId, db };
+    const byok = await isByokAnthropicUser(userId, db);
     let stream = await streamChatCompletion({
       messages: anthropicMessages,
       systemPrompt,
       model: conversation.model,
       tools,
+      auth,
     });
 
     // 11. Iterate stream
@@ -478,6 +485,7 @@ chatStreamRouter.post('/', async (req, res) => {
           systemPrompt,
           model: conversation.model,
           tools,
+          auth,
         });
 
         // 12f. Iterate new stream
@@ -531,7 +539,7 @@ chatStreamRouter.post('/', async (req, res) => {
       }
       await db.update(conversations).set(updateSet).where(eq(conversations.id, conversationId));
 
-      // 16. Log AI usage with summed tokens
+      // 16. Log AI usage with summed tokens (BYOK usage costs the house nothing)
       await db.insert(aiUsage).values({
         id: randomUUID(),
         userId,
@@ -539,7 +547,10 @@ chatStreamRouter.post('/', async (req, res) => {
         model: conversation.model,
         inputTokens: totalInputTokens,
         outputTokens: totalOutputTokens,
-        costCents: calculateCostCents(conversation.model, totalInputTokens, totalOutputTokens),
+        costCents: byok
+          ? 0
+          : calculateCostCents(conversation.model, totalInputTokens, totalOutputTokens),
+        byok,
         createdAt: new Date(),
       });
 

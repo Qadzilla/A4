@@ -102,7 +102,10 @@ describe('embedFile', () => {
     expect(result.chunksCreated).toBe(2);
     expect(mockExtractText).toHaveBeenCalledWith(expect.any(Buffer), 'application/pdf');
     expect(mockChunkText).toHaveBeenCalledWith('Hello world. This is a test.');
-    expect(mockEmbedTexts).toHaveBeenCalledWith(['Hello world.', 'This is a test.']);
+    expect(mockEmbedTexts).toHaveBeenCalledWith(
+      ['Hello world.', 'This is a test.'],
+      expect.objectContaining({ userId: 'user-1' }),
+    );
 
     const rows = await db.select().from(documentChunks).where(eq(documentChunks.fileId, 'file-1'));
     expect(rows).toHaveLength(2);

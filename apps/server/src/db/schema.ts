@@ -434,10 +434,30 @@ export const aiUsage = sqliteTable('ai_usage', {
   inputTokens: integer('input_tokens').notNull(),
   outputTokens: integer('output_tokens').notNull(),
   costCents: integer('cost_cents'),
+  byok: integer('byok', { mode: 'boolean' }).notNull().default(false), // billed to the user's own key
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+// User-supplied provider API keys (BYOK), AES-256-GCM encrypted at rest
+export const userApiKeys = sqliteTable(
+  'user_api_keys',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    provider: text('provider').notNull(), // 'anthropic' | 'openai'
+    encryptedKey: text('encrypted_key').notNull(),
+    keyHint: text('key_hint').notNull(), // last 4 characters, for display only
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [uniqueIndex('user_api_keys_user_provider').on(table.userId, table.provider)],
+);
 
 // User profiles (app-specific preferences; identity lives in Clerk)
 export const userProfiles = sqliteTable('user_profiles', {

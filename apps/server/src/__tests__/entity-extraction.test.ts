@@ -14,6 +14,7 @@ import {
 
 vi.mock('../services/anthropic', () => ({
   structuredCompletion: vi.fn(),
+  isByokAnthropicUser: vi.fn(async () => false),
 }));
 
 import { structuredCompletion } from '../services/anthropic';
@@ -93,6 +94,7 @@ function createTestDb() {
       input_tokens INTEGER NOT NULL,
       output_tokens INTEGER NOT NULL,
       cost_cents INTEGER,
+      byok INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     );
   `);

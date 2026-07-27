@@ -477,7 +477,7 @@ Decisions already made:
 | BU-10 | document-node + draggable citations | ✅ 2026-07-27 |
 | BU-11 | Page rendering + image embeddings | ☐ |
 | BU-12 | Visual signal in hybrid search | ☐ |
-| BU-13 | BYOK key storage + provider routing | ☐ |
+| BU-13 | BYOK key storage + provider routing | ✅ 2026-07-27 |
 | BU-14 | MCP server | ☐ |
 
 **Ship points:** after BU-02 (better search, zero risk), after BU-08 (entity graph + reconciliation — the headline feature), after BU-10 (canvas story complete), after BU-12 (visual search), after BU-14 (platform/BYOK).

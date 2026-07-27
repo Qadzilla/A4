@@ -2,7 +2,7 @@ import { and, count, eq, inArray, isNull } from 'drizzle-orm';
 import type { DB } from '../db';
 import { aiUsage, entities, entityEdges, entityMentions, jobs } from '../db/schema';
 import { calculateCostCents } from '../routes/chat-stream';
-import { structuredCompletion } from './anthropic';
+import { isByokAnthropicUser, structuredCompletion } from './anthropic';
 import { embedTexts } from './embedding';
 import { normalizeEntityName } from './entity-extraction';
 import { JOB_TYPES, enqueueJob, registerJobHandler } from './job-queue';
@@ -214,6 +214,7 @@ async function adjudicatePair(
     toolName: 'report_verdict',
     model: ADJUDICATION_MODEL,
     maxTokens: 256,
+    auth: { userId: a.userId, db },
   });
 
   const verdict = response.data as { same?: unknown; confidence?: unknown };
@@ -275,7 +276,10 @@ export async function resolveEntities(payload: unknown, db: DB): Promise<void> {
 
   let embeddings: Float32Array[];
   try {
-    embeddings = await embedTexts(rows.map((r) => r.canonicalName));
+    embeddings = await embedTexts(
+      rows.map((r) => r.canonicalName),
+      { userId: rows[0]!.userId, db },
+    );
   } catch {
     return; // embedding service unavailable — Tier 1 already applied
   }
@@ -324,6 +328,7 @@ export async function resolveEntities(payload: unknown, db: DB): Promise<void> {
 
   if (totalInputTokens > 0 || totalOutputTokens > 0) {
     const userId = rows[0]!.userId;
+    const byok = await isByokAnthropicUser(userId, db);
     await db.insert(aiUsage).values({
       id: crypto.randomUUID(),
       userId,
@@ -331,7 +336,10 @@ export async function resolveEntities(payload: unknown, db: DB): Promise<void> {
       model: ADJUDICATION_MODEL,
       inputTokens: totalInputTokens,
       outputTokens: totalOutputTokens,
-      costCents: calculateCostCents(ADJUDICATION_MODEL, totalInputTokens, totalOutputTokens),
+      costCents: byok
+        ? 0
+        : calculateCostCents(ADJUDICATION_MODEL, totalInputTokens, totalOutputTokens),
+      byok,
       createdAt: new Date(),
     });
   }

@@ -22,6 +22,7 @@ vi.mock('../env', () => ({
 }));
 vi.mock('../services/anthropic', () => ({
   streamChatCompletion: vi.fn(),
+  isByokAnthropicUser: vi.fn(async () => false),
   AnthropicServiceError: class AnthropicServiceError extends Error {
     type: string;
     constructor(type: string, message: string) {
