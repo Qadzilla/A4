@@ -60,5 +60,14 @@ export async function embedFile(fileId: string, db: DB): Promise<{ chunksCreated
     console.warn(`[entities] Failed to enqueue extraction for file ${fileId}:`, err);
   }
 
+  // Queue visual page embedding for PDFs (no-op when VOYAGE_API_KEY is unset)
+  if (file.mimeType === 'application/pdf') {
+    try {
+      await enqueueJob(JOB_TYPES.embedPages, { fileId }, { db });
+    } catch (err) {
+      console.warn(`[visual] Failed to enqueue page embedding for file ${fileId}:`, err);
+    }
+  }
+
   return { chunksCreated: chunks.length };
 }

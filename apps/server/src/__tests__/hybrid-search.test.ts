@@ -3,15 +3,19 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupDocumentChunksFts } from '../db/fts';
 import * as schema from '../db/schema';
-import { documentChunks, files } from '../db/schema';
+import { documentChunks, files, pageEmbeddings } from '../db/schema';
 import type { ChunkSearchResult } from '../services/vector-search';
 import { reciprocalRankFusion, searchDocuments } from '../services/vector-search';
 
 vi.mock('../services/embedding', () => ({
   embedSingle: vi.fn(),
 }));
+vi.mock('../services/visual-embedding', () => ({
+  embedVisualQuery: vi.fn(),
+}));
 
 import { embedSingle } from '../services/embedding';
+import { embedVisualQuery } from '../services/visual-embedding';
 
 function createTestDb() {
   const sqlite = new Database(':memory:');
@@ -25,6 +29,11 @@ function createTestDb() {
       mime_type TEXT NOT NULL,
       extension TEXT NOT NULL,
       storage_path TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE page_embeddings (
+      id TEXT PRIMARY KEY, file_id TEXT NOT NULL, workspace_id TEXT NOT NULL,
+      user_id TEXT NOT NULL, page INTEGER NOT NULL, embedding BLOB NOT NULL,
       created_at INTEGER NOT NULL
     );
     CREATE TABLE document_chunks (
@@ -198,5 +207,100 @@ describe('hybrid searchDocuments', () => {
     expect(typeof r.content).toBe('string');
     expect(typeof r.chunkIndex).toBe('number');
     expect(r.score).toBeGreaterThan(0);
+  });
+});
+
+describe('visual signal', () => {
+  let db: TestDb;
+
+  function insertPage(dbi: TestDb, fileId: string, page: number, embedding: number[]) {
+    return dbi.insert(pageEmbeddings).values({
+      id: `pe-${fileId}-${page}`,
+      fileId,
+      workspaceId: 'ws-1',
+      userId: 'user-1',
+      page,
+      embedding: Buffer.from(new Float32Array(embedding).buffer),
+      createdAt: new Date(),
+    });
+  }
+
+  beforeEach(() => {
+    db = createTestDb();
+    vi.mocked(embedSingle).mockReset();
+    vi.mocked(embedVisualQuery).mockReset();
+  });
+
+  it('surfaces visually matched pages as page-level citations', async () => {
+    vi.mocked(embedSingle).mockResolvedValue(new Float32Array([0, 0, 1]));
+    vi.mocked(embedVisualQuery).mockResolvedValue(new Float32Array([1, 0, 0]));
+
+    await insertFile(db, 'f1', 'scanned-statement.pdf');
+    await insertPage(db, 'f1', 4, [1, 0, 0]); // aligned with the visual query
+    await insertPage(db, 'f1', 2, [0, 1, 0]); // orthogonal
+
+    const results = await searchDocuments('the page with the pie chart', 'ws-1', db as any);
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    const top = results[0]!;
+    expect(top.chunkId).toBe('page:f1:4');
+    expect(top.content).toBe('[Page 4 matched visually]');
+    expect(top.chunkIndex).toBe(4);
+    expect(top.fileName).toBe('scanned-statement.pdf');
+  });
+
+  it('fuses visual hits with text signals, ranking multi-signal chunks first', async () => {
+    vi.mocked(embedSingle).mockResolvedValue(new Float32Array([1, 0, 0]));
+    vi.mocked(embedVisualQuery).mockResolvedValue(new Float32Array([1, 0, 0]));
+
+    await insertFile(db, 'f1', 'docs.pdf');
+    // Text chunk hit by BOTH semantic and keyword signals
+    await insertChunk(db, 'c-both', 'insurance premium schedule', [1, 0, 0]);
+    // Page hit only by the visual signal
+    await insertPage(db, 'f1', 1, [1, 0, 0]);
+
+    const results = await searchDocuments('insurance', 'ws-1', db as any);
+    expect(results.map((r) => r.chunkId)).toContain('page:f1:1');
+    expect(results[0]!.chunkId).toBe('c-both'); // two signals beat one
+  });
+
+  it('degrades silently when the visual embedding service is unavailable', async () => {
+    vi.mocked(embedSingle).mockResolvedValue(new Float32Array([0, 0, 1]));
+    vi.mocked(embedVisualQuery).mockRejectedValue(new Error('VOYAGE_API_KEY is not set'));
+
+    await insertFile(db, 'f1', 'a.pdf');
+    await insertPage(db, 'f1', 1, [1, 0, 0]);
+    await insertChunk(db, 'c1', 'wire transfer 99120', [1, 0, 0]);
+
+    const results = await searchDocuments('wire transfer', 'ws-1', db as any);
+    expect(results).toHaveLength(1);
+    expect(results[0]!.chunkId).toBe('c1');
+  });
+
+  it('skips the visual API entirely when no pages are indexed', async () => {
+    vi.mocked(embedSingle).mockResolvedValue(new Float32Array([1, 0, 0]));
+
+    await insertFile(db, 'f1', 'a.pdf');
+    await insertChunk(db, 'c1', 'budget alpha', [1, 0, 0]);
+
+    await searchDocuments('budget', 'ws-1', db as any);
+    expect(embedVisualQuery).not.toHaveBeenCalled();
+  });
+
+  it('scopes visual hits to the workspace', async () => {
+    vi.mocked(embedSingle).mockResolvedValue(new Float32Array([0, 0, 1]));
+    vi.mocked(embedVisualQuery).mockResolvedValue(new Float32Array([1, 0, 0]));
+
+    await db.insert(pageEmbeddings).values({
+      id: 'pe-other',
+      fileId: 'f-other',
+      workspaceId: 'ws-other',
+      userId: 'user-2',
+      page: 1,
+      embedding: Buffer.from(new Float32Array([1, 0, 0]).buffer),
+      createdAt: new Date(),
+    });
+
+    const results = await searchDocuments('chart', 'ws-1', db as any);
+    expect(results).toHaveLength(0);
   });
 });

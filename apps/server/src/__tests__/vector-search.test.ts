@@ -27,6 +27,11 @@ function createTestDb() {
       storage_path TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE page_embeddings (
+      id TEXT PRIMARY KEY, file_id TEXT NOT NULL, workspace_id TEXT NOT NULL,
+      user_id TEXT NOT NULL, page INTEGER NOT NULL, embedding BLOB NOT NULL,
+      created_at INTEGER NOT NULL
+    );
     CREATE TABLE document_chunks (
       id TEXT PRIMARY KEY,
       file_id TEXT NOT NULL,

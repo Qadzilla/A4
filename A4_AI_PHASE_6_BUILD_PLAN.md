@@ -1,7 +1,7 @@
 # A4 — AI Pipeline: Phase 6 Detailed Build Plan (Document Intelligence: Hybrid Search, Entity Graph, Visual Retrieval, BYOK/MCP)
 
 > **Created:** 2026-07-27
-> **Status:** Sub-phases A, B, C, and E COMPLETE (2026-07-27). Remaining: D (visual retrieval, BU-11/12). Deferred from C: page thumbnails on document-node (needs Sub-phase D page-level data; preview is quote-forward for now) and the E2E extension (suite blocked on product routes being unplugged for early-access).
+> **Status:** ✅ PHASE 6 COMPLETE (2026-07-27) — all 14 build units across sub-phases A–E shipped. Visual retrieval (D) is presence-gated on `VOYAGE_API_KEY` (Voyage `voyage-multimodal-3`). Still deferred: page thumbnails on document-node (page-level data now exists via `pageEmbeddings`; wire-up is a small follow-up) and the E2E extension (suite blocked on product routes being unplugged for early-access).
 > **Prerequisite:** Phases 1–5 complete — chat, 35 tools, RAG with citations, insight engine, cross-workspace reasoning all working.
 > **Origin:** Competitive analysis of Webb (thewebb.io). Webb's stack is ingestion → hybrid BM25+vector retrieval → entity resolution graph → investigation canvas → cited AI answers. A4 already has ingestion, semantic retrieval, citations, and a superior canvas. This phase closes the retrieval and entity gaps — adapted for finance, where our version is *stronger* than Webb's because entities can link across both documents AND structured financial tables (reconciliation).
 > **Architecture reference:** [A4_AI_PIPELINE.md](./A4_AI_PIPELINE.md) — read first for SSE protocol, tool registry, and context assembly. This doc breaks Phase 6 into executable build units.
@@ -475,8 +475,8 @@ Decisions already made:
 | BU-08 | Entity AI tools | ✅ 2026-07-27 |
 | BU-09 | entity-card canvas item | ✅ 2026-07-27 |
 | BU-10 | document-node + draggable citations | ✅ 2026-07-27 |
-| BU-11 | Page rendering + image embeddings | ☐ |
-| BU-12 | Visual signal in hybrid search | ☐ |
+| BU-11 | Page rendering + image embeddings | ✅ 2026-07-27 |
+| BU-12 | Visual signal in hybrid search | ✅ 2026-07-27 |
 | BU-13 | BYOK key storage + provider routing | ✅ 2026-07-27 |
 | BU-14 | MCP server | ✅ 2026-07-27 |
 

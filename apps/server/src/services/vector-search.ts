@@ -1,6 +1,6 @@
 import { eq, inArray } from 'drizzle-orm';
 import type { DB } from '../db';
-import { documentChunks, files } from '../db/schema';
+import { documentChunks, files, pageEmbeddings } from '../db/schema';
 import { embedSingle } from './embedding';
 import { keywordSearchChunks } from './keyword-search';
 
@@ -98,9 +98,50 @@ export function reciprocalRankFusion(
 }
 
 /**
- * Hybrid two-signal search: BM25 keyword matching (exact names, amounts,
- * account numbers) and embedding similarity (meaning), fused with RRF.
- * When the embedding service is unavailable, degrades to keyword-only.
+ * Visual signal: the query text is embedded into the same multimodal space as
+ * rendered PDF pages, so "the page with the pie chart" matches the picture.
+ * Silently contributes nothing when no pages are indexed or the visual
+ * embedding service is unavailable.
+ */
+async function visualSearchPages(
+  query: string,
+  workspaceId: string,
+  db: DB,
+  topK: number,
+): Promise<ChunkSearchResult[]> {
+  const rows = await db
+    .select()
+    .from(pageEmbeddings)
+    .where(eq(pageEmbeddings.workspaceId, workspaceId));
+  if (rows.length === 0) return [];
+
+  try {
+    const { embedVisualQuery } = await import('./visual-embedding');
+    const queryEmbedding = await embedVisualQuery(query);
+
+    const scored = rows.map((row) => {
+      const buf = row.embedding;
+      const embedding = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
+      return {
+        chunkId: `page:${row.fileId}:${row.page}`,
+        fileId: row.fileId,
+        content: `[Page ${row.page} matched visually]`,
+        chunkIndex: row.page,
+        score: cosineSimilarity(queryEmbedding, embedding),
+      };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, topK);
+  } catch {
+    return []; // VOYAGE_API_KEY unset or API failure — other signals carry on
+  }
+}
+
+/**
+ * Hybrid three-signal search fused with RRF: BM25 keyword matching (exact
+ * names, amounts, account numbers), text-embedding similarity (meaning), and
+ * multimodal page matching (visual layout). Each signal degrades to nothing
+ * independently when its backing service is unavailable.
  */
 export async function searchDocuments(
   query: string,
@@ -123,8 +164,9 @@ export async function searchDocuments(
   const keyword = await keywordSearchChunks(query, workspaceId, db, {
     topK: SIGNAL_FETCH_LIMIT,
   });
+  const visual = await visualSearchPages(query, workspaceId, db, SIGNAL_FETCH_LIMIT);
 
-  const results = reciprocalRankFusion([semantic, keyword], topK);
+  const results = reciprocalRankFusion([semantic, keyword, visual], topK);
 
   if (results.length === 0) return [];
 

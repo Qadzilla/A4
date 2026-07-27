@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { Router, type Router as RouterType } from 'express';
 import multer from 'multer';
 import { db } from '../db';
-import { documentChunks, files } from '../db/schema';
+import { documentChunks, files, pageEmbeddings } from '../db/schema';
 import { DEV_AUTH_BYPASS, USE_R2 } from '../env';
 import { storage } from '../services/storage';
 // Lazy import to avoid loading OpenAI SDK at server startup
@@ -200,6 +200,7 @@ filesRouter.delete('/:fileId', async (req, res) => {
     .where(eq(documentChunks.fileId, req.params.fileId));
 
   await db.delete(documentChunks).where(eq(documentChunks.fileId, req.params.fileId));
+  await db.delete(pageEmbeddings).where(eq(pageEmbeddings.fileId, req.params.fileId));
   await db.delete(files).where(eq(files.id, req.params.fileId));
 
   if (chunkRows.length > 0) {

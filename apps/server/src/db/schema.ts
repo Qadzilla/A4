@@ -425,6 +425,19 @@ export const documentChunks = sqliteTable('document_chunks', {
     .$defaultFn(() => new Date()),
 });
 
+// Multimodal embeddings of rendered PDF pages (visual retrieval)
+export const pageEmbeddings = sqliteTable('page_embeddings', {
+  id: text('id').primaryKey(),
+  fileId: text('file_id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  page: integer('page').notNull(), // 1-based page number
+  embedding: blob('embedding', { mode: 'buffer' }).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // AI usage tracking
 export const aiUsage = sqliteTable('ai_usage', {
   id: text('id').primaryKey(),

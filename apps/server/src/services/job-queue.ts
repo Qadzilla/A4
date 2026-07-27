@@ -9,6 +9,7 @@ export const JOB_TYPES = {
   extractEntities: 'extract-entities',
   resolveEntities: 'resolve-entities',
   linkStructured: 'link-structured',
+  embedPages: 'embed-pages',
 } as const;
 
 export type ProcessOutcome = 'idle' | 'done' | 'retried' | 'failed';

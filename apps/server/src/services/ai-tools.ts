@@ -1276,7 +1276,7 @@ const TOOLS: ToolRegistration[] = [
     definition: {
       name: 'search_documents',
       description:
-        'Search uploaded documents in the workspace using hybrid retrieval: exact keyword matching (names, dollar amounts, account numbers, invoice IDs) fused with semantic similarity (meaning and paraphrase). Returns the most relevant text chunks from uploaded files (PDF, CSV, Excel, etc.). Works well for both precise lookups like "4,251.03" and conceptual queries like "recurring charges".',
+        'Search uploaded documents in the workspace using hybrid retrieval: exact keyword matching (names, dollar amounts, account numbers, invoice IDs), semantic similarity (meaning and paraphrase), and visual page matching (finds scanned tables, charts, and stamps by description, e.g. "the page with the pie chart"). Returns the most relevant text chunks and visually matched pages from uploaded files (PDF, CSV, Excel, etc.).',
       input_schema: {
         type: 'object' as const,
         properties: {
