@@ -2,6 +2,12 @@ import { eq, inArray } from 'drizzle-orm';
 import type { DB } from '../db';
 import { documentChunks, files } from '../db/schema';
 import { embedSingle } from './embedding';
+import { keywordSearchChunks } from './keyword-search';
+
+/** Standard RRF constant — dampens the influence of top ranks. */
+const RRF_K = 60;
+/** How many candidates each signal contributes before fusion. */
+const SIGNAL_FETCH_LIMIT = 20;
 
 export interface ChunkSearchResult {
   chunkId: string;
@@ -64,14 +70,61 @@ export async function searchChunks(
   return scored.slice(0, topK);
 }
 
+/**
+ * Fuses ranked result lists via Reciprocal Rank Fusion: each chunk scores
+ * Σ 1/(RRF_K + rank) across the lists it appears in. Rank-based, so the
+ * incompatible score scales of BM25 and cosine similarity never need
+ * normalizing against each other.
+ */
+export function reciprocalRankFusion(
+  lists: ChunkSearchResult[][],
+  topK: number,
+): ChunkSearchResult[] {
+  const fused = new Map<string, ChunkSearchResult>();
+
+  for (const list of lists) {
+    for (const [rank, result] of list.entries()) {
+      const contribution = 1 / (RRF_K + rank + 1);
+      const existing = fused.get(result.chunkId);
+      if (existing) {
+        existing.score += contribution;
+      } else {
+        fused.set(result.chunkId, { ...result, score: contribution });
+      }
+    }
+  }
+
+  return [...fused.values()].sort((a, b) => b.score - a.score).slice(0, topK);
+}
+
+/**
+ * Hybrid two-signal search: BM25 keyword matching (exact names, amounts,
+ * account numbers) and embedding similarity (meaning), fused with RRF.
+ * When the embedding service is unavailable, degrades to keyword-only.
+ */
 export async function searchDocuments(
   query: string,
   workspaceId: string,
   db: DB,
   options?: { topK?: number; minScore?: number },
 ): Promise<SearchResult[]> {
-  const queryEmbedding = await embedSingle(query);
-  const results = await searchChunks(queryEmbedding, workspaceId, db, options);
+  const topK = options?.topK ?? 5;
+
+  let semantic: ChunkSearchResult[] = [];
+  try {
+    const queryEmbedding = await embedSingle(query);
+    semantic = await searchChunks(queryEmbedding, workspaceId, db, {
+      topK: SIGNAL_FETCH_LIMIT,
+      minScore: options?.minScore,
+    });
+  } catch {
+    // Embedding unavailable (e.g. no OPENAI_API_KEY) — keyword-only is still useful
+  }
+  const keyword = await keywordSearchChunks(query, workspaceId, db, {
+    topK: SIGNAL_FETCH_LIMIT,
+  });
+
+  const results = reciprocalRankFusion([semantic, keyword], topK);
 
   if (results.length === 0) return [];
 

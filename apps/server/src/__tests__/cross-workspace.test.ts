@@ -2,9 +2,9 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../db/schema';
-import { verifyWorkspaceAccess, dispatchWorkspaceQuery } from '../services/cross-workspace';
 import { executeTool } from '../services/ai-tools';
 import type { ToolContext } from '../services/ai-tools';
+import { dispatchWorkspaceQuery, verifyWorkspaceAccess } from '../services/cross-workspace';
 
 const mockSearchDocuments = vi.hoisted(() => vi.fn());
 vi.mock('../services/vector-search', () => ({
@@ -14,6 +14,12 @@ vi.mock('../services/vector-search', () => ({
 function createTestDb() {
   const sqlite = new Database(':memory:');
   sqlite.exec(`
+    CREATE TABLE entities (
+      id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
+      type TEXT NOT NULL, canonical_name TEXT NOT NULL, normalized_name TEXT NOT NULL,
+      aliases TEXT NOT NULL DEFAULT '[]', mention_count INTEGER NOT NULL DEFAULT 0,
+      rejected_merges TEXT NOT NULL DEFAULT '[]', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );
     CREATE TABLE workspaces (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -233,44 +239,276 @@ function createTestDb() {
 const NOW = Date.now();
 type TestDb = ReturnType<typeof createTestDb>;
 
-function insertWorkspace(db: TestDb, overrides: Partial<{ id: string; name: string; userId: string; type: string; description: string }> = {}) {
-  const { id = 'ws-1', name = 'Personal Finance', userId = 'user-1', type = 'workspace', description } = overrides;
-  return db.insert(schema.workspaces).values({ id, name, userId, type, description, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertWorkspace(
+  db: TestDb,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    userId: string;
+    type: string;
+    description: string;
+  }> = {},
+) {
+  const {
+    id = 'ws-1',
+    name = 'Personal Finance',
+    userId = 'user-1',
+    type = 'workspace',
+    description,
+  } = overrides;
+  return db
+    .insert(schema.workspaces)
+    .values({
+      id,
+      name,
+      userId,
+      type,
+      description,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertAccount(db: TestDb, overrides: Partial<{ id: string; name: string; institution: string; type: string; balance: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Checking', institution = 'Chase', type = 'checking', balance = 1000, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.accounts).values({ id, name, institution, type, balance, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertAccount(
+  db: TestDb,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    institution: string;
+    type: string;
+    balance: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Checking',
+    institution = 'Chase',
+    type = 'checking',
+    balance = 1000,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.accounts)
+    .values({
+      id,
+      name,
+      institution,
+      type,
+      balance,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertBudgetCategory(db: TestDb, overrides: Partial<{ id: string; name: string; budgeted: number; actual: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Groceries', budgeted = 500, actual = 400, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.budgetCategories).values({ id, name, budgeted, actual, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertBudgetCategory(
+  db: TestDb,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    budgeted: number;
+    actual: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Groceries',
+    budgeted = 500,
+    actual = 400,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.budgetCategories)
+    .values({
+      id,
+      name,
+      budgeted,
+      actual,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertSubscription(db: TestDb, overrides: Partial<{ id: string; name: string; amount: number; frequency: string; status: string; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Netflix', amount = 15.99, frequency = 'monthly', status = 'active', workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.subscriptions).values({ id, name, amount, frequency, status, workspaceId, userId, startDate: '2026-01-01', nextBillingDate: '2026-04-01', createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertSubscription(
+  db: TestDb,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    amount: number;
+    frequency: string;
+    status: string;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Netflix',
+    amount = 15.99,
+    frequency = 'monthly',
+    status = 'active',
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.subscriptions)
+    .values({
+      id,
+      name,
+      amount,
+      frequency,
+      status,
+      workspaceId,
+      userId,
+      startDate: '2026-01-01',
+      nextBillingDate: '2026-04-01',
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertDebt(db: TestDb, overrides: Partial<{ id: string; name: string; balance: number; annualInterestRate: number; minimumPayment: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Student Loan', balance = 45000, annualInterestRate = 6.8, minimumPayment = 450, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.debts).values({ id, name, balance, annualInterestRate, minimumPayment, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertDebt(
+  db: TestDb,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    balance: number;
+    annualInterestRate: number;
+    minimumPayment: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Student Loan',
+    balance = 45000,
+    annualInterestRate = 6.8,
+    minimumPayment = 450,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.debts)
+    .values({
+      id,
+      name,
+      balance,
+      annualInterestRate,
+      minimumPayment,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertHolding(db: TestDb, overrides: Partial<{ id: string; symbol: string; name: string; value: number; targetPct: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), symbol = 'AAPL', name = 'Apple Inc', value = 5200, targetPct = 15, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.holdings).values({ id, symbol, name, value, targetPct, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertHolding(
+  db: TestDb,
+  overrides: Partial<{
+    id: string;
+    symbol: string;
+    name: string;
+    value: number;
+    targetPct: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    symbol = 'AAPL',
+    name = 'Apple Inc',
+    value = 5200,
+    targetPct = 15,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.holdings)
+    .values({
+      id,
+      symbol,
+      name,
+      value,
+      targetPct,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertNetworthCategory(db: TestDb, overrides: Partial<{ id: string; name: string; kind: string; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Cash', kind = 'asset', workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.networthCategories).values({ id, name, kind, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertNetworthCategory(
+  db: TestDb,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    kind: string;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Cash',
+    kind = 'asset',
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.networthCategories)
+    .values({
+      id,
+      name,
+      kind,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertNetworthEntry(db: TestDb, overrides: Partial<{ id: string; name: string; categoryId: string; value: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Savings', categoryId = 'cat-1', value = 10000, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.networthEntries).values({ id, name, categoryId, value, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertNetworthEntry(
+  db: TestDb,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    categoryId: string;
+    value: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Savings',
+    categoryId = 'cat-1',
+    value = 10000,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.networthEntries)
+    .values({
+      id,
+      name,
+      categoryId,
+      value,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
 describe('verifyWorkspaceAccess', () => {
@@ -309,7 +547,12 @@ describe('dispatchWorkspaceQuery', () => {
     await insertWorkspace(db, { id: 'ws-1', name: 'Personal', userId: 'user-1' });
     await insertAccount(db, { name: 'Chase Checking', balance: 5000, workspaceId: 'ws-1' });
 
-    const result = await dispatchWorkspaceQuery(db, 'user-1', 'ws-1', 'What is my account balance?');
+    const result = await dispatchWorkspaceQuery(
+      db,
+      'user-1',
+      'ws-1',
+      'What is my account balance?',
+    );
     expect(result).toContain("Data from workspace 'Personal'");
     expect(result).toContain('Chase Checking');
     expect(result).toContain('5000');
@@ -317,7 +560,12 @@ describe('dispatchWorkspaceQuery', () => {
 
   it('dispatches budget query for spending-related questions', async () => {
     await insertWorkspace(db, { id: 'ws-1', name: 'Personal', userId: 'user-1' });
-    await insertBudgetCategory(db, { name: 'Groceries', budgeted: 500, actual: 400, workspaceId: 'ws-1' });
+    await insertBudgetCategory(db, {
+      name: 'Groceries',
+      budgeted: 500,
+      actual: 400,
+      workspaceId: 'ws-1',
+    });
 
     const result = await dispatchWorkspaceQuery(db, 'user-1', 'ws-1', 'How much am I spending?');
     expect(result).toContain("Data from workspace 'Personal'");
@@ -329,7 +577,12 @@ describe('dispatchWorkspaceQuery', () => {
     await insertAccount(db, { name: 'Savings', balance: 10000, workspaceId: 'ws-1' });
     await insertDebt(db, { name: 'Car Loan', balance: 15000, workspaceId: 'ws-1' });
 
-    const result = await dispatchWorkspaceQuery(db, 'user-1', 'ws-1', 'Show me my account balance and debt');
+    const result = await dispatchWorkspaceQuery(
+      db,
+      'user-1',
+      'ws-1',
+      'Show me my account balance and debt',
+    );
     expect(result).toContain('Savings');
     expect(result).toContain('Car Loan');
   });
@@ -368,14 +621,29 @@ describe('list_workspaces tool execution', () => {
   });
 
   it('returns all workspaces for the user', async () => {
-    await insertWorkspace(db, { id: 'ws-1', name: 'Personal Finance', userId: 'user-1', description: 'My personal finances' });
-    await insertWorkspace(db, { id: 'ws-2', name: 'Business', userId: 'user-1', description: 'LLC finances' });
+    await insertWorkspace(db, {
+      id: 'ws-1',
+      name: 'Personal Finance',
+      userId: 'user-1',
+      description: 'My personal finances',
+    });
+    await insertWorkspace(db, {
+      id: 'ws-2',
+      name: 'Business',
+      userId: 'user-1',
+      description: 'LLC finances',
+    });
     await insertWorkspace(db, { id: 'ws-3', name: 'Other User WS', userId: 'user-2' });
 
     const ctx: ToolContext = { db, userId: 'user-1', workspaceId: 'ws-1' };
     const result = await executeTool('list_workspaces', {}, ctx);
 
-    const ws = result.workspaces as Array<{ id: string; name: string; type: string; description: string | null }>;
+    const ws = result.workspaces as Array<{
+      id: string;
+      name: string;
+      type: string;
+      description: string | null;
+    }>;
     expect(ws).toHaveLength(2);
     expect(ws.map((w) => w.name)).toContain('Personal Finance');
     expect(ws.map((w) => w.name)).toContain('Business');
@@ -396,7 +664,11 @@ describe('query_workspace tool execution', () => {
     await insertAccount(db, { name: 'Other Checking', balance: 9000, workspaceId: 'ws-2' });
 
     const ctx: ToolContext = { db, userId: 'user-1', workspaceId: 'ws-1' };
-    const result = await executeTool('query_workspace', { workspace_id: 'ws-2', question: 'What is my account balance?' }, ctx);
+    const result = await executeTool(
+      'query_workspace',
+      { workspace_id: 'ws-2', question: 'What is my account balance?' },
+      ctx,
+    );
 
     expect(result.result).toContain("Data from workspace 'Other'");
     expect(result.result).toContain('Other Checking');
@@ -407,7 +679,11 @@ describe('query_workspace tool execution', () => {
     await insertWorkspace(db, { id: 'ws-2', name: 'Not Mine', userId: 'user-2' });
 
     const ctx: ToolContext = { db, userId: 'user-1', workspaceId: 'ws-1' };
-    const result = await executeTool('query_workspace', { workspace_id: 'ws-2', question: 'Show me data' }, ctx);
+    const result = await executeTool(
+      'query_workspace',
+      { workspace_id: 'ws-2', question: 'Show me data' },
+      ctx,
+    );
 
     expect(result.error).toBe("You don't have access to that workspace.");
   });

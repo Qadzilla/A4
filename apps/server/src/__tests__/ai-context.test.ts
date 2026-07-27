@@ -3,7 +3,14 @@ import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as schema from '../db/schema';
-import { buildWorkspaceContext, buildDocumentContext, buildInsightsSection, buildConversationMemorySection, buildWorkspaceListSection, SYSTEM_PREAMBLE } from '../services/ai-context';
+import {
+  SYSTEM_PREAMBLE,
+  buildConversationMemorySection,
+  buildDocumentContext,
+  buildInsightsSection,
+  buildWorkspaceContext,
+  buildWorkspaceListSection,
+} from '../services/ai-context';
 
 vi.mock('../services/vector-search', () => ({
   searchDocuments: vi.fn().mockResolvedValue([]),
@@ -15,6 +22,12 @@ const mockSearchDocuments = searchDocuments as ReturnType<typeof vi.fn>;
 function createTestDb() {
   const sqlite = new Database(':memory:');
   sqlite.exec(`
+    CREATE TABLE entities (
+      id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
+      type TEXT NOT NULL, canonical_name TEXT NOT NULL, normalized_name TEXT NOT NULL,
+      aliases TEXT NOT NULL DEFAULT '[]', mention_count INTEGER NOT NULL DEFAULT 0,
+      rejected_merges TEXT NOT NULL DEFAULT '[]', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );
     CREATE TABLE workspaces (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -193,64 +206,422 @@ function createTestDb() {
 
 const NOW = Date.now();
 
-function insertWorkspace(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; userId: string; type: string; description: string }> = {}) {
-  const { id = 'ws-1', name = 'Personal Finance 2026', userId = 'user-1', type = 'workspace', description } = overrides;
-  return db.insert(schema.workspaces).values({ id, name, userId, type, description, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertWorkspace(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    userId: string;
+    type: string;
+    description: string;
+  }> = {},
+) {
+  const {
+    id = 'ws-1',
+    name = 'Personal Finance 2026',
+    userId = 'user-1',
+    type = 'workspace',
+    description,
+  } = overrides;
+  return db
+    .insert(schema.workspaces)
+    .values({
+      id,
+      name,
+      userId,
+      type,
+      description,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertAccount(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; institution: string; type: string; balance: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Checking', institution = 'Chase', type = 'checking', balance = 1000, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.accounts).values({ id, name, institution, type, balance, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertAccount(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    institution: string;
+    type: string;
+    balance: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Checking',
+    institution = 'Chase',
+    type = 'checking',
+    balance = 1000,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.accounts)
+    .values({
+      id,
+      name,
+      institution,
+      type,
+      balance,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertBudgetCategory(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; budgeted: number; actual: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Groceries', budgeted = 500, actual = 400, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.budgetCategories).values({ id, name, budgeted, actual, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertBudgetCategory(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    budgeted: number;
+    actual: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Groceries',
+    budgeted = 500,
+    actual = 400,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.budgetCategories)
+    .values({
+      id,
+      name,
+      budgeted,
+      actual,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertNetworthCategory(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; kind: string; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Cash', kind = 'asset', workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.networthCategories).values({ id, name, kind, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertNetworthCategory(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    kind: string;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Cash',
+    kind = 'asset',
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.networthCategories)
+    .values({
+      id,
+      name,
+      kind,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertNetworthEntry(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; categoryId: string; value: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Savings Account', categoryId = 'cat-1', value = 10000, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.networthEntries).values({ id, name, categoryId, value, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertNetworthEntry(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    categoryId: string;
+    value: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Savings Account',
+    categoryId = 'cat-1',
+    value = 10000,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.networthEntries)
+    .values({
+      id,
+      name,
+      categoryId,
+      value,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertSubscription(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; amount: number; frequency: string; status: string; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Netflix', amount = 15.99, frequency = 'monthly', status = 'active', workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.subscriptions).values({ id, name, amount, frequency, status, workspaceId, userId, startDate: '2026-01-01', nextBillingDate: '2026-04-01', createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertSubscription(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    amount: number;
+    frequency: string;
+    status: string;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Netflix',
+    amount = 15.99,
+    frequency = 'monthly',
+    status = 'active',
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.subscriptions)
+    .values({
+      id,
+      name,
+      amount,
+      frequency,
+      status,
+      workspaceId,
+      userId,
+      startDate: '2026-01-01',
+      nextBillingDate: '2026-04-01',
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertInvoice(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; status: string; taxRate: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), status = 'paid', taxRate = 10, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.invoices).values({ id, invoiceNumber: `INV-${id.slice(0, 4)}`, date: '2026-01-15', dueDate: '2026-02-15', taxRate, status, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertInvoice(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    status: string;
+    taxRate: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    status = 'paid',
+    taxRate = 10,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.invoices)
+    .values({
+      id,
+      invoiceNumber: `INV-${id.slice(0, 4)}`,
+      date: '2026-01-15',
+      dueDate: '2026-02-15',
+      taxRate,
+      status,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertLineItem(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; invoiceId: string; description: string; quantity: number; unitPrice: number }> = {}) {
-  const { id = crypto.randomUUID(), invoiceId = 'inv-1', description = 'Service', quantity = 1, unitPrice = 1000 } = overrides;
-  return db.insert(schema.invoiceLineItems).values({ id, invoiceId, description, quantity, unitPrice, sortOrder: 0, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertLineItem(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    invoiceId: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    invoiceId = 'inv-1',
+    description = 'Service',
+    quantity = 1,
+    unitPrice = 1000,
+  } = overrides;
+  return db
+    .insert(schema.invoiceLineItems)
+    .values({
+      id,
+      invoiceId,
+      description,
+      quantity,
+      unitPrice,
+      sortOrder: 0,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertDebt(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; name: string; balance: number; annualInterestRate: number; minimumPayment: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), name = 'Student Loan', balance = 45000, annualInterestRate = 6.8, minimumPayment = 450, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.debts).values({ id, name, balance, annualInterestRate, minimumPayment, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertDebt(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    name: string;
+    balance: number;
+    annualInterestRate: number;
+    minimumPayment: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    name = 'Student Loan',
+    balance = 45000,
+    annualInterestRate = 6.8,
+    minimumPayment = 450,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.debts)
+    .values({
+      id,
+      name,
+      balance,
+      annualInterestRate,
+      minimumPayment,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertHolding(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; symbol: string; name: string; value: number; targetPct: number; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), symbol = 'AAPL', name = 'Apple Inc', value = 5200, targetPct = 15, workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.holdings).values({ id, symbol, name, value, targetPct, workspaceId, userId, createdAt: new Date(NOW), updatedAt: new Date(NOW) });
+function insertHolding(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    symbol: string;
+    name: string;
+    value: number;
+    targetPct: number;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    symbol = 'AAPL',
+    name = 'Apple Inc',
+    value = 5200,
+    targetPct = 15,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.holdings)
+    .values({
+      id,
+      symbol,
+      name,
+      value,
+      targetPct,
+      workspaceId,
+      userId,
+      createdAt: new Date(NOW),
+      updatedAt: new Date(NOW),
+    });
 }
 
-function insertInsight(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; workspaceId: string; userId: string; type: string; severity: string; title: string; summary: string; data: string | null; status: string; conversationId: string | null; createdAt: Date; expiresAt: Date | null }> = {}) {
-  const { id = crypto.randomUUID(), workspaceId = 'ws-1', userId = 'user-1', type = 'budget_overspend', severity = 'warning', title = 'Test Insight', summary = 'Test summary', data = null, status = 'active', conversationId = null, createdAt = new Date(NOW), expiresAt = null } = overrides;
-  return db.insert(schema.workspaceInsights).values({ id, workspaceId, userId, type, severity, title, summary, data, status, conversationId, createdAt, expiresAt });
+function insertInsight(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    workspaceId: string;
+    userId: string;
+    type: string;
+    severity: string;
+    title: string;
+    summary: string;
+    data: string | null;
+    status: string;
+    conversationId: string | null;
+    createdAt: Date;
+    expiresAt: Date | null;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+    type = 'budget_overspend',
+    severity = 'warning',
+    title = 'Test Insight',
+    summary = 'Test summary',
+    data = null,
+    status = 'active',
+    conversationId = null,
+    createdAt = new Date(NOW),
+    expiresAt = null,
+  } = overrides;
+  return db
+    .insert(schema.workspaceInsights)
+    .values({
+      id,
+      workspaceId,
+      userId,
+      type,
+      severity,
+      title,
+      summary,
+      data,
+      status,
+      conversationId,
+      createdAt,
+      expiresAt,
+    });
 }
 
-function insertCanvasItem(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; type: string; name: string; workspaceId: string; userId: string }> = {}) {
-  const { id = crypto.randomUUID(), type = 'note', name = 'My Note', workspaceId = 'ws-1', userId = 'user-1' } = overrides;
-  return db.insert(schema.canvasItems).values({ id, type, name, workspaceId, userId, x: 0, y: 0, width: 300, height: 200, zIndex: 1 });
+function insertCanvasItem(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    type: string;
+    name: string;
+    workspaceId: string;
+    userId: string;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    type = 'note',
+    name = 'My Note',
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+  } = overrides;
+  return db
+    .insert(schema.canvasItems)
+    .values({
+      id,
+      type,
+      name,
+      workspaceId,
+      userId,
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 200,
+      zIndex: 1,
+    });
 }
 
 describe('buildWorkspaceContext', () => {
@@ -357,8 +728,18 @@ describe('buildWorkspaceContext', () => {
     await insertWorkspace(db, { id: 'ws-2', userId: 'user-2' });
 
     // Insert data for user-2
-    await insertAccount(db, { name: 'Other User Account', balance: 99999, workspaceId: 'ws-1', userId: 'user-2' });
-    await insertAccount(db, { name: 'My Account', balance: 500, workspaceId: 'ws-1', userId: 'user-1' });
+    await insertAccount(db, {
+      name: 'Other User Account',
+      balance: 99999,
+      workspaceId: 'ws-1',
+      userId: 'user-2',
+    });
+    await insertAccount(db, {
+      name: 'My Account',
+      balance: 500,
+      workspaceId: 'ws-1',
+      userId: 'user-1',
+    });
 
     const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
     expect(result).toContain('My Account');
@@ -463,7 +844,14 @@ describe('buildDocumentContext', () => {
 
   it('returns formatted document section with numbered citations', async () => {
     mockSearchDocuments.mockResolvedValueOnce([
-      { chunkId: 'c1', fileId: 'f1', fileName: 'bank.pdf', content: 'Transaction on 2024-01-15 for $500', chunkIndex: 0, score: 0.92 },
+      {
+        chunkId: 'c1',
+        fileId: 'f1',
+        fileName: 'bank.pdf',
+        content: 'Transaction on 2024-01-15 for $500',
+        chunkIndex: 0,
+        score: 0.92,
+      },
     ]);
 
     const result = await buildDocumentContext('what transactions did I have?', 'ws-1', db);
@@ -488,9 +876,30 @@ describe('buildDocumentContext', () => {
 
   it('numbers citations sequentially across multiple results', async () => {
     mockSearchDocuments.mockResolvedValueOnce([
-      { chunkId: 'c1', fileId: 'f1', fileName: 'bank.pdf', content: 'Chunk 1', chunkIndex: 0, score: 0.95 },
-      { chunkId: 'c2', fileId: 'f1', fileName: 'bank.pdf', content: 'Chunk 2', chunkIndex: 1, score: 0.88 },
-      { chunkId: 'c3', fileId: 'f2', fileName: 'expenses.csv', content: 'Chunk 3', chunkIndex: 0, score: 0.82 },
+      {
+        chunkId: 'c1',
+        fileId: 'f1',
+        fileName: 'bank.pdf',
+        content: 'Chunk 1',
+        chunkIndex: 0,
+        score: 0.95,
+      },
+      {
+        chunkId: 'c2',
+        fileId: 'f1',
+        fileName: 'bank.pdf',
+        content: 'Chunk 2',
+        chunkIndex: 1,
+        score: 0.88,
+      },
+      {
+        chunkId: 'c3',
+        fileId: 'f2',
+        fileName: 'expenses.csv',
+        content: 'Chunk 3',
+        chunkIndex: 0,
+        score: 0.82,
+      },
     ]);
 
     const result = await buildDocumentContext('expenses', 'ws-1', db);
@@ -507,11 +916,46 @@ describe('buildDocumentContext', () => {
   it('truncates to token budget', async () => {
     const longContent = 'x'.repeat(2000);
     mockSearchDocuments.mockResolvedValueOnce([
-      { chunkId: 'c1', fileId: 'f1', fileName: 'a.pdf', content: longContent, chunkIndex: 0, score: 0.95 },
-      { chunkId: 'c2', fileId: 'f2', fileName: 'b.pdf', content: longContent, chunkIndex: 0, score: 0.90 },
-      { chunkId: 'c3', fileId: 'f3', fileName: 'c.pdf', content: longContent, chunkIndex: 0, score: 0.85 },
-      { chunkId: 'c4', fileId: 'f4', fileName: 'd.pdf', content: longContent, chunkIndex: 0, score: 0.80 },
-      { chunkId: 'c5', fileId: 'f5', fileName: 'e.pdf', content: longContent, chunkIndex: 0, score: 0.75 },
+      {
+        chunkId: 'c1',
+        fileId: 'f1',
+        fileName: 'a.pdf',
+        content: longContent,
+        chunkIndex: 0,
+        score: 0.95,
+      },
+      {
+        chunkId: 'c2',
+        fileId: 'f2',
+        fileName: 'b.pdf',
+        content: longContent,
+        chunkIndex: 0,
+        score: 0.9,
+      },
+      {
+        chunkId: 'c3',
+        fileId: 'f3',
+        fileName: 'c.pdf',
+        content: longContent,
+        chunkIndex: 0,
+        score: 0.85,
+      },
+      {
+        chunkId: 'c4',
+        fileId: 'f4',
+        fileName: 'd.pdf',
+        content: longContent,
+        chunkIndex: 0,
+        score: 0.8,
+      },
+      {
+        chunkId: 'c5',
+        fileId: 'f5',
+        fileName: 'e.pdf',
+        content: longContent,
+        chunkIndex: 0,
+        score: 0.75,
+      },
     ]);
 
     const result = await buildDocumentContext('query', 'ws-1', db);
@@ -539,10 +983,26 @@ describe('buildInsightsSection', () => {
   });
 
   it('returns formatted insights grouped by severity', async () => {
-    await insertInsight(db, { severity: 'critical', title: 'Cash low', summary: 'Balance below $500' });
-    await insertInsight(db, { severity: 'warning', title: 'Budget exceeded', summary: 'Dining over by $180' });
-    await insertInsight(db, { severity: 'warning', title: 'Subscription spike', summary: 'Monthly subs up 20%' });
-    await insertInsight(db, { severity: 'info', title: 'Savings milestone', summary: 'Emergency fund at 3 months' });
+    await insertInsight(db, {
+      severity: 'critical',
+      title: 'Cash low',
+      summary: 'Balance below $500',
+    });
+    await insertInsight(db, {
+      severity: 'warning',
+      title: 'Budget exceeded',
+      summary: 'Dining over by $180',
+    });
+    await insertInsight(db, {
+      severity: 'warning',
+      title: 'Subscription spike',
+      summary: 'Monthly subs up 20%',
+    });
+    await insertInsight(db, {
+      severity: 'info',
+      title: 'Savings milestone',
+      summary: 'Emergency fund at 3 months',
+    });
 
     const result = await buildInsightsSection(db, 'user-1', 'ws-1');
 
@@ -562,8 +1022,18 @@ describe('buildInsightsSection', () => {
   });
 
   it('excludes dismissed insights', async () => {
-    await insertInsight(db, { severity: 'warning', title: 'Active one', summary: 'Still relevant', status: 'active' });
-    await insertInsight(db, { severity: 'warning', title: 'Dismissed one', summary: 'No longer relevant', status: 'dismissed' });
+    await insertInsight(db, {
+      severity: 'warning',
+      title: 'Active one',
+      summary: 'Still relevant',
+      status: 'active',
+    });
+    await insertInsight(db, {
+      severity: 'warning',
+      title: 'Dismissed one',
+      summary: 'No longer relevant',
+      status: 'dismissed',
+    });
 
     const result = await buildInsightsSection(db, 'user-1', 'ws-1');
 
@@ -575,8 +1045,18 @@ describe('buildInsightsSection', () => {
     const past = new Date(Date.now() - 86400000); // 1 day ago
     const future = new Date(Date.now() + 86400000); // 1 day from now
 
-    await insertInsight(db, { severity: 'warning', title: 'Still valid', summary: 'Not expired', expiresAt: future });
-    await insertInsight(db, { severity: 'warning', title: 'Old news', summary: 'Already expired', expiresAt: past });
+    await insertInsight(db, {
+      severity: 'warning',
+      title: 'Still valid',
+      summary: 'Not expired',
+      expiresAt: future,
+    });
+    await insertInsight(db, {
+      severity: 'warning',
+      title: 'Old news',
+      summary: 'Already expired',
+      expiresAt: past,
+    });
 
     const result = await buildInsightsSection(db, 'user-1', 'ws-1');
 
@@ -596,9 +1076,37 @@ describe('buildInsightsSection', () => {
   });
 });
 
-function insertConversation(db: ReturnType<typeof createTestDb>, overrides: Partial<{ id: string; title: string; summary: string | null; workspaceId: string; userId: string; updatedAt: Date }> = {}) {
-  const { id = crypto.randomUUID(), title = 'Test conversation', summary = null, workspaceId = 'ws-1', userId = 'user-1', updatedAt = new Date(NOW) } = overrides;
-  return db.insert(schema.conversations).values({ id, title, summary, workspaceId, userId, model: 'claude-sonnet-4-6', createdAt: new Date(NOW), updatedAt });
+function insertConversation(
+  db: ReturnType<typeof createTestDb>,
+  overrides: Partial<{
+    id: string;
+    title: string;
+    summary: string | null;
+    workspaceId: string;
+    userId: string;
+    updatedAt: Date;
+  }> = {},
+) {
+  const {
+    id = crypto.randomUUID(),
+    title = 'Test conversation',
+    summary = null,
+    workspaceId = 'ws-1',
+    userId = 'user-1',
+    updatedAt = new Date(NOW),
+  } = overrides;
+  return db
+    .insert(schema.conversations)
+    .values({
+      id,
+      title,
+      summary,
+      workspaceId,
+      userId,
+      model: 'claude-sonnet-4-6',
+      createdAt: new Date(NOW),
+      updatedAt,
+    });
 }
 
 describe('buildWorkspaceContext — with insights', () => {
@@ -610,7 +1118,11 @@ describe('buildWorkspaceContext — with insights', () => {
 
   it('includes insights section in full context', async () => {
     await insertWorkspace(db);
-    await insertInsight(db, { severity: 'critical', title: 'Cash critically low', summary: 'Only $200 remaining' });
+    await insertInsight(db, {
+      severity: 'critical',
+      title: 'Cash critically low',
+      summary: 'Only $200 remaining',
+    });
 
     const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
 
@@ -635,9 +1147,21 @@ describe('buildConversationMemorySection', () => {
   });
 
   it('returns formatted section with summarized conversations', async () => {
-    await insertConversation(db, { id: 'c1', title: 'Budget review', summary: 'Discussed Q1 budget allocations.' });
-    await insertConversation(db, { id: 'c2', title: 'Tax planning', summary: 'Reviewed estimated tax payments for 2026.' });
-    await insertConversation(db, { id: 'c3', title: 'Investment check', summary: 'Analyzed portfolio performance and rebalancing.' });
+    await insertConversation(db, {
+      id: 'c1',
+      title: 'Budget review',
+      summary: 'Discussed Q1 budget allocations.',
+    });
+    await insertConversation(db, {
+      id: 'c2',
+      title: 'Tax planning',
+      summary: 'Reviewed estimated tax payments for 2026.',
+    });
+    await insertConversation(db, {
+      id: 'c3',
+      title: 'Investment check',
+      summary: 'Analyzed portfolio performance and rebalancing.',
+    });
     await insertConversation(db, { id: 'c4', title: 'No summary yet', summary: null });
 
     const result = await buildConversationMemorySection(db, 'user-1', 'ws-1', 'current-convo');
@@ -704,9 +1228,24 @@ describe('buildConversationMemorySection', () => {
   });
 
   it('orders by updatedAt descending — most recent first', async () => {
-    await insertConversation(db, { id: 'c-old', title: 'Oldest', summary: 'Old convo.', updatedAt: new Date(NOW - 86400000 * 3) });
-    await insertConversation(db, { id: 'c-mid', title: 'Middle', summary: 'Mid convo.', updatedAt: new Date(NOW - 86400000) });
-    await insertConversation(db, { id: 'c-new', title: 'Newest', summary: 'New convo.', updatedAt: new Date(NOW) });
+    await insertConversation(db, {
+      id: 'c-old',
+      title: 'Oldest',
+      summary: 'Old convo.',
+      updatedAt: new Date(NOW - 86400000 * 3),
+    });
+    await insertConversation(db, {
+      id: 'c-mid',
+      title: 'Middle',
+      summary: 'Mid convo.',
+      updatedAt: new Date(NOW - 86400000),
+    });
+    await insertConversation(db, {
+      id: 'c-new',
+      title: 'Newest',
+      summary: 'New convo.',
+      updatedAt: new Date(NOW),
+    });
 
     const result = await buildConversationMemorySection(db, 'user-1', 'ws-1', 'current');
 
@@ -727,8 +1266,16 @@ describe('buildWorkspaceContext — with conversation memory', () => {
 
   it('includes conversation memory section when currentConversationId provided', async () => {
     await insertWorkspace(db);
-    await insertConversation(db, { id: 'c1', title: 'Past chat', summary: 'Discussed savings goals.' });
-    await insertConversation(db, { id: 'c2', title: 'Another chat', summary: 'Reviewed monthly expenses.' });
+    await insertConversation(db, {
+      id: 'c1',
+      title: 'Past chat',
+      summary: 'Discussed savings goals.',
+    });
+    await insertConversation(db, {
+      id: 'c2',
+      title: 'Another chat',
+      summary: 'Reviewed monthly expenses.',
+    });
 
     const result = await buildWorkspaceContext(db, 'user-1', 'ws-1', 'current-id');
 
@@ -739,8 +1286,16 @@ describe('buildWorkspaceContext — with conversation memory', () => {
 
   it('omits conversation memory section when currentConversationId not provided', async () => {
     await insertWorkspace(db);
-    await insertConversation(db, { id: 'c1', title: 'Past chat', summary: 'Discussed savings goals.' });
-    await insertConversation(db, { id: 'c2', title: 'Another chat', summary: 'Reviewed monthly expenses.' });
+    await insertConversation(db, {
+      id: 'c1',
+      title: 'Past chat',
+      summary: 'Discussed savings goals.',
+    });
+    await insertConversation(db, {
+      id: 'c2',
+      title: 'Another chat',
+      summary: 'Reviewed monthly expenses.',
+    });
 
     const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
 
@@ -756,10 +1311,33 @@ describe('buildWorkspaceListSection', () => {
   beforeEach(async () => {
     db = createTestDb();
     // user-1 has 3 workspaces, user-2 has 1
-    await insertWorkspace(db, { id: 'ws-1', name: 'Personal Finance', userId: 'user-1', type: 'workspace', description: 'My personal finances' });
-    await insertWorkspace(db, { id: 'ws-2', name: 'Side Business', userId: 'user-1', type: 'workspace', description: 'Freelance income tracking' });
-    await insertWorkspace(db, { id: 'ws-3', name: 'Investment Portfolio', userId: 'user-1', type: 'portfolio' });
-    await insertWorkspace(db, { id: 'ws-other', name: 'Other User WS', userId: 'user-2', type: 'workspace', description: 'Not mine' });
+    await insertWorkspace(db, {
+      id: 'ws-1',
+      name: 'Personal Finance',
+      userId: 'user-1',
+      type: 'workspace',
+      description: 'My personal finances',
+    });
+    await insertWorkspace(db, {
+      id: 'ws-2',
+      name: 'Side Business',
+      userId: 'user-1',
+      type: 'workspace',
+      description: 'Freelance income tracking',
+    });
+    await insertWorkspace(db, {
+      id: 'ws-3',
+      name: 'Investment Portfolio',
+      userId: 'user-1',
+      type: 'portfolio',
+    });
+    await insertWorkspace(db, {
+      id: 'ws-other',
+      name: 'Other User WS',
+      userId: 'user-2',
+      type: 'workspace',
+      description: 'Not mine',
+    });
   });
 
   it('returns formatted table of other workspaces', async () => {
@@ -808,7 +1386,12 @@ describe('buildWorkspaceContext — with workspace list', () => {
 
   it('includes workspace list section when user has multiple workspaces', async () => {
     await insertWorkspace(db, { id: 'ws-1', name: 'Personal', userId: 'user-1' });
-    await insertWorkspace(db, { id: 'ws-2', name: 'Business', userId: 'user-1', description: 'My biz' });
+    await insertWorkspace(db, {
+      id: 'ws-2',
+      name: 'Business',
+      userId: 'user-1',
+      description: 'My biz',
+    });
 
     const result = await buildWorkspaceContext(db, 'user-1', 'ws-1');
 

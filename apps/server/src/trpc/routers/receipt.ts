@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { receipts } from '../../db/schema';
+import { scheduleLinkStructuredData } from '../../services/entity-linking';
 import { protectedProcedure, router } from '../trpc';
 
 export const receiptRouter = router({
@@ -37,6 +38,7 @@ export const receiptRouter = router({
       updatedAt: now,
     });
 
+    scheduleLinkStructuredData(input.workspaceId, ctx.db);
     return { id };
   }),
 
@@ -44,7 +46,7 @@ export const receiptRouter = router({
     .input(z.object({ id: z.string().uuid(), data: updateReceiptSchema }))
     .mutation(async ({ ctx, input }) => {
       const [existing] = await ctx.db
-        .select({ id: receipts.id })
+        .select({ id: receipts.id, workspaceId: receipts.workspaceId })
         .from(receipts)
         .where(and(eq(receipts.id, input.id), eq(receipts.userId, ctx.userId)));
 
@@ -57,6 +59,7 @@ export const receiptRouter = router({
         .set({ ...input.data, updatedAt: new Date() })
         .where(eq(receipts.id, input.id));
 
+      scheduleLinkStructuredData(existing.workspaceId, ctx.db);
       return { success: true };
     }),
 

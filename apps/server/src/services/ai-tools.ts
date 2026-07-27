@@ -1,51 +1,55 @@
 import type { Tool } from '@anthropic-ai/sdk/resources/messages';
-import { and, eq, desc, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { DB } from '../db';
 import {
-  workspaces,
-  canvasItems,
-  canvasConnections,
   accounts,
   budgetCategories,
   budgetGroups,
-  subscriptions,
-  invoices,
-  invoiceLineItems,
+  canvasConnections,
+  canvasItems,
   debts,
+  entities,
+  entityEdges,
+  entityMentions,
   holdings,
+  invoiceLineItems,
+  invoices,
+  marketBars,
   networthCategories,
   networthEntries,
   receipts,
-  marketBars,
+  subscriptions,
+  workspaces,
 } from '../db/schema';
-import { ITEM_DEFAULTS, defaultNames, createDefaultData } from './canvas-defaults';
 import { findNextPosition } from './auto-position';
+import { ITEM_DEFAULTS, createDefaultData, defaultNames } from './canvas-defaults';
+import { findUnmatchedTransactions } from './reconciliation';
 // Lazy import to avoid loading OpenAI SDK at server startup
 const lazySearchDocuments = () => import('./vector-search').then((m) => m.searchDocuments);
 import {
-  computeTaxEstimate,
-  createDefaultTaxEstimatorData,
-  computeLoan,
-  createDefaultLoanCalculatorData,
-  computeProjection,
-  createDefaultProjectionData,
   computeBreakeven,
-  createDefaultBreakevenData,
   computeDepreciation,
-  createDefaultDepreciationData,
+  computeLoan,
+  computeProjection,
   computeRentVsBuy,
-  createDefaultRentVsBuyData,
-  simulateDebtPaydown,
+  computeTaxEstimate,
+  createDefaultBreakevenData,
   createDefaultDebtPlannerData,
+  createDefaultDepreciationData,
+  createDefaultLoanCalculatorData,
+  createDefaultProjectionData,
+  createDefaultRentVsBuyData,
+  createDefaultTaxEstimatorData,
+  simulateDebtPaydown,
 } from '../lib/calc';
 import type {
-  TaxEstimatorData,
+  BreakevenCardData,
+  Debt,
+  DepreciationCardData,
   LoanCalculatorData,
   ProjectionCardData,
-  BreakevenCardData,
-  DepreciationCardData,
   RentVsBuyCardData,
-  Debt,
+  TaxEstimatorData,
 } from '../lib/calc';
 
 export interface ToolContext {
@@ -54,17 +58,28 @@ export interface ToolContext {
   workspaceId: string;
 }
 
-type ToolExecutor = (input: Record<string, unknown>, ctx: ToolContext) => Promise<Record<string, unknown>>;
+type ToolExecutor = (
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+) => Promise<Record<string, unknown>>;
 
 interface ToolRegistration {
   definition: Tool;
   execute: ToolExecutor;
 }
 
-function truncateSchedule<T>(schedule: T[], limit = 24): { rows: T[]; truncated: boolean; totalRows: number } {
-  if (schedule.length <= limit) return { rows: schedule, truncated: false, totalRows: schedule.length };
+function truncateSchedule<T>(
+  schedule: T[],
+  limit = 24,
+): { rows: T[]; truncated: boolean; totalRows: number } {
+  if (schedule.length <= limit)
+    return { rows: schedule, truncated: false, totalRows: schedule.length };
   const half = Math.floor(limit / 2);
-  return { rows: [...schedule.slice(0, half), ...schedule.slice(-half)], truncated: true, totalRows: schedule.length };
+  return {
+    rows: [...schedule.slice(0, half), ...schedule.slice(-half)],
+    truncated: true,
+    totalRows: schedule.length,
+  };
 }
 
 const TOOLS: ToolRegistration[] = [
@@ -72,7 +87,8 @@ const TOOLS: ToolRegistration[] = [
   {
     definition: {
       name: 'get_workspace_summary',
-      description: 'Get an overview of the current workspace including name, type, and counts of all data types.',
+      description:
+        'Get an overview of the current workspace including name, type, and counts of all data types.',
       input_schema: { type: 'object' as const, properties: {}, required: [] },
     },
     execute: async (_input, ctx) => {
@@ -83,7 +99,16 @@ const TOOLS: ToolRegistration[] = [
 
       if (!workspace) return { error: 'Workspace not found' };
 
-      const countTable = async (table: typeof accounts | typeof budgetCategories | typeof subscriptions | typeof invoices | typeof debts | typeof holdings | typeof networthCategories) => {
+      const countTable = async (
+        table:
+          | typeof accounts
+          | typeof budgetCategories
+          | typeof subscriptions
+          | typeof invoices
+          | typeof debts
+          | typeof holdings
+          | typeof networthCategories,
+      ) => {
         const rows = await ctx.db
           .select({ id: table.id })
           .from(table)
@@ -102,7 +127,9 @@ const TOOLS: ToolRegistration[] = [
         ctx.db
           .select({ id: canvasItems.id })
           .from(canvasItems)
-          .where(and(eq(canvasItems.workspaceId, ctx.workspaceId), eq(canvasItems.userId, ctx.userId)))
+          .where(
+            and(eq(canvasItems.workspaceId, ctx.workspaceId), eq(canvasItems.userId, ctx.userId)),
+          )
           .then((r) => r.length),
       ]);
 
@@ -130,12 +157,17 @@ const TOOLS: ToolRegistration[] = [
       description: 'List canvas items in the workspace, optionally filtered by type.',
       input_schema: {
         type: 'object' as const,
-        properties: { type: { type: 'string', description: 'Filter by item type (e.g. "note", "budget-card")' } },
+        properties: {
+          type: { type: 'string', description: 'Filter by item type (e.g. "note", "budget-card")' },
+        },
         required: [],
       },
     },
     execute: async (input, ctx) => {
-      const conditions = [eq(canvasItems.workspaceId, ctx.workspaceId), eq(canvasItems.userId, ctx.userId)];
+      const conditions = [
+        eq(canvasItems.workspaceId, ctx.workspaceId),
+        eq(canvasItems.userId, ctx.userId),
+      ];
       if (input.type) conditions.push(eq(canvasItems.type, input.type as string));
 
       const rows = await ctx.db
@@ -162,7 +194,12 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (input, ctx) => {
       const [row] = await ctx.db
-        .select({ id: canvasItems.id, type: canvasItems.type, name: canvasItems.name, data: canvasItems.data })
+        .select({
+          id: canvasItems.id,
+          type: canvasItems.type,
+          name: canvasItems.name,
+          data: canvasItems.data,
+        })
         .from(canvasItems)
         .where(
           and(
@@ -173,7 +210,12 @@ const TOOLS: ToolRegistration[] = [
         );
 
       if (!row) return { error: 'Item not found' };
-      return { id: row.id, type: row.type, name: row.name, data: row.data ? JSON.parse(row.data) : null };
+      return {
+        id: row.id,
+        type: row.type,
+        name: row.name,
+        data: row.data ? JSON.parse(row.data) : null,
+      };
     },
   },
 
@@ -184,16 +226,30 @@ const TOOLS: ToolRegistration[] = [
       description: 'List financial accounts with balances, optionally filtered by type.',
       input_schema: {
         type: 'object' as const,
-        properties: { type: { type: 'string', description: 'Filter by account type (e.g. "checking", "savings")' } },
+        properties: {
+          type: {
+            type: 'string',
+            description: 'Filter by account type (e.g. "checking", "savings")',
+          },
+        },
         required: [],
       },
     },
     execute: async (input, ctx) => {
-      const conditions = [eq(accounts.workspaceId, ctx.workspaceId), eq(accounts.userId, ctx.userId)];
+      const conditions = [
+        eq(accounts.workspaceId, ctx.workspaceId),
+        eq(accounts.userId, ctx.userId),
+      ];
       if (input.type) conditions.push(eq(accounts.type, input.type as string));
 
       const rows = await ctx.db
-        .select({ id: accounts.id, name: accounts.name, type: accounts.type, balance: accounts.balance, institution: accounts.institution })
+        .select({
+          id: accounts.id,
+          name: accounts.name,
+          type: accounts.type,
+          balance: accounts.balance,
+          institution: accounts.institution,
+        })
         .from(accounts)
         .where(and(...conditions))
         .limit(100);
@@ -212,9 +268,19 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (_input, ctx) => {
       const rows = await ctx.db
-        .select({ id: budgetCategories.id, name: budgetCategories.name, budgeted: budgetCategories.budgeted, actual: budgetCategories.actual })
+        .select({
+          id: budgetCategories.id,
+          name: budgetCategories.name,
+          budgeted: budgetCategories.budgeted,
+          actual: budgetCategories.actual,
+        })
         .from(budgetCategories)
-        .where(and(eq(budgetCategories.workspaceId, ctx.workspaceId), eq(budgetCategories.userId, ctx.userId)));
+        .where(
+          and(
+            eq(budgetCategories.workspaceId, ctx.workspaceId),
+            eq(budgetCategories.userId, ctx.userId),
+          ),
+        );
 
       return { categories: rows };
     },
@@ -227,12 +293,17 @@ const TOOLS: ToolRegistration[] = [
       description: 'List invoices with computed totals, optionally filtered by status.',
       input_schema: {
         type: 'object' as const,
-        properties: { status: { type: 'string', description: 'Filter by status (draft/sent/paid/overdue)' } },
+        properties: {
+          status: { type: 'string', description: 'Filter by status (draft/sent/paid/overdue)' },
+        },
         required: [],
       },
     },
     execute: async (input, ctx) => {
-      const conditions = [eq(invoices.workspaceId, ctx.workspaceId), eq(invoices.userId, ctx.userId)];
+      const conditions = [
+        eq(invoices.workspaceId, ctx.workspaceId),
+        eq(invoices.userId, ctx.userId),
+      ];
       if (input.status) conditions.push(eq(invoices.status, input.status as string));
 
       const invRows = await ctx.db
@@ -282,7 +353,11 @@ const TOOLS: ToolRegistration[] = [
           status: inv.status,
           subtotal,
           total,
-          lineItems: items.map((li) => ({ description: li.description, quantity: li.quantity, unitPrice: li.unitPrice })),
+          lineItems: items.map((li) => ({
+            description: li.description,
+            quantity: li.quantity,
+            unitPrice: li.unitPrice,
+          })),
         };
       });
 
@@ -322,16 +397,27 @@ const TOOLS: ToolRegistration[] = [
       description: 'List subscriptions, optionally filtered by status.',
       input_schema: {
         type: 'object' as const,
-        properties: { status: { type: 'string', description: 'Filter by status (active/paused/cancelled)' } },
+        properties: {
+          status: { type: 'string', description: 'Filter by status (active/paused/cancelled)' },
+        },
         required: [],
       },
     },
     execute: async (input, ctx) => {
-      const conditions = [eq(subscriptions.workspaceId, ctx.workspaceId), eq(subscriptions.userId, ctx.userId)];
+      const conditions = [
+        eq(subscriptions.workspaceId, ctx.workspaceId),
+        eq(subscriptions.userId, ctx.userId),
+      ];
       if (input.status) conditions.push(eq(subscriptions.status, input.status as string));
 
       const rows = await ctx.db
-        .select({ id: subscriptions.id, name: subscriptions.name, amount: subscriptions.amount, frequency: subscriptions.frequency, status: subscriptions.status })
+        .select({
+          id: subscriptions.id,
+          name: subscriptions.name,
+          amount: subscriptions.amount,
+          frequency: subscriptions.frequency,
+          status: subscriptions.status,
+        })
         .from(subscriptions)
         .where(and(...conditions))
         .limit(100);
@@ -349,7 +435,13 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (_input, ctx) => {
       const rows = await ctx.db
-        .select({ id: holdings.id, symbol: holdings.symbol, name: holdings.name, value: holdings.value, targetPct: holdings.targetPct })
+        .select({
+          id: holdings.id,
+          symbol: holdings.symbol,
+          name: holdings.name,
+          value: holdings.value,
+          targetPct: holdings.targetPct,
+        })
         .from(holdings)
         .where(and(eq(holdings.workspaceId, ctx.workspaceId), eq(holdings.userId, ctx.userId)))
         .orderBy(desc(holdings.value))
@@ -393,9 +485,18 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (_input, ctx) => {
       const cats = await ctx.db
-        .select({ id: networthCategories.id, name: networthCategories.name, kind: networthCategories.kind })
+        .select({
+          id: networthCategories.id,
+          name: networthCategories.name,
+          kind: networthCategories.kind,
+        })
         .from(networthCategories)
-        .where(and(eq(networthCategories.workspaceId, ctx.workspaceId), eq(networthCategories.userId, ctx.userId)));
+        .where(
+          and(
+            eq(networthCategories.workspaceId, ctx.workspaceId),
+            eq(networthCategories.userId, ctx.userId),
+          ),
+        );
 
       const entries = await ctx.db
         .select({
@@ -405,7 +506,12 @@ const TOOLS: ToolRegistration[] = [
           value: networthEntries.value,
         })
         .from(networthEntries)
-        .where(and(eq(networthEntries.workspaceId, ctx.workspaceId), eq(networthEntries.userId, ctx.userId)));
+        .where(
+          and(
+            eq(networthEntries.workspaceId, ctx.workspaceId),
+            eq(networthEntries.userId, ctx.userId),
+          ),
+        );
 
       // Group entries by category
       const entriesByCat = new Map<string, typeof entries>();
@@ -480,13 +586,20 @@ const TOOLS: ToolRegistration[] = [
   {
     definition: {
       name: 'create_canvas_item',
-      description: 'Create a new canvas item in the workspace. Auto-positions below existing items.',
+      description:
+        'Create a new canvas item in the workspace. Auto-positions below existing items.',
       input_schema: {
         type: 'object' as const,
         properties: {
-          type: { type: 'string', description: 'Item type (e.g. "note", "budget-card", "kpi-card")' },
+          type: {
+            type: 'string',
+            description: 'Item type (e.g. "note", "budget-card", "kpi-card")',
+          },
           name: { type: 'string', description: 'Optional display name for the item' },
-          data: { type: 'object', description: 'Optional data payload for the item. For notes, pass { text: "content" }.' },
+          data: {
+            type: 'object',
+            description: 'Optional data payload for the item. For notes, pass { text: "content" }.',
+          },
         },
         required: ['type'],
       },
@@ -495,16 +608,25 @@ const TOOLS: ToolRegistration[] = [
       const type = input.type as string;
       const defaults = ITEM_DEFAULTS[type];
       if (!defaults) {
-        return { error: `Invalid item type "${type}". Valid types: ${Object.keys(ITEM_DEFAULTS).join(', ')}` };
+        return {
+          error: `Invalid item type "${type}". Valid types: ${Object.keys(ITEM_DEFAULTS).join(', ')}`,
+        };
       }
 
       const { width, height } = defaults;
 
       // Get existing items for positioning
       const existingItems = await ctx.db
-        .select({ x: canvasItems.x, y: canvasItems.y, width: canvasItems.width, height: canvasItems.height })
+        .select({
+          x: canvasItems.x,
+          y: canvasItems.y,
+          width: canvasItems.width,
+          height: canvasItems.height,
+        })
         .from(canvasItems)
-        .where(and(eq(canvasItems.workspaceId, ctx.workspaceId), eq(canvasItems.userId, ctx.userId)));
+        .where(
+          and(eq(canvasItems.workspaceId, ctx.workspaceId), eq(canvasItems.userId, ctx.userId)),
+        );
 
       const { x, y } = findNextPosition(existingItems, width, height);
 
@@ -512,7 +634,9 @@ const TOOLS: ToolRegistration[] = [
       const [maxZ] = await ctx.db
         .select({ maxZIndex: sql<number>`COALESCE(MAX(${canvasItems.zIndex}), 0)` })
         .from(canvasItems)
-        .where(and(eq(canvasItems.workspaceId, ctx.workspaceId), eq(canvasItems.userId, ctx.userId)));
+        .where(
+          and(eq(canvasItems.workspaceId, ctx.workspaceId), eq(canvasItems.userId, ctx.userId)),
+        );
       const zIndex = (maxZ?.maxZIndex ?? 0) + 1;
 
       const name = (input.name as string | undefined) ?? defaultNames[type] ?? 'Untitled';
@@ -535,7 +659,18 @@ const TOOLS: ToolRegistration[] = [
         data: data ? JSON.stringify(data) : undefined,
       });
 
-      return { id, type, name, x, y, width, height, zIndex, data: data ?? null, _canvasUpdate: true };
+      return {
+        id,
+        type,
+        name,
+        x,
+        y,
+        width,
+        height,
+        zIndex,
+        data: data ?? null,
+        _canvasUpdate: true,
+      };
     },
   },
 
@@ -575,10 +710,7 @@ const TOOLS: ToolRegistration[] = [
       if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
       if (Object.keys(updates).length > 0) {
-        await ctx.db
-          .update(canvasItems)
-          .set(updates)
-          .where(eq(canvasItems.id, itemId));
+        await ctx.db.update(canvasItems).set(updates).where(eq(canvasItems.id, itemId));
       }
 
       const newName = updates.name ?? existing.name;
@@ -608,7 +740,10 @@ const TOOLS: ToolRegistration[] = [
         type: 'object' as const,
         properties: {
           fromItemId: { type: 'string', description: 'Source item ID' },
-          fromAnchor: { type: 'string', description: 'Source anchor point (top/right/bottom/left)' },
+          fromAnchor: {
+            type: 'string',
+            description: 'Source anchor point (top/right/bottom/left)',
+          },
           toItemId: { type: 'string', description: 'Target item ID' },
           toAnchor: { type: 'string', description: 'Target anchor point (top/right/bottom/left)' },
         },
@@ -719,7 +854,10 @@ const TOOLS: ToolRegistration[] = [
       },
     },
     execute: async (_input, _ctx) => {
-      return { error: 'Deleting canvas items requires manual confirmation. Please ask the user to delete it themselves.' };
+      return {
+        error:
+          'Deleting canvas items requires manual confirmation. Please ask the user to delete it themselves.',
+      };
     },
   },
 
@@ -729,13 +867,17 @@ const TOOLS: ToolRegistration[] = [
   {
     definition: {
       name: 'calculate_tax',
-      description: 'Estimate US federal + state income tax. Returns tax breakdown, effective rate, and marginal rates.',
+      description:
+        'Estimate US federal + state income tax. Returns tax breakdown, effective rate, and marginal rates.',
       input_schema: {
         type: 'object' as const,
         properties: {
           taxYear: { type: 'number', description: 'Tax year (2025 or 2026)' },
           filingStatus: { type: 'string', description: 'Filing status: single, mfj, mfs, hoh' },
-          stateCode: { type: 'string', description: '2-letter state code (e.g. "CA") or empty for no state tax' },
+          stateCode: {
+            type: 'string',
+            description: '2-letter state code (e.g. "CA") or empty for no state tax',
+          },
           w2Wages: { type: 'number', description: 'W-2 wages' },
           selfEmploymentIncome: { type: 'number', description: 'Self-employment income' },
           investmentIncome: { type: 'number', description: 'Investment income' },
@@ -745,11 +887,17 @@ const TOOLS: ToolRegistration[] = [
           hsaContribution: { type: 'number', description: 'HSA contributions' },
           studentLoanInterest: { type: 'number', description: 'Student loan interest paid' },
           deductionType: { type: 'string', description: '"standard" or "itemized"' },
-          saltDeduction: { type: 'number', description: 'State and local tax deduction (capped at $10k)' },
+          saltDeduction: {
+            type: 'number',
+            description: 'State and local tax deduction (capped at $10k)',
+          },
           mortgageInterest: { type: 'number', description: 'Mortgage interest paid' },
           charitableGiving: { type: 'number', description: 'Charitable contributions' },
           otherItemized: { type: 'number', description: 'Other itemized deductions' },
-          numDependentChildren: { type: 'number', description: 'Number of dependent children for child tax credit' },
+          numDependentChildren: {
+            type: 'number',
+            description: 'Number of dependent children for child tax credit',
+          },
           otherCredits: { type: 'number', description: 'Other tax credits' },
           federalWithheld: { type: 'number', description: 'Federal tax already withheld' },
           stateWithheld: { type: 'number', description: 'State tax already withheld' },
@@ -773,9 +921,15 @@ const TOOLS: ToolRegistration[] = [
         type: 'object' as const,
         properties: {
           homePrice: { type: 'number', description: 'Home/asset price' },
-          downPaymentPercent: { type: 'number', description: 'Down payment percentage (default 20)' },
+          downPaymentPercent: {
+            type: 'number',
+            description: 'Down payment percentage (default 20)',
+          },
           loanTermYears: { type: 'number', description: 'Loan term in years (default 30)' },
-          annualInterestRate: { type: 'number', description: 'Annual interest rate as percentage (e.g. 6.5)' },
+          annualInterestRate: {
+            type: 'number',
+            description: 'Annual interest rate as percentage (e.g. 6.5)',
+          },
           startDate: { type: 'string', description: 'Start date as ISO month "YYYY-MM"' },
           annualPropertyTax: { type: 'number', description: 'Annual property tax in dollars' },
           annualInsurance: { type: 'number', description: 'Annual insurance in dollars' },
@@ -819,9 +973,18 @@ const TOOLS: ToolRegistration[] = [
         properties: {
           startingAmount: { type: 'number', description: 'Initial investment amount' },
           monthlyContribution: { type: 'number', description: 'Monthly contribution amount' },
-          annualGrowthRate: { type: 'number', description: 'Annual growth rate percentage (e.g. 7)' },
-          projectionYears: { type: 'number', description: 'Number of years to project (default 10)' },
-          inflationRate: { type: 'number', description: 'Annual inflation rate percentage (default 0)' },
+          annualGrowthRate: {
+            type: 'number',
+            description: 'Annual growth rate percentage (e.g. 7)',
+          },
+          projectionYears: {
+            type: 'number',
+            description: 'Number of years to project (default 10)',
+          },
+          inflationRate: {
+            type: 'number',
+            description: 'Annual inflation rate percentage (default 0)',
+          },
         },
         required: ['startingAmount', 'monthlyContribution'],
       },
@@ -836,7 +999,8 @@ const TOOLS: ToolRegistration[] = [
   {
     definition: {
       name: 'calculate_breakeven',
-      description: 'Calculate break-even point given fixed costs, variable cost per unit, and price per unit.',
+      description:
+        'Calculate break-even point given fixed costs, variable cost per unit, and price per unit.',
       input_schema: {
         type: 'object' as const,
         properties: {
@@ -857,14 +1021,19 @@ const TOOLS: ToolRegistration[] = [
   {
     definition: {
       name: 'calculate_depreciation',
-      description: 'Calculate asset depreciation schedule using straight-line, declining-balance, double-declining, or sum-of-years methods.',
+      description:
+        'Calculate asset depreciation schedule using straight-line, declining-balance, double-declining, or sum-of-years methods.',
       input_schema: {
         type: 'object' as const,
         properties: {
           assetCost: { type: 'number', description: 'Original cost of the asset' },
           salvageValue: { type: 'number', description: 'Salvage value at end of life (default 0)' },
           usefulLifeYears: { type: 'number', description: 'Useful life in years' },
-          method: { type: 'string', description: 'Depreciation method: straight-line, declining-balance, double-declining, sum-of-years (default straight-line)' },
+          method: {
+            type: 'string',
+            description:
+              'Depreciation method: straight-line, declining-balance, double-declining, sum-of-years (default straight-line)',
+          },
         },
         required: ['assetCost', 'usefulLifeYears'],
       },
@@ -879,24 +1048,49 @@ const TOOLS: ToolRegistration[] = [
   {
     definition: {
       name: 'calculate_rent_vs_buy',
-      description: 'Compare renting vs buying a home over time. Returns yearly snapshots and a recommendation.',
+      description:
+        'Compare renting vs buying a home over time. Returns yearly snapshots and a recommendation.',
       input_schema: {
         type: 'object' as const,
         properties: {
           monthlyRent: { type: 'number', description: 'Current monthly rent' },
           homePrice: { type: 'number', description: 'Home purchase price' },
           analysisYears: { type: 'number', description: 'Analysis period in years (default 10)' },
-          downPaymentPercent: { type: 'number', description: 'Down payment percentage (default 20)' },
-          annualInterestRate: { type: 'number', description: 'Mortgage interest rate (default 6.5)' },
+          downPaymentPercent: {
+            type: 'number',
+            description: 'Down payment percentage (default 20)',
+          },
+          annualInterestRate: {
+            type: 'number',
+            description: 'Mortgage interest rate (default 6.5)',
+          },
           loanTermYears: { type: 'number', description: 'Loan term in years (default 30)' },
-          annualRentIncrease: { type: 'number', description: 'Annual rent increase percentage (default 3)' },
+          annualRentIncrease: {
+            type: 'number',
+            description: 'Annual rent increase percentage (default 3)',
+          },
           annualPropertyTax: { type: 'number', description: 'Annual property tax' },
           annualHomeInsurance: { type: 'number', description: 'Annual home insurance' },
-          annualMaintenancePercent: { type: 'number', description: 'Annual maintenance as % of home value (default 1)' },
-          annualHomeAppreciation: { type: 'number', description: 'Annual home appreciation percentage (default 3)' },
-          annualInvestmentReturn: { type: 'number', description: 'Annual investment return percentage (default 7)' },
-          closingCostPercent: { type: 'number', description: 'Closing cost as % of home price (default 3)' },
-          sellingCostPercent: { type: 'number', description: 'Selling cost as % of home value (default 6)' },
+          annualMaintenancePercent: {
+            type: 'number',
+            description: 'Annual maintenance as % of home value (default 1)',
+          },
+          annualHomeAppreciation: {
+            type: 'number',
+            description: 'Annual home appreciation percentage (default 3)',
+          },
+          annualInvestmentReturn: {
+            type: 'number',
+            description: 'Annual investment return percentage (default 7)',
+          },
+          closingCostPercent: {
+            type: 'number',
+            description: 'Closing cost as % of home price (default 3)',
+          },
+          sellingCostPercent: {
+            type: 'number',
+            description: 'Selling cost as % of home value (default 6)',
+          },
         },
         required: ['monthlyRent', 'homePrice'],
       },
@@ -929,12 +1123,20 @@ const TOOLS: ToolRegistration[] = [
   {
     definition: {
       name: 'calculate_debt_payoff',
-      description: 'Simulate debt payoff using avalanche or snowball strategy. Returns payoff timeline and interest saved.',
+      description:
+        'Simulate debt payoff using avalanche or snowball strategy. Returns payoff timeline and interest saved.',
       input_schema: {
         type: 'object' as const,
         properties: {
-          strategy: { type: 'string', description: 'Payoff strategy: "avalanche" (highest rate first) or "snowball" (smallest balance first). Default: avalanche' },
-          extraMonthlyBudget: { type: 'number', description: 'Extra monthly amount to put toward debt (default 0)' },
+          strategy: {
+            type: 'string',
+            description:
+              'Payoff strategy: "avalanche" (highest rate first) or "snowball" (smallest balance first). Default: avalanche',
+          },
+          extraMonthlyBudget: {
+            type: 'number',
+            description: 'Extra monthly amount to put toward debt (default 0)',
+          },
           startDate: { type: 'string', description: 'Start date as ISO month "YYYY-MM"' },
           debts: {
             type: 'array',
@@ -944,7 +1146,10 @@ const TOOLS: ToolRegistration[] = [
               properties: {
                 name: { type: 'string', description: 'Debt name' },
                 balance: { type: 'number', description: 'Current balance' },
-                annualInterestRate: { type: 'number', description: 'Annual interest rate percentage' },
+                annualInterestRate: {
+                  type: 'number',
+                  description: 'Annual interest rate percentage',
+                },
                 minimumPayment: { type: 'number', description: 'Minimum monthly payment' },
               },
               required: ['name', 'balance', 'annualInterestRate', 'minimumPayment'],
@@ -955,7 +1160,12 @@ const TOOLS: ToolRegistration[] = [
       },
     },
     execute: async (input, _ctx) => {
-      const debtsInput = input.debts as Array<{ name: string; balance: number; annualInterestRate: number; minimumPayment: number }>;
+      const debtsInput = input.debts as Array<{
+        name: string;
+        balance: number;
+        annualInterestRate: number;
+        minimumPayment: number;
+      }>;
       const debts: Debt[] = debtsInput.map((d) => ({
         id: crypto.randomUUID(),
         name: d.name,
@@ -965,10 +1175,13 @@ const TOOLS: ToolRegistration[] = [
       }));
 
       const defaultConfig = createDefaultDebtPlannerData();
-      const strategy = ((input.strategy as string) ?? defaultConfig.strategy) as 'avalanche' | 'snowball';
+      const strategy = ((input.strategy as string) ?? defaultConfig.strategy) as
+        | 'avalanche'
+        | 'snowball';
       const config = {
         strategy,
-        extraMonthlyBudget: (input.extraMonthlyBudget as number) ?? defaultConfig.extraMonthlyBudget,
+        extraMonthlyBudget:
+          (input.extraMonthlyBudget as number) ?? defaultConfig.extraMonthlyBudget,
         startDate: (input.startDate as string) ?? defaultConfig.startDate,
       };
 
@@ -1063,7 +1276,7 @@ const TOOLS: ToolRegistration[] = [
     definition: {
       name: 'search_documents',
       description:
-        'Search uploaded documents in the workspace using semantic similarity. Returns the most relevant text chunks from uploaded files (PDF, CSV, Excel, etc.) that match the query.',
+        'Search uploaded documents in the workspace using hybrid retrieval: exact keyword matching (names, dollar amounts, account numbers, invoice IDs) fused with semantic similarity (meaning and paraphrase). Returns the most relevant text chunks from uploaded files (PDF, CSV, Excel, etc.). Works well for both precise lookups like "4,251.03" and conceptual queries like "recurring charges".',
       input_schema: {
         type: 'object' as const,
         properties: {
@@ -1092,7 +1305,11 @@ const TOOLS: ToolRegistration[] = [
         });
 
         if (results.length === 0) {
-          return { results: [], message: 'No matching documents found. The workspace may not have any uploaded documents, or none matched the query.' };
+          return {
+            results: [],
+            message:
+              'No matching documents found. The workspace may not have any uploaded documents, or none matched the query.',
+          };
         }
 
         return {
@@ -1104,7 +1321,10 @@ const TOOLS: ToolRegistration[] = [
           })),
         };
       } catch {
-        return { results: [], message: 'Document search is not available. Embedding service may be unavailable.' };
+        return {
+          results: [],
+          message: 'Document search is not available. Embedding service may be unavailable.',
+        };
       }
     },
   },
@@ -1124,7 +1344,8 @@ const TOOLS: ToolRegistration[] = [
           },
           scenarios: {
             type: 'array',
-            description: 'Array of 2-4 scenarios. Each needs a label, card type, and calculator parameters.',
+            description:
+              'Array of 2-4 scenarios. Each needs a label, card type, and calculator parameters.',
             items: {
               type: 'object',
               properties: {
@@ -1134,7 +1355,10 @@ const TOOLS: ToolRegistration[] = [
                   description:
                     'One of: projection-card, loan-calculator-card, tax-estimator-card, breakeven-card, depreciation-card, rent-vs-buy-card',
                 },
-                params: { type: 'object', description: 'Calculator parameters (same fields as calculate_* tools)' },
+                params: {
+                  type: 'object',
+                  description: 'Calculator parameters (same fields as calculate_* tools)',
+                },
               },
               required: ['label', 'type', 'params'],
             },
@@ -1146,11 +1370,17 @@ const TOOLS: ToolRegistration[] = [
     execute: async (input, ctx) => {
       const { executeScenarioComparison } = await import('./scenario-engine');
       const comparisonName = input.comparison_name as string;
-      const scenarios = input.scenarios as Array<{ label: string; type: string; params: Record<string, unknown> }>;
-      return executeScenarioComparison(ctx.db, ctx, comparisonName, scenarios as any) as unknown as Record<
-        string,
-        unknown
-      >;
+      const scenarios = input.scenarios as Array<{
+        label: string;
+        type: string;
+        params: Record<string, unknown>;
+      }>;
+      return executeScenarioComparison(
+        ctx.db,
+        ctx,
+        comparisonName,
+        scenarios as any,
+      ) as unknown as Record<string, unknown>;
     },
   },
 
@@ -1169,14 +1399,20 @@ const TOOLS: ToolRegistration[] = [
             items: {
               type: 'object',
               properties: {
-                name: { type: 'string', description: 'Group name (e.g. "Fixed Expenses", "Variable Expenses")' },
+                name: {
+                  type: 'string',
+                  description: 'Group name (e.g. "Fixed Expenses", "Variable Expenses")',
+                },
                 categories: {
                   type: 'array',
                   description: 'Categories within this group',
                   items: {
                     type: 'object',
                     properties: {
-                      name: { type: 'string', description: 'Category name (e.g. "Rent", "Groceries")' },
+                      name: {
+                        type: 'string',
+                        description: 'Category name (e.g. "Rent", "Groceries")',
+                      },
                       budgeted: { type: 'number', description: 'Budgeted amount' },
                       actual: { type: 'number', description: 'Actual spent amount (default 0)' },
                       notes: { type: 'string', description: 'Optional notes' },
@@ -1207,14 +1443,25 @@ const TOOLS: ToolRegistration[] = [
       },
     },
     execute: async (input, ctx) => {
-      const GROUP_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+      const GROUP_COLORS = [
+        '#3b82f6',
+        '#22c55e',
+        '#f59e0b',
+        '#ef4444',
+        '#8b5cf6',
+        '#ec4899',
+        '#06b6d4',
+        '#f97316',
+      ];
       const now = new Date();
       let created = 0;
 
-      const groups = input.groups as Array<{
-        name: string;
-        categories: Array<{ name: string; budgeted: number; actual?: number; notes?: string }>;
-      }> | undefined;
+      const groups = input.groups as
+        | Array<{
+            name: string;
+            categories: Array<{ name: string; budgeted: number; actual?: number; notes?: string }>;
+          }>
+        | undefined;
 
       if (groups) {
         for (let i = 0; i < groups.length; i++) {
@@ -1244,7 +1491,9 @@ const TOOLS: ToolRegistration[] = [
         }
       }
 
-      const ungrouped = input.ungrouped as Array<{ name: string; budgeted: number; actual?: number; notes?: string }> | undefined;
+      const ungrouped = input.ungrouped as
+        | Array<{ name: string; budgeted: number; actual?: number; notes?: string }>
+        | undefined;
       if (ungrouped) {
         for (const cat of ungrouped) {
           await ctx.db.insert(budgetCategories).values({
@@ -1284,7 +1533,10 @@ const TOOLS: ToolRegistration[] = [
           toEmail: { type: 'string', description: 'Recipient email' },
           toAddress: { type: 'string', description: 'Recipient address' },
           taxRate: { type: 'number', description: 'Tax rate as percentage (default 0)' },
-          status: { type: 'string', description: 'Invoice status: draft, sent, paid, overdue (default "draft")' },
+          status: {
+            type: 'string',
+            description: 'Invoice status: draft, sent, paid, overdue (default "draft")',
+          },
           notes: { type: 'string', description: 'Optional notes' },
           lineItems: {
             type: 'array',
@@ -1323,7 +1575,11 @@ const TOOLS: ToolRegistration[] = [
         notes: (input.notes as string) ?? null,
       });
 
-      const items = input.lineItems as Array<{ description: string; quantity: number; unitPrice: number }>;
+      const items = input.lineItems as Array<{
+        description: string;
+        quantity: number;
+        unitPrice: number;
+      }>;
       for (let i = 0; i < items.length; i++) {
         const li = items[i]!;
         await ctx.db.insert(invoiceLineItems).values({
@@ -1359,8 +1615,15 @@ const TOOLS: ToolRegistration[] = [
                 merchant: { type: 'string', description: 'Merchant / vendor name' },
                 amount: { type: 'number', description: 'Total amount including tax' },
                 tax: { type: 'number', description: 'Tax amount (default 0)' },
-                paymentMethod: { type: 'string', description: 'Payment method: cash, card, check, transfer, other (default "card")' },
-                status: { type: 'string', description: 'Status: pending, reviewed, reimbursed (default "pending")' },
+                paymentMethod: {
+                  type: 'string',
+                  description:
+                    'Payment method: cash, card, check, transfer, other (default "card")',
+                },
+                status: {
+                  type: 'string',
+                  description: 'Status: pending, reviewed, reimbursed (default "pending")',
+                },
                 notes: { type: 'string', description: 'Optional notes' },
               },
               required: ['date', 'merchant', 'amount'],
@@ -1372,8 +1635,13 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (input, ctx) => {
       const items = input.receipts as Array<{
-        date: string; merchant: string; amount: number;
-        tax?: number; paymentMethod?: string; status?: string; notes?: string;
+        date: string;
+        merchant: string;
+        amount: number;
+        tax?: number;
+        paymentMethod?: string;
+        status?: string;
+        notes?: string;
       }>;
       for (const r of items) {
         await ctx.db.insert(receipts).values({
@@ -1410,10 +1678,20 @@ const TOOLS: ToolRegistration[] = [
               properties: {
                 name: { type: 'string', description: 'Subscription name (e.g. "Netflix", "AWS")' },
                 amount: { type: 'number', description: 'Recurring amount' },
-                frequency: { type: 'string', description: 'Billing frequency: weekly, biweekly, monthly, quarterly, annual (default "monthly")' },
+                frequency: {
+                  type: 'string',
+                  description:
+                    'Billing frequency: weekly, biweekly, monthly, quarterly, annual (default "monthly")',
+                },
                 startDate: { type: 'string', description: 'Start date YYYY-MM-DD (default today)' },
-                nextBillingDate: { type: 'string', description: 'Next billing date YYYY-MM-DD (default today)' },
-                status: { type: 'string', description: 'Status: active, paused, cancelled (default "active")' },
+                nextBillingDate: {
+                  type: 'string',
+                  description: 'Next billing date YYYY-MM-DD (default today)',
+                },
+                status: {
+                  type: 'string',
+                  description: 'Status: active, paused, cancelled (default "active")',
+                },
                 notes: { type: 'string', description: 'Optional notes' },
               },
               required: ['name', 'amount'],
@@ -1425,8 +1703,13 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (input, ctx) => {
       const items = input.subscriptions as Array<{
-        name: string; amount: number; frequency?: string;
-        startDate?: string; nextBillingDate?: string; status?: string; notes?: string;
+        name: string;
+        amount: number;
+        frequency?: string;
+        startDate?: string;
+        nextBillingDate?: string;
+        status?: string;
+        notes?: string;
       }>;
       const today = new Date().toISOString().slice(0, 10);
       for (const s of items) {
@@ -1463,8 +1746,15 @@ const TOOLS: ToolRegistration[] = [
               type: 'object',
               properties: {
                 name: { type: 'string', description: 'Account name (e.g. "Chase Checking")' },
-                institution: { type: 'string', description: 'Financial institution (e.g. "Chase")' },
-                type: { type: 'string', description: 'Account type: checking, savings, credit-card, investment, loan, other' },
+                institution: {
+                  type: 'string',
+                  description: 'Financial institution (e.g. "Chase")',
+                },
+                type: {
+                  type: 'string',
+                  description:
+                    'Account type: checking, savings, credit-card, investment, loan, other',
+                },
                 balance: { type: 'number', description: 'Current balance' },
                 notes: { type: 'string', description: 'Optional notes' },
               },
@@ -1477,7 +1767,11 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (input, ctx) => {
       const items = input.accounts as Array<{
-        name: string; institution: string; type: string; balance: number; notes?: string;
+        name: string;
+        institution: string;
+        type: string;
+        balance: number;
+        notes?: string;
       }>;
       for (const a of items) {
         await ctx.db.insert(accounts).values({
@@ -1524,7 +1818,10 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (input, ctx) => {
       const items = input.holdings as Array<{
-        symbol: string; name: string; value: number; targetPct: number;
+        symbol: string;
+        name: string;
+        value: number;
+        targetPct: number;
       }>;
       for (const h of items) {
         await ctx.db.insert(holdings).values({
@@ -1556,7 +1853,10 @@ const TOOLS: ToolRegistration[] = [
             items: {
               type: 'object',
               properties: {
-                name: { type: 'string', description: 'Category name (e.g. "Cash & Savings", "Real Estate")' },
+                name: {
+                  type: 'string',
+                  description: 'Category name (e.g. "Cash & Savings", "Real Estate")',
+                },
                 kind: { type: 'string', description: '"asset" or "liability"' },
                 entries: {
                   type: 'array',
@@ -1564,7 +1864,10 @@ const TOOLS: ToolRegistration[] = [
                   items: {
                     type: 'object',
                     properties: {
-                      name: { type: 'string', description: 'Entry name (e.g. "Checking Account", "Mortgage")' },
+                      name: {
+                        type: 'string',
+                        description: 'Entry name (e.g. "Checking Account", "Mortgage")',
+                      },
                       value: { type: 'number', description: 'Dollar value' },
                       notes: { type: 'string', description: 'Optional notes' },
                     },
@@ -1581,7 +1884,8 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (input, ctx) => {
       const cats = input.categories as Array<{
-        name: string; kind: string;
+        name: string;
+        kind: string;
         entries: Array<{ name: string; value: number; notes?: string }>;
       }>;
       let entriesCreated = 0;
@@ -1626,9 +1930,15 @@ const TOOLS: ToolRegistration[] = [
             items: {
               type: 'object',
               properties: {
-                name: { type: 'string', description: 'Debt name (e.g. "Student Loan", "Credit Card")' },
+                name: {
+                  type: 'string',
+                  description: 'Debt name (e.g. "Student Loan", "Credit Card")',
+                },
                 balance: { type: 'number', description: 'Current balance owed' },
-                annualInterestRate: { type: 'number', description: 'Annual interest rate as percentage (e.g. 6.5)' },
+                annualInterestRate: {
+                  type: 'number',
+                  description: 'Annual interest rate as percentage (e.g. 6.5)',
+                },
                 minimumPayment: { type: 'number', description: 'Minimum monthly payment' },
               },
               required: ['name', 'balance', 'annualInterestRate', 'minimumPayment'],
@@ -1640,7 +1950,10 @@ const TOOLS: ToolRegistration[] = [
     },
     execute: async (input, ctx) => {
       const items = input.debts as Array<{
-        name: string; balance: number; annualInterestRate: number; minimumPayment: number;
+        name: string;
+        balance: number;
+        annualInterestRate: number;
+        minimumPayment: number;
       }>;
       for (const d of items) {
         await ctx.db.insert(debts).values({
@@ -1654,6 +1967,220 @@ const TOOLS: ToolRegistration[] = [
         });
       }
       return { success: true, debtsCreated: items.length, _canvasUpdate: true };
+    },
+  },
+
+  // 37. search_entities
+  {
+    definition: {
+      name: 'search_entities',
+      description:
+        'Search the workspace entity graph — resolved merchants, institutions, people, organizations, and account references identified across uploaded documents AND financial cards. Use for "who/what" questions ("who do I pay the most?", "what do I know about Chase?"). For finding text passages, use search_documents instead.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          query: {
+            type: 'string',
+            description:
+              'Name or partial name to search for. Empty string lists the top entities by mention count.',
+          },
+          type: {
+            type: 'string',
+            enum: ['merchant', 'institution', 'person', 'organization', 'account_ref'],
+            description: 'Optional filter by entity type.',
+          },
+        },
+        required: ['query'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const query = ((input.query as string) ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const typeFilter = input.type as string | undefined;
+
+      const conditions = [
+        eq(entities.workspaceId, ctx.workspaceId),
+        eq(entities.userId, ctx.userId),
+      ];
+      if (typeFilter) conditions.push(eq(entities.type, typeFilter));
+
+      const rows = await ctx.db
+        .select()
+        .from(entities)
+        .where(and(...conditions))
+        .orderBy(desc(entities.mentionCount));
+
+      const matches = rows
+        .filter((e) => {
+          if (query.length === 0) return true;
+          if (e.normalizedName.includes(query)) return true;
+          const aliases = JSON.parse(e.aliases) as string[];
+          return aliases.some((a) => a.toLowerCase().includes(query));
+        })
+        .slice(0, 15);
+
+      if (matches.length === 0) {
+        return {
+          entities: [],
+          message:
+            'No matching entities. The graph is built from uploaded documents and financial cards — it may still be processing recent uploads.',
+        };
+      }
+
+      const results = [];
+      for (const entity of matches) {
+        const sources = await ctx.db
+          .select({
+            sourceType: entityMentions.sourceType,
+            snippet: entityMentions.snippet,
+            amount: entityMentions.amount,
+          })
+          .from(entityMentions)
+          .where(eq(entityMentions.entityId, entity.id))
+          .limit(3);
+        results.push({
+          entityId: entity.id,
+          name: entity.canonicalName,
+          type: entity.type,
+          aliases: JSON.parse(entity.aliases) as string[],
+          mentionCount: entity.mentionCount,
+          sampleSources: sources,
+        });
+      }
+      return { entities: results };
+    },
+  },
+
+  // 38. get_entity_connections
+  {
+    definition: {
+      name: 'get_entity_connections',
+      description:
+        'Walk the entity relationship graph from a starting entity — e.g. which account a merchant charges, which institution holds an account. Get the entityId from search_entities first.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          entityId: { type: 'string', description: 'Starting entity id (from search_entities).' },
+          depth: {
+            type: 'number',
+            description: 'How many hops to follow: 1 (direct, default) or 2.',
+          },
+        },
+        required: ['entityId'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const entityId = input.entityId as string;
+      const depth = Math.min(Math.max(Number(input.depth) || 1, 1), 2);
+      const MAX_NODES = 50;
+
+      const [start] = await ctx.db
+        .select()
+        .from(entities)
+        .where(
+          and(
+            eq(entities.id, entityId),
+            eq(entities.workspaceId, ctx.workspaceId),
+            eq(entities.userId, ctx.userId),
+          ),
+        );
+      if (!start) return { error: 'Entity not found. Use search_entities to find valid ids.' };
+
+      const allEdges = await ctx.db
+        .select()
+        .from(entityEdges)
+        .where(eq(entityEdges.workspaceId, ctx.workspaceId));
+
+      const visited = new Set<string>([entityId]);
+      const foundEdges: Array<{ from: string; to: string; relationship: string }> = [];
+      let frontier = [entityId];
+      for (let hop = 0; hop < depth && visited.size < MAX_NODES; hop++) {
+        const next: string[] = [];
+        for (const edge of allEdges) {
+          const touchesFrontier =
+            frontier.includes(edge.fromEntityId) || frontier.includes(edge.toEntityId);
+          if (!touchesFrontier) continue;
+          foundEdges.push({
+            from: edge.fromEntityId,
+            to: edge.toEntityId,
+            relationship: edge.relationship,
+          });
+          for (const nodeId of [edge.fromEntityId, edge.toEntityId]) {
+            if (!visited.has(nodeId) && visited.size < MAX_NODES) {
+              visited.add(nodeId);
+              next.push(nodeId);
+            }
+          }
+        }
+        frontier = next;
+        if (frontier.length === 0) break;
+      }
+
+      const nodeRows = await ctx.db
+        .select({
+          id: entities.id,
+          name: entities.canonicalName,
+          type: entities.type,
+          mentionCount: entities.mentionCount,
+        })
+        .from(entities)
+        .where(inArray(entities.id, [...visited]));
+
+      // Dedupe edges collected across hops
+      const edgeKeys = new Set<string>();
+      const uniqueEdges = foundEdges.filter((e) => {
+        const key = `${e.from}|${e.to}|${e.relationship}`;
+        if (edgeKeys.has(key)) return false;
+        edgeKeys.add(key);
+        return true;
+      });
+
+      return {
+        start: { entityId: start.id, name: start.canonicalName, type: start.type },
+        nodes: nodeRows,
+        edges: uniqueEdges,
+        truncated: visited.size >= MAX_NODES,
+      };
+    },
+  },
+
+  // 39. find_unmatched_transactions
+  {
+    definition: {
+      name: 'find_unmatched_transactions',
+      description:
+        'Reconcile the ledger against uploaded documents: finds statement lines (amounts stated in documents) with no matching transaction, and transactions not found in any document. Matches on entity + amount (within a cent) + date (within 3 days). Optionally scope to one uploaded file.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          fileId: {
+            type: 'string',
+            description: 'Optional: reconcile against a single uploaded file only.',
+          },
+        },
+        required: [],
+      },
+    },
+    execute: async (input, ctx) => {
+      const result = await findUnmatchedTransactions(
+        ctx.workspaceId,
+        ctx.db,
+        input.fileId as string | undefined,
+      );
+      return {
+        matchedCount: result.matchedCount,
+        inDocumentsNotInLedger: result.unmatchedDocumentMentions.map((m) => ({
+          entityName: m.entityName,
+          amount: m.amount,
+          date: m.date ? m.date.toISOString().slice(0, 10) : null,
+          snippet: m.snippet,
+        })),
+        inLedgerNotInDocuments: result.unmatchedTransactions.map((t) => ({
+          transactionId: t.transactionId,
+          description: t.description,
+          amount: t.amount,
+          date: t.date,
+        })),
+      };
     },
   },
 ];
@@ -1726,7 +2253,11 @@ export async function safeExecuteTool(
 
   // UUID validation for ID fields
   for (const field of ['itemId', 'fromItemId', 'toItemId']) {
-    if (field in input && typeof input[field] === 'string' && !UUID_RE.test(input[field] as string)) {
+    if (
+      field in input &&
+      typeof input[field] === 'string' &&
+      !UUID_RE.test(input[field] as string)
+    ) {
       return { result: { error: `Invalid ${field}: must be a valid UUID` }, isError: true };
     }
   }
@@ -1734,7 +2265,9 @@ export async function safeExecuteTool(
   // Type validation for create_canvas_item
   if (name === 'create_canvas_item' && input.type && !ITEM_DEFAULTS[input.type as string]) {
     return {
-      result: { error: `Invalid item type "${input.type}". Valid types: ${Object.keys(ITEM_DEFAULTS).join(', ')}` },
+      result: {
+        error: `Invalid item type "${input.type}". Valid types: ${Object.keys(ITEM_DEFAULTS).join(', ')}`,
+      },
       isError: true,
     };
   }
@@ -1753,7 +2286,9 @@ export async function safeExecuteTool(
       error: err instanceof Error ? err.message : String(err),
     });
     return {
-      result: { error: 'Internal error executing tool. Please try again or use a different approach.' },
+      result: {
+        error: 'Internal error executing tool. Please try again or use a different approach.',
+      },
       isError: true,
     };
   }

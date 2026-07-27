@@ -444,11 +444,84 @@ export const userProfiles = sqliteTable('user_profiles', {
   userId: text('user_id').primaryKey(),
   firstName: text('first_name'),
   lastName: text('last_name'),
-  onboardingCompleted: integer('onboarding_completed', { mode: 'boolean' }).notNull().default(false),
+  onboardingCompleted: integer('onboarding_completed', { mode: 'boolean' })
+    .notNull()
+    .default(false),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// Background jobs (entity extraction, page embeddings, and other async ingestion work)
+export const jobs = sqliteTable('jobs', {
+  id: text('id').primaryKey(),
+  type: text('type').notNull(),
+  payload: text('payload').notNull().default('{}'),
+  status: text('status').notNull().default('pending'), // pending | running | done | failed
+  attempts: integer('attempts').notNull().default(0),
+  maxAttempts: integer('max_attempts').notNull().default(3),
+  lastError: text('last_error'),
+  runAfter: integer('run_after', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// Resolved entities (merchants, institutions, people) across documents + financial data
+export const entities = sqliteTable('entities', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  type: text('type').notNull(), // 'merchant' | 'institution' | 'person' | 'organization' | 'account_ref'
+  canonicalName: text('canonical_name').notNull(),
+  normalizedName: text('normalized_name').notNull(),
+  aliases: text('aliases').notNull().default('[]'), // JSON string[]
+  mentionCount: integer('mention_count').notNull().default(0),
+  rejectedMerges: text('rejected_merges').notNull().default('[]'), // JSON string[] of entity ids adjudicated as NOT the same
+
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// Where an entity appears (document chunk or structured financial row)
+export const entityMentions = sqliteTable('entity_mentions', {
+  id: text('id').primaryKey(),
+  entityId: text('entity_id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  sourceType: text('source_type').notNull(), // 'chunk' | 'transaction' | 'invoice' | 'receipt' | 'subscription' | 'account'
+  sourceId: text('source_id').notNull(),
+  snippet: text('snippet'),
+  confidence: real('confidence').notNull(),
+  amount: real('amount'), // dollar amount stated at the mention site, if any
+  date: integer('date', { mode: 'timestamp' }), // date stated at the mention site, if any
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// Relationships between entities, with mention ids as evidence
+export const entityEdges = sqliteTable('entity_edges', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  fromEntityId: text('from_entity_id').notNull(),
+  toEntityId: text('to_entity_id').notNull(),
+  relationship: text('relationship').notNull(),
+  evidence: text('evidence').notNull().default('[]'), // JSON string[] of mention ids
+  createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),
 });

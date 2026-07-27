@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { subscriptions } from '../../db/schema';
+import { scheduleLinkStructuredData } from '../../services/entity-linking';
 import { protectedProcedure, router } from '../trpc';
 
 const MONTHLY_MULTIPLIERS: Record<string, number> = {
@@ -49,6 +50,7 @@ export const subscriptionRouter = router({
       updatedAt: now,
     });
 
+    scheduleLinkStructuredData(input.workspaceId, ctx.db);
     return { id };
   }),
 
@@ -56,7 +58,7 @@ export const subscriptionRouter = router({
     .input(z.object({ id: z.string().uuid(), data: updateSubscriptionSchema }))
     .mutation(async ({ ctx, input }) => {
       const [existing] = await ctx.db
-        .select({ id: subscriptions.id })
+        .select({ id: subscriptions.id, workspaceId: subscriptions.workspaceId })
         .from(subscriptions)
         .where(and(eq(subscriptions.id, input.id), eq(subscriptions.userId, ctx.userId)));
 
@@ -69,6 +71,7 @@ export const subscriptionRouter = router({
         .set({ ...input.data, updatedAt: new Date() })
         .where(eq(subscriptions.id, input.id));
 
+      scheduleLinkStructuredData(existing.workspaceId, ctx.db);
       return { success: true };
     }),
 
@@ -76,7 +79,7 @@ export const subscriptionRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const [existing] = await ctx.db
-        .select({ id: subscriptions.id })
+        .select({ id: subscriptions.id, workspaceId: subscriptions.workspaceId })
         .from(subscriptions)
         .where(and(eq(subscriptions.id, input.id), eq(subscriptions.userId, ctx.userId)));
 

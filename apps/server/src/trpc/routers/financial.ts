@@ -7,6 +7,7 @@ import { TRPCError } from '@trpc/server';
 import { and, desc, eq, gte, lte, sql, sum } from 'drizzle-orm';
 import { z } from 'zod';
 import { transactions } from '../../db/schema';
+import { scheduleLinkStructuredData } from '../../services/entity-linking';
 import { protectedProcedure, router } from '../trpc';
 
 export const financialRouter = router({
@@ -50,6 +51,7 @@ export const financialRouter = router({
         updatedAt: now,
       });
 
+      scheduleLinkStructuredData(input.workspaceId, ctx.db);
       return { id };
     }),
 
@@ -57,7 +59,7 @@ export const financialRouter = router({
     .input(z.object({ id: z.string().uuid(), data: updateTransactionSchema }))
     .mutation(async ({ ctx, input }) => {
       const [existing] = await ctx.db
-        .select({ id: transactions.id })
+        .select({ id: transactions.id, workspaceId: transactions.workspaceId })
         .from(transactions)
         .where(and(eq(transactions.id, input.id), eq(transactions.userId, ctx.userId)));
 
@@ -70,6 +72,7 @@ export const financialRouter = router({
         .set({ ...input.data, updatedAt: new Date() })
         .where(eq(transactions.id, input.id));
 
+      scheduleLinkStructuredData(existing.workspaceId, ctx.db);
       return { success: true };
     }),
 
@@ -124,6 +127,7 @@ export const financialRouter = router({
 
       if (rows.length > 0) {
         await ctx.db.insert(transactions).values(rows);
+        scheduleLinkStructuredData(input.workspaceId, ctx.db);
       }
 
       return { count: rows.length };

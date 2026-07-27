@@ -8,6 +8,7 @@ import { TRPCError } from '@trpc/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { invoiceLineItems, invoices } from '../../db/schema';
+import { scheduleLinkStructuredData } from '../../services/entity-linking';
 import { protectedProcedure, router } from '../trpc';
 
 export const invoiceRouter = router({
@@ -60,6 +61,7 @@ export const invoiceRouter = router({
       updatedAt: now,
     });
 
+    scheduleLinkStructuredData(input.workspaceId, ctx.db);
     return { id };
   }),
 
@@ -67,7 +69,7 @@ export const invoiceRouter = router({
     .input(z.object({ id: z.string().uuid(), data: updateInvoiceSchema }))
     .mutation(async ({ ctx, input }) => {
       const [existing] = await ctx.db
-        .select({ id: invoices.id })
+        .select({ id: invoices.id, workspaceId: invoices.workspaceId })
         .from(invoices)
         .where(and(eq(invoices.id, input.id), eq(invoices.userId, ctx.userId)));
 
@@ -80,6 +82,7 @@ export const invoiceRouter = router({
         .set({ ...input.data, updatedAt: new Date() })
         .where(eq(invoices.id, input.id));
 
+      scheduleLinkStructuredData(existing.workspaceId, ctx.db);
       return { success: true };
     }),
 
@@ -87,7 +90,7 @@ export const invoiceRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const [existing] = await ctx.db
-        .select({ id: invoices.id })
+        .select({ id: invoices.id, workspaceId: invoices.workspaceId })
         .from(invoices)
         .where(and(eq(invoices.id, input.id), eq(invoices.userId, ctx.userId)));
 

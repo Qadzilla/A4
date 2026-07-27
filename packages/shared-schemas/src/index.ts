@@ -16,3 +16,4 @@ export * from './market-data';
 export * from './canvas';
 export * from './categorization-rule';
 export * from './insights';
+export * from './entity';

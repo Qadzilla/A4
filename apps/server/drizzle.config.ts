@@ -7,4 +7,7 @@ export default defineConfig({
   dbCredentials: {
     url: 'a4.db',
   },
+  // The FTS5 index over document_chunks (src/db/fts.ts) is runtime-managed DDL,
+  // not part of the Drizzle schema — keep push/generate from touching it.
+  tablesFilter: ['!document_chunks_fts*'],
 });

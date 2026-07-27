@@ -8,6 +8,7 @@ import { TRPCError } from '@trpc/server';
 import { and, eq, sql, sum } from 'drizzle-orm';
 import { z } from 'zod';
 import { accountGroups, accounts } from '../../db/schema';
+import { scheduleLinkStructuredData } from '../../services/entity-linking';
 import { protectedProcedure, router } from '../trpc';
 
 const LIABILITY_TYPES = new Set(['credit-card', 'loan', 'mortgage']);
@@ -42,6 +43,7 @@ export const accountRouter = router({
       updatedAt: now,
     });
 
+    scheduleLinkStructuredData(input.workspaceId, ctx.db);
     return { id };
   }),
 
@@ -49,7 +51,7 @@ export const accountRouter = router({
     .input(z.object({ id: z.string().uuid(), data: updateAccountSchema }))
     .mutation(async ({ ctx, input }) => {
       const [existing] = await ctx.db
-        .select({ id: accounts.id })
+        .select({ id: accounts.id, workspaceId: accounts.workspaceId })
         .from(accounts)
         .where(and(eq(accounts.id, input.id), eq(accounts.userId, ctx.userId)));
 
@@ -62,6 +64,7 @@ export const accountRouter = router({
         .set({ ...input.data, updatedAt: new Date() })
         .where(eq(accounts.id, input.id));
 
+      scheduleLinkStructuredData(existing.workspaceId, ctx.db);
       return { success: true };
     }),
 
@@ -69,7 +72,7 @@ export const accountRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const [existing] = await ctx.db
-        .select({ id: accounts.id })
+        .select({ id: accounts.id, workspaceId: accounts.workspaceId })
         .from(accounts)
         .where(and(eq(accounts.id, input.id), eq(accounts.userId, ctx.userId)));
 

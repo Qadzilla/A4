@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { setupDocumentChunksFts } from '../db/fts';
 import * as schema from '../db/schema';
 import { documentChunks, files } from '../db/schema';
 import { cosineSimilarity, searchChunks, searchDocuments } from '../services/vector-search';
@@ -38,6 +39,7 @@ function createTestDb() {
       created_at INTEGER NOT NULL
     );
   `);
+  setupDocumentChunksFts(sqlite);
   return drizzle(sqlite, { schema });
 }
 
@@ -181,12 +183,18 @@ describe('searchDocuments', () => {
     expect(results).toHaveLength(1);
     expect(results[0]!.fileName).toBe('quarterly-report.pdf');
     expect(results[0]!.content).toBe('Revenue grew 20%');
-    expect(results[0]!.score).toBeCloseTo(1.0, 3);
+    expect(results[0]!.score).toBeGreaterThan(0);
   });
 
-  it('propagates embedding errors', async () => {
+  it('degrades to keyword-only search when embedding fails', async () => {
     vi.mocked(embedSingle).mockRejectedValue(new Error('API key not set'));
 
-    await expect(searchDocuments('test', 'ws-1', db as any)).rejects.toThrow('API key not set');
+    await insertFile(db, 'f1', 'statement.pdf');
+    await insertChunk(db, 'c1', 'f1', [1, 0, 0], { content: 'Payment of $4,251.03 posted' });
+
+    const results = await searchDocuments('4,251.03', 'ws-1', db as any);
+    expect(results).toHaveLength(1);
+    expect(results[0]!.chunkId).toBe('c1');
+    expect(results[0]!.fileName).toBe('statement.pdf');
   });
 });

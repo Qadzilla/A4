@@ -1,20 +1,21 @@
-import { and, eq, ne, desc, sql, isNull, isNotNull, or, gt } from 'drizzle-orm';
 import type { Citation } from '@a4/shared-schemas';
+import { and, desc, eq, gt, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import type { DB } from '../db';
 import {
-  workspaces,
-  canvasItems,
   accounts,
   budgetCategories,
+  canvasItems,
+  conversations,
+  debts,
+  entities,
+  holdings,
+  invoiceLineItems,
+  invoices,
   networthCategories,
   networthEntries,
   subscriptions,
-  invoices,
-  invoiceLineItems,
-  debts,
-  holdings,
   workspaceInsights,
-  conversations,
+  workspaces,
 } from '../db/schema';
 
 export const SYSTEM_PREAMBLE = `You are Paige, an AI financial analyst embedded in the user's financial workspace.
@@ -113,7 +114,12 @@ const fmt = (n: number) =>
 
 async function buildAccountsSection(db: DB, userId: string, workspaceId: string): Promise<string> {
   const rows = await db
-    .select({ id: accounts.id, name: accounts.name, type: accounts.type, balance: accounts.balance })
+    .select({
+      id: accounts.id,
+      name: accounts.name,
+      type: accounts.type,
+      balance: accounts.balance,
+    })
     .from(accounts)
     .where(and(eq(accounts.workspaceId, workspaceId), eq(accounts.userId, userId)))
     .orderBy(desc(accounts.balance));
@@ -148,9 +154,10 @@ async function buildBudgetSection(db: DB, userId: string, workspaceId: string): 
   const remaining = totalBudgeted - totalActual;
 
   const overBudget = rows.filter((r) => r.actual > r.budgeted);
-  const overLine = overBudget.length > 0
-    ? `\n- Over budget: ${overBudget.map((r) => `${r.name} (${fmt(r.actual)}/${fmt(r.budgeted)})`).join(', ')}`
-    : '';
+  const overLine =
+    overBudget.length > 0
+      ? `\n- Over budget: ${overBudget.map((r) => `${r.name} (${fmt(r.actual)}/${fmt(r.budgeted)})`).join(', ')}`
+      : '';
 
   return `### Budget (${rows.length} categories)\n- Planned: ${fmt(totalBudgeted)} | Actual: ${fmt(totalActual)} | Remaining: ${fmt(remaining)}${overLine}`;
 }
@@ -159,7 +166,9 @@ async function buildNetworthSection(db: DB, userId: string, workspaceId: string)
   const categories = await db
     .select({ id: networthCategories.id, kind: networthCategories.kind })
     .from(networthCategories)
-    .where(and(eq(networthCategories.workspaceId, workspaceId), eq(networthCategories.userId, userId)));
+    .where(
+      and(eq(networthCategories.workspaceId, workspaceId), eq(networthCategories.userId, userId)),
+    );
 
   if (categories.length === 0) return '';
 
@@ -185,7 +194,11 @@ async function buildNetworthSection(db: DB, userId: string, workspaceId: string)
   return `### Net Worth: ${fmt(netWorth)}\n- Assets: ${fmt(assets)} | Liabilities: ${fmt(liabilities)}`;
 }
 
-async function buildSubscriptionsSection(db: DB, userId: string, workspaceId: string): Promise<string> {
+async function buildSubscriptionsSection(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+): Promise<string> {
   const rows = await db
     .select({
       id: subscriptions.id,
@@ -207,12 +220,18 @@ async function buildSubscriptionsSection(db: DB, userId: string, workspaceId: st
 
   const toMonthly = (amount: number, freq: string): number => {
     switch (freq) {
-      case 'weekly': return (amount * 52) / 12;
-      case 'biweekly': return (amount * 26) / 12;
-      case 'monthly': return amount;
-      case 'quarterly': return amount / 3;
-      case 'annual': return amount / 12;
-      default: return amount;
+      case 'weekly':
+        return (amount * 52) / 12;
+      case 'biweekly':
+        return (amount * 26) / 12;
+      case 'monthly':
+        return amount;
+      case 'quarterly':
+        return amount / 3;
+      case 'annual':
+        return amount / 12;
+      default:
+        return amount;
     }
   };
 
@@ -303,7 +322,8 @@ async function buildDebtsSection(db: DB, userId: string, workspaceId: string): P
   const totalMinPayment = rows.reduce((s, r) => s + r.minimumPayment, 0);
 
   const lines = rows.map(
-    (r) => `- ${r.name}: ${fmt(r.balance)} at ${r.annualInterestRate}% (min ${fmt(r.minimumPayment)}/mo) [id: ${r.id}]`,
+    (r) =>
+      `- ${r.name}: ${fmt(r.balance)} at ${r.annualInterestRate}% (min ${fmt(r.minimumPayment)}/mo) [id: ${r.id}]`,
   );
 
   return `### Debts (${rows.length} total, ${fmt(totalBalance)} total balance)\n${lines.join('\n')}\n- Total minimum payments: ${fmt(totalMinPayment)}/month`;
@@ -336,7 +356,11 @@ async function buildHoldingsSection(db: DB, userId: string, workspaceId: string)
   return `### Portfolio (${rows.length} positions, ${fmt(totalValue)} total)\n${lines.join('\n')}`;
 }
 
-async function buildCanvasItemsSection(db: DB, userId: string, workspaceId: string): Promise<string> {
+async function buildCanvasItemsSection(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+): Promise<string> {
   const rows = await db
     .select({ id: canvasItems.id, type: canvasItems.type, name: canvasItems.name })
     .from(canvasItems)
@@ -358,7 +382,35 @@ async function buildCanvasItemsSection(db: DB, userId: string, workspaceId: stri
   return `### Canvas Items (${rows.length} items)\n${lines.join('\n')}`;
 }
 
-export async function buildInsightsSection(db: DB, userId: string, workspaceId: string): Promise<string> {
+const ENTITY_CONTEXT_LIMIT = 15;
+
+export async function buildEntitiesSection(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+): Promise<string> {
+  const rows = await db
+    .select({
+      canonicalName: entities.canonicalName,
+      type: entities.type,
+      mentionCount: entities.mentionCount,
+    })
+    .from(entities)
+    .where(and(eq(entities.workspaceId, workspaceId), eq(entities.userId, userId)))
+    .orderBy(desc(entities.mentionCount))
+    .limit(ENTITY_CONTEXT_LIMIT);
+
+  if (rows.length === 0) return '';
+
+  const list = rows.map((r) => `${r.canonicalName} (${r.type}, ${r.mentionCount})`).join(', ');
+  return `### Known entities\nAn entity graph links merchants, institutions, people, and accounts across this workspace's documents and financial cards. Top entities by mention count: ${list}. Use the search_entities, get_entity_connections, and find_unmatched_transactions tools to query it.`;
+}
+
+export async function buildInsightsSection(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+): Promise<string> {
   const rows = await db
     .select({
       severity: workspaceInsights.severity,
@@ -475,7 +527,9 @@ ${bullets.join('\n')}`;
 }
 
 export async function buildWorkspaceListSection(
-  db: DB, userId: string, currentWorkspaceId: string,
+  db: DB,
+  userId: string,
+  currentWorkspaceId: string,
 ): Promise<string> {
   const rows = await db
     .select({
@@ -503,7 +557,10 @@ ${tableRows.join('\n')}`;
 }
 
 export async function buildWorkspaceDataSummary(
-  db: DB, userId: string, workspaceId: string, currentConversationId?: string,
+  db: DB,
+  userId: string,
+  workspaceId: string,
+  currentConversationId?: string,
 ): Promise<string> {
   // 1. Query workspace
   const [workspace] = await db
@@ -525,6 +582,7 @@ export async function buildWorkspaceDataSummary(
     buildDebtsSection(db, userId, workspaceId),
     buildHoldingsSection(db, userId, workspaceId),
     buildCanvasItemsSection(db, userId, workspaceId),
+    buildEntitiesSection(db, userId, workspaceId),
     buildInsightsSection(db, userId, workspaceId),
     buildWorkspaceListSection(db, userId, workspaceId),
   ];
@@ -541,8 +599,18 @@ export async function buildWorkspaceDataSummary(
   return [header, ...nonEmpty].join('\n\n');
 }
 
-export async function buildWorkspaceContext(db: DB, userId: string, workspaceId: string, currentConversationId?: string): Promise<string> {
-  const dataSummary = await buildWorkspaceDataSummary(db, userId, workspaceId, currentConversationId);
+export async function buildWorkspaceContext(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+  currentConversationId?: string,
+): Promise<string> {
+  const dataSummary = await buildWorkspaceDataSummary(
+    db,
+    userId,
+    workspaceId,
+    currentConversationId,
+  );
   return `${SYSTEM_PREAMBLE}\n\n## Current workspace context\n\n${dataSummary}`;
 }
 
@@ -565,7 +633,7 @@ export async function buildDocumentContext(
     const lines: string[] = [
       '## Relevant Documents',
       '',
-      'The following excerpts from the user\'s uploaded documents are relevant to this query. Cite them using [1], [2], etc. when referencing specific information.',
+      "The following excerpts from the user's uploaded documents are relevant to this query. Cite them using [1], [2], etc. when referencing specific information.",
       '',
       'Note: These excerpts may come from OCR (optical character recognition) of scanned documents. OCR artifacts are common in financial documents — particularly missing negative/minus signs, misread digits (e.g., 5↔S, 0↔O, 1↔l), and merged or split words. Use contextual clues to interpret ambiguous data: section headers (e.g., "Withdrawals", "Debits", "Expenses"), column labels, and surrounding values indicate whether amounts should be negative. Silently apply these corrections — do not flag OCR quality issues to the user unless they specifically ask about document accuracy.',
       '',

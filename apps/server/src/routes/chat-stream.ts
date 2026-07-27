@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq, sql } from 'drizzle-orm';
-import { Router, type Response, type Router as RouterType } from 'express';
-import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages';
 import type { Citation } from '@a4/shared-schemas';
+import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages';
+import { and, asc, eq, sql } from 'drizzle-orm';
+import { type Response, Router, type Router as RouterType } from 'express';
 import { db } from '../db';
 import { aiUsage, conversations, documentChunks, messages } from '../db/schema';
 import { DEV_AUTH_BYPASS } from '../env';
-import { buildWorkspaceContext, buildDocumentContext } from '../services/ai-context';
+import { buildDocumentContext, buildWorkspaceContext } from '../services/ai-context';
+import { type ToolContext, getToolDefinitions, safeExecuteTool } from '../services/ai-tools';
 import { AnthropicServiceError, streamChatCompletion } from '../services/anthropic';
-import { getToolDefinitions, safeExecuteTool, type ToolContext } from '../services/ai-tools';
 import { summarizeConversation } from '../services/conversation-summarizer';
 
 const MAX_TOOL_ROUNDS = 10;
@@ -17,9 +17,14 @@ const MAX_TOOLS_PER_ROUND = 20;
 const MODEL_PRICING: Record<string, { inputPerMTok: number; outputPerMTok: number }> = {
   'claude-sonnet-4-6': { inputPerMTok: 3, outputPerMTok: 15 },
   'claude-opus-4-6': { inputPerMTok: 15, outputPerMTok: 75 },
+  'claude-haiku-4-5': { inputPerMTok: 1, outputPerMTok: 5 },
 };
 
-export function calculateCostCents(model: string, inputTokens: number, outputTokens: number): number {
+export function calculateCostCents(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+): number {
   const pricing = MODEL_PRICING[model];
   if (!pricing) return 0;
   const inputCost = (inputTokens / 1_000_000) * pricing.inputPerMTok;
@@ -85,7 +90,11 @@ export function formatMessagesForAnthropic(dbMsgs: DbMessage[]): AnthropicMessag
       if (m.content) {
         blocks.push({ type: 'text', text: m.content } as ContentBlockParam);
       }
-      const toolCalls = JSON.parse(m.toolCalls) as Array<{ id: string; name: string; input: Record<string, unknown> }>;
+      const toolCalls = JSON.parse(m.toolCalls) as Array<{
+        id: string;
+        name: string;
+        input: Record<string, unknown>;
+      }>;
       for (const tc of toolCalls) {
         blocks.push({
           type: 'tool_use',
@@ -134,7 +143,10 @@ async function iterateStream(
   const toolUseBlocks: ToolUseBlock[] = [];
 
   // Track active content blocks by index
-  const activeBlocks = new Map<number, { type: string; id?: string; name?: string; inputJson: string }>();
+  const activeBlocks = new Map<
+    number,
+    { type: string; id?: string; name?: string; inputJson: string }
+  >();
 
   for await (const event of stream) {
     if (isAborted()) break;
@@ -148,7 +160,12 @@ async function iterateStream(
       const block = (event as any).content_block;
       const index = (event as any).index as number;
       if (block?.type === 'tool_use') {
-        activeBlocks.set(index, { type: 'tool_use', id: block.id, name: block.name, inputJson: '' });
+        activeBlocks.set(index, {
+          type: 'tool_use',
+          id: block.id,
+          name: block.name,
+          inputJson: '',
+        });
       } else if (block?.type === 'text') {
         activeBlocks.set(index, { type: 'text', inputJson: '' });
       }
@@ -171,7 +188,9 @@ async function iterateStream(
         let input: Record<string, unknown> = {};
         try {
           if (block.inputJson) input = JSON.parse(block.inputJson);
-        } catch { /* empty input */ }
+        } catch {
+          /* empty input */
+        }
         toolUseBlocks.push({ id: block.id, name: block.name, input });
       }
       activeBlocks.delete(index);
@@ -193,7 +212,12 @@ async function iterateStream(
 // --- Canvas update action logic ---
 
 function getCanvasAction(toolName: string): 'create' | 'update' | null {
-  if (toolName === 'create_canvas_item' || toolName === 'create_connection' || toolName === 'create_scenario_comparison') return 'create';
+  if (
+    toolName === 'create_canvas_item' ||
+    toolName === 'create_connection' ||
+    toolName === 'create_scenario_comparison'
+  )
+    return 'create';
   if (toolName === 'update_canvas_item' || toolName === 'position_items') return 'update';
   return null;
 }
@@ -253,7 +277,12 @@ chatStreamRouter.post('/', async (req, res) => {
 
   try {
     // 6. Build system prompt
-    let systemPrompt = await buildWorkspaceContext(db, userId, conversation.workspaceId, conversationId);
+    let systemPrompt = await buildWorkspaceContext(
+      db,
+      userId,
+      conversation.workspaceId,
+      conversationId,
+    );
 
     // 6b. RAG: inject document context if workspace has chunks
     let citations: Citation[] = [];
@@ -267,7 +296,11 @@ chatStreamRouter.post('/', async (req, res) => {
         const chunkCount = chunkCountRows[0]?.count ?? 0;
 
         if (chunkCount > 0) {
-          const docCtx = await buildDocumentContext(lastUserMsg.content, conversation.workspaceId, db);
+          const docCtx = await buildDocumentContext(
+            lastUserMsg.content,
+            conversation.workspaceId,
+            db,
+          );
           if (docCtx.section) {
             systemPrompt = `${systemPrompt}\n\n${docCtx.section}`;
             citations = docCtx.citations;
@@ -283,7 +316,10 @@ chatStreamRouter.post('/', async (req, res) => {
 
     // 8. Get tool definitions
     const tools = getToolDefinitions();
-    console.log(`[chat-stream] Sending ${tools.length} tools to Claude:`, tools.map(t => t.name).join(', '));
+    console.log(
+      `[chat-stream] Sending ${tools.length} tools to Claude:`,
+      tools.map((t) => t.name).join(', '),
+    );
     const toolCtx: ToolContext = { db, userId, workspaceId: conversation.workspaceId };
 
     // 9. Send message_start event (final assistant message ID)
@@ -311,136 +347,150 @@ chatStreamRouter.post('/', async (req, res) => {
     const MAX_TOTAL_TOOL_EXECUTIONS = MAX_TOOL_ROUNDS * MAX_TOOLS_PER_ROUND; // 200
 
     try {
-    while (result.stopReason === 'tool_use' && round < MAX_TOOL_ROUNDS && !aborted) {
-      round++;
-      const { accumulatedText, toolUseBlocks } = result;
+      while (result.stopReason === 'tool_use' && round < MAX_TOOL_ROUNDS && !aborted) {
+        round++;
+        const { accumulatedText, toolUseBlocks } = result;
 
-      // No tool_use blocks despite stop_reason='tool_use' — treat as end_turn
-      if (toolUseBlocks.length === 0) break;
+        // No tool_use blocks despite stop_reason='tool_use' — treat as end_turn
+        if (toolUseBlocks.length === 0) break;
 
-      // 12a. Persist intermediate assistant message
-      const intermediateId = randomUUID();
-      await db.insert(messages).values({
-        id: intermediateId,
-        conversationId,
-        userId,
-        role: 'assistant',
-        content: accumulatedText,
-        toolCalls: JSON.stringify(toolUseBlocks),
-        tokenCount: null,
-        model: conversation.model,
-        createdAt: new Date(),
-      });
-
-      // 12b. Append assistant content blocks to allMessages
-      const assistantContentBlocks: ContentBlockParam[] = [];
-      if (accumulatedText) {
-        assistantContentBlocks.push({ type: 'text', text: accumulatedText } as ContentBlockParam);
-      }
-      for (const tb of toolUseBlocks) {
-        assistantContentBlocks.push({
-          type: 'tool_use',
-          id: tb.id,
-          name: tb.name,
-          input: tb.input,
-        } as ContentBlockParam);
-      }
-      allMessages.push({ role: 'assistant', content: assistantContentBlocks });
-
-      // 12c. Execute tools sequentially
-      const toolResultBlocks: ContentBlockParam[] = [];
-      const toolsToExecute = toolUseBlocks.slice(0, MAX_TOOLS_PER_ROUND);
-
-      for (const block of toolsToExecute) {
-        if (aborted) break;
-
-        totalToolExecutions++;
-        if (totalToolExecutions > MAX_TOTAL_TOOL_EXECUTIONS) {
-          sendSSE(res, { type: 'error', message: 'Too many tool calls. Please try a simpler request.' });
-          break;
-        }
-
-        sendSSE(res, { type: 'tool_call_start', toolName: block.name, toolCallId: block.id, toolInput: block.input });
-
-        const toolStartTime = Date.now();
-        const safeResult = await safeExecuteTool(block.name, block.input, toolCtx);
-        const toolResult = safeResult.result;
-        const isError = safeResult.isError;
-
-        sendSSE(res, { type: 'tool_call_end', toolCallId: block.id, toolName: block.name, durationMs: Date.now() - toolStartTime });
-
-        // Send canvas_update if applicable
-        if (toolResult._canvasUpdate) {
-          const action = getCanvasAction(block.name);
-          if (action) {
-            if (Array.isArray(toolResult.createdItems)) {
-              // Multi-item creation (scenario comparison)
-              for (const item of toolResult.createdItems as Array<Record<string, unknown>>) {
-                sendSSE(res, { type: 'canvas_update', action, item });
-              }
-            } else {
-              const canvasData = { ...toolResult };
-              delete canvasData._canvasUpdate;
-              sendSSE(res, { type: 'canvas_update', action, item: canvasData });
-            }
-          }
-        }
-
-        // Strip _canvasUpdate from result before sending to client/Claude
-        const cleanResult = { ...toolResult };
-        delete cleanResult._canvasUpdate;
-
-        sendSSE(res, {
-          type: 'tool_result',
-          toolCallId: block.id,
-          toolName: block.name,
-          result: cleanResult,
-          isError,
-        });
-
-        // Persist tool message
+        // 12a. Persist intermediate assistant message
+        const intermediateId = randomUUID();
         await db.insert(messages).values({
-          id: randomUUID(),
+          id: intermediateId,
           conversationId,
           userId,
-          role: 'tool',
-          content: JSON.stringify(cleanResult),
-          toolCallId: block.id,
+          role: 'assistant',
+          content: accumulatedText,
+          toolCalls: JSON.stringify(toolUseBlocks),
           tokenCount: null,
-          model: null,
+          model: conversation.model,
           createdAt: new Date(),
         });
 
-        // Build tool_result content block for Anthropic
-        toolResultBlocks.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: JSON.stringify(cleanResult),
-          ...(isError && { is_error: true }),
-        } as ContentBlockParam);
+        // 12b. Append assistant content blocks to allMessages
+        const assistantContentBlocks: ContentBlockParam[] = [];
+        if (accumulatedText) {
+          assistantContentBlocks.push({ type: 'text', text: accumulatedText } as ContentBlockParam);
+        }
+        for (const tb of toolUseBlocks) {
+          assistantContentBlocks.push({
+            type: 'tool_use',
+            id: tb.id,
+            name: tb.name,
+            input: tb.input,
+          } as ContentBlockParam);
+        }
+        allMessages.push({ role: 'assistant', content: assistantContentBlocks });
+
+        // 12c. Execute tools sequentially
+        const toolResultBlocks: ContentBlockParam[] = [];
+        const toolsToExecute = toolUseBlocks.slice(0, MAX_TOOLS_PER_ROUND);
+
+        for (const block of toolsToExecute) {
+          if (aborted) break;
+
+          totalToolExecutions++;
+          if (totalToolExecutions > MAX_TOTAL_TOOL_EXECUTIONS) {
+            sendSSE(res, {
+              type: 'error',
+              message: 'Too many tool calls. Please try a simpler request.',
+            });
+            break;
+          }
+
+          sendSSE(res, {
+            type: 'tool_call_start',
+            toolName: block.name,
+            toolCallId: block.id,
+            toolInput: block.input,
+          });
+
+          const toolStartTime = Date.now();
+          const safeResult = await safeExecuteTool(block.name, block.input, toolCtx);
+          const toolResult = safeResult.result;
+          const isError = safeResult.isError;
+
+          sendSSE(res, {
+            type: 'tool_call_end',
+            toolCallId: block.id,
+            toolName: block.name,
+            durationMs: Date.now() - toolStartTime,
+          });
+
+          // Send canvas_update if applicable
+          if (toolResult._canvasUpdate) {
+            const action = getCanvasAction(block.name);
+            if (action) {
+              if (Array.isArray(toolResult.createdItems)) {
+                // Multi-item creation (scenario comparison)
+                for (const item of toolResult.createdItems as Array<Record<string, unknown>>) {
+                  sendSSE(res, { type: 'canvas_update', action, item });
+                }
+              } else {
+                const { _canvasUpdate: _omitted, ...canvasData } = toolResult;
+                sendSSE(res, { type: 'canvas_update', action, item: canvasData });
+              }
+            }
+          }
+
+          // Strip _canvasUpdate from result before sending to client/Claude
+          const { _canvasUpdate: _stripped, ...cleanResult } = toolResult;
+
+          sendSSE(res, {
+            type: 'tool_result',
+            toolCallId: block.id,
+            toolName: block.name,
+            result: cleanResult,
+            isError,
+          });
+
+          // Persist tool message
+          await db.insert(messages).values({
+            id: randomUUID(),
+            conversationId,
+            userId,
+            role: 'tool',
+            content: JSON.stringify(cleanResult),
+            toolCallId: block.id,
+            tokenCount: null,
+            model: null,
+            createdAt: new Date(),
+          });
+
+          // Build tool_result content block for Anthropic
+          toolResultBlocks.push({
+            type: 'tool_result',
+            tool_use_id: block.id,
+            content: JSON.stringify(cleanResult),
+            ...(isError && { is_error: true }),
+          } as ContentBlockParam);
+        }
+
+        if (aborted) break;
+
+        // 12d. Append tool results to allMessages
+        allMessages.push({ role: 'user', content: toolResultBlocks });
+
+        // 12e. Call Anthropic again with updated messages
+        stream = await streamChatCompletion({
+          messages: allMessages,
+          systemPrompt,
+          model: conversation.model,
+          tools,
+        });
+
+        // 12f. Iterate new stream
+        result = await iterateStream(stream, res, () => aborted);
+        totalInputTokens += result.inputTokens;
+        totalOutputTokens += result.outputTokens;
       }
-
-      if (aborted) break;
-
-      // 12d. Append tool results to allMessages
-      allMessages.push({ role: 'user', content: toolResultBlocks });
-
-      // 12e. Call Anthropic again with updated messages
-      stream = await streamChatCompletion({
-        messages: allMessages,
-        systemPrompt,
-        model: conversation.model,
-        tools,
-      });
-
-      // 12f. Iterate new stream
-      result = await iterateStream(stream, res, () => aborted);
-      totalInputTokens += result.inputTokens;
-      totalOutputTokens += result.outputTokens;
-    }
     } catch (loopErr) {
       console.error('[Chat Stream] Tool loop error:', loopErr);
-      sendSSE(res, { type: 'error', message: 'An unexpected error occurred while processing tools. Please try again.' });
+      sendSSE(res, {
+        type: 'error',
+        message: 'An unexpected error occurred while processing tools. Please try again.',
+      });
     }
 
     // 13. Send done event
@@ -479,10 +529,7 @@ chatStreamRouter.post('/', async (req, res) => {
           updateSet.title = title;
         }
       }
-      await db
-        .update(conversations)
-        .set(updateSet)
-        .where(eq(conversations.id, conversationId));
+      await db.update(conversations).set(updateSet).where(eq(conversations.id, conversationId));
 
       // 16. Log AI usage with summed tokens
       await db.insert(aiUsage).values({

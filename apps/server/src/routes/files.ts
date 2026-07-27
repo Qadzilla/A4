@@ -44,7 +44,9 @@ const multerStorage = USE_R2
   : multer.diskStorage({
       destination: (_req, _file, cb) => {
         const uploadDir = path.join(process.cwd(), 'data', 'uploads', '_tmp');
-        mkdir(uploadDir, { recursive: true }).then(() => cb(null, uploadDir)).catch(cb as any);
+        mkdir(uploadDir, { recursive: true })
+          .then(() => cb(null, uploadDir))
+          .catch(cb as any);
       },
       filename: (_req, _file, cb) => {
         cb(null, `${randomUUID()}.tmp`);
@@ -139,9 +141,11 @@ filesRouter.post('/upload', (req, res, next) => {
 
       // Fire-and-forget background embedding for text-extractable files
       if (EMBEDDABLE_MIME_TYPES.has(file.mimetype)) {
-        lazyEmbedFile().then((embedFile) => embedFile(fileId, db)).catch((err) => {
-          console.error(`[RAG] Background embedding failed for file ${fileId}:`, err);
-        });
+        lazyEmbedFile()
+          .then((embedFile) => embedFile(fileId, db))
+          .catch((err) => {
+            console.error(`[RAG] Background embedding failed for file ${fileId}:`, err);
+          });
       }
     } catch (error) {
       next(error);
@@ -188,7 +192,26 @@ filesRouter.delete('/:fileId', async (req, res) => {
   }
 
   await storage.delete(fileRecord.storagePath);
+
+  // Capture chunk ids before deleting so entity mentions can cascade
+  const chunkRows = await db
+    .select({ id: documentChunks.id })
+    .from(documentChunks)
+    .where(eq(documentChunks.fileId, req.params.fileId));
+
   await db.delete(documentChunks).where(eq(documentChunks.fileId, req.params.fileId));
   await db.delete(files).where(eq(files.id, req.params.fileId));
+
+  if (chunkRows.length > 0) {
+    const { cleanupMentionsForChunks } = await import('../services/entity-extraction');
+    await cleanupMentionsForChunks(
+      chunkRows.map((c) => c.id),
+      fileRecord.workspaceId,
+      db,
+    ).catch((err) => {
+      console.error(`[entities] Mention cleanup failed for file ${req.params.fileId}:`, err);
+    });
+  }
+
   res.json({ success: true });
 });

@@ -11,6 +11,7 @@ import { type WebSocket, WebSocketServer } from 'ws';
 import { DEV_AUTH_BYPASS, env } from './env';
 import { chatStreamRouter } from './routes/chat-stream';
 import { filesRouter } from './routes/files';
+import { startJobWorker } from './services/job-queue';
 import { PolygonService } from './services/polygon';
 import { createContext, setPolygonService } from './trpc/context';
 import { appRouter } from './trpc/router';
@@ -244,6 +245,13 @@ polygon.onAggregate((symbol, data) => {
     }
   }
 });
+
+if (env.NODE_ENV !== 'test') {
+  import('./services/entity-extraction').then((m) => m.registerEntityExtractionHandler());
+  import('./services/entity-resolution').then((m) => m.registerEntityResolutionHandler());
+  import('./services/entity-linking').then((m) => m.registerEntityLinkingHandler());
+  startJobWorker();
+}
 
 const port = Number(env.PORT);
 server.listen(port, () => {

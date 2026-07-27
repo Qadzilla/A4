@@ -128,6 +128,76 @@ export async function chatCompletion(options: ChatCompletionOptions): Promise<st
   }
 }
 
+export interface StructuredCompletionOptions {
+  systemPrompt: string;
+  userMessage: string;
+  /** JSON Schema the model's output must conform to (enforced via forced tool use) */
+  outputSchema: Record<string, unknown>;
+  toolName?: string;
+  model?: string;
+  maxTokens?: number;
+}
+
+export interface StructuredCompletionResult {
+  /** The tool input the model produced — validate with Zod before trusting it */
+  data: unknown;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Non-streaming completion that forces the model to emit JSON matching
+ * `outputSchema` by requiring a single tool call. Used by background pipelines
+ * (entity extraction) rather than chat.
+ */
+export async function structuredCompletion(
+  options: StructuredCompletionOptions,
+): Promise<StructuredCompletionResult> {
+  const {
+    systemPrompt,
+    userMessage,
+    outputSchema,
+    toolName = 'emit_result',
+    model = 'claude-sonnet-4-6',
+    maxTokens = 4096,
+  } = options;
+  const anthropic = getClient();
+
+  try {
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+      tools: [
+        {
+          name: toolName,
+          description: 'Emit the structured result.',
+          input_schema: outputSchema as Tool['input_schema'],
+        },
+      ],
+      tool_choice: { type: 'tool', name: toolName },
+    });
+
+    const toolBlock = response.content.find((block) => block.type === 'tool_use');
+    if (!toolBlock || toolBlock.type !== 'tool_use') {
+      throw new AnthropicServiceError(
+        'ANTHROPIC_UNKNOWN_ERROR',
+        'Model did not produce the required tool call',
+      );
+    }
+
+    return {
+      data: toolBlock.input,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    };
+  } catch (error) {
+    if (error instanceof AnthropicServiceError) throw error;
+    throw mapAnthropicError(error);
+  }
+}
+
 // For testing — reset the lazy singleton
 export function _resetClient(): void {
   client = null;
