@@ -28,6 +28,8 @@ export const ITEM_DEFAULTS: Record<string, { width: number; height: number }> = 
   'networth-card': { width: 340, height: 280 },
   'debt-planner-card': { width: 340, height: 300 },
   'rent-vs-buy-card': { width: 340, height: 300 },
+  'entity-card': { width: 280, height: 180 },
+  'document-node': { width: 260, height: 200 },
   'portfolio-card': { width: 340, height: 280 },
   'header-card': { width: 300, height: 50 },
 };

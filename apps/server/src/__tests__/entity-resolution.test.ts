@@ -35,6 +35,7 @@ function createTestDb() {
       aliases TEXT NOT NULL DEFAULT '[]',
       mention_count INTEGER NOT NULL DEFAULT 0,
       rejected_merges TEXT NOT NULL DEFAULT '[]',
+      merged_into TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -185,9 +186,12 @@ describe('mergeEntities', () => {
     await mergeEntities('winner', ['loser'], db as never);
 
     const all = await db.select().from(entities);
-    expect(all).toHaveLength(1);
-    const winner = all[0]!;
+    expect(all).toHaveLength(2); // winner + tombstoned loser
+    const winner = all.find((e) => e.mergedInto === null)!;
     expect(winner.id).toBe('winner');
+    const tombstone = all.find((e) => e.id === 'loser')!;
+    expect(tombstone.mergedInto).toBe('winner');
+    expect(tombstone.mentionCount).toBe(0);
     expect(winner.mentionCount).toBe(3);
     expect(JSON.parse(winner.aliases).sort()).toEqual(['AMAZON', 'AMZN MKTP', 'AMZN Mktp US']);
 
@@ -256,9 +260,10 @@ describe('resolveEntities', () => {
     await resolveEntities({ workspaceId: 'ws-1' }, db as never);
 
     const all = await db.select().from(entities);
-    expect(all).toHaveLength(1);
-    expect(all[0]!.id).toBe('e-plain');
-    expect(JSON.parse(all[0]!.aliases)).toContain('SQ *BLUE BOTTLE COFFEE');
+    const live = all.filter((e) => e.mergedInto === null);
+    expect(live).toHaveLength(1);
+    expect(live[0]!.id).toBe('e-plain');
+    expect(JSON.parse(live[0]!.aliases)).toContain('SQ *BLUE BOTTLE COFFEE');
   });
 
   it('Tier 2: auto-merges non-person pairs at very high similarity without the LLM', async () => {
@@ -271,7 +276,8 @@ describe('resolveEntities', () => {
 
     await resolveEntities({ workspaceId: 'ws-1' }, db as never);
 
-    expect(await db.select().from(entities)).toHaveLength(1);
+    const live = (await db.select().from(entities)).filter((e) => e.mergedInto === null);
+    expect(live).toHaveLength(1);
     expect(structuredCompletion).not.toHaveBeenCalled();
   });
 
@@ -288,9 +294,9 @@ describe('resolveEntities', () => {
 
     await resolveEntities({ workspaceId: 'ws-1' }, db as never);
 
-    const all = await db.select().from(entities);
-    expect(all).toHaveLength(1);
-    expect(all[0]!.id).toBe('e2'); // most mentions wins
+    const live = (await db.select().from(entities)).filter((e) => e.mergedInto === null);
+    expect(live).toHaveLength(1);
+    expect(live[0]!.id).toBe('e2'); // most mentions wins
     expect(structuredCompletion).toHaveBeenCalledOnce();
 
     // Adjudication spend metered

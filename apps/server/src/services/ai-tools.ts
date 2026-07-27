@@ -1,5 +1,5 @@
 import type { Tool } from '@anthropic-ai/sdk/resources/messages';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { DB } from '../db';
 import {
   accounts,
@@ -2000,6 +2000,7 @@ const TOOLS: ToolRegistration[] = [
       const conditions = [
         eq(entities.workspaceId, ctx.workspaceId),
         eq(entities.userId, ctx.userId),
+        isNull(entities.mergedInto),
       ];
       if (typeFilter) conditions.push(eq(entities.type, typeFilter));
 

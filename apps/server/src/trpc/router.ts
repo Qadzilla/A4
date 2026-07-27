@@ -16,6 +16,7 @@ import { marketDataRouter } from './routers/market-data';
 import { networthRouter } from './routers/networth';
 import { receiptRouter } from './routers/receipt';
 import { subscriptionRouter } from './routers/subscription';
+import { entityRouter } from './routers/entity';
 import { userRouter } from './routers/user';
 import { vaultRouter } from './routers/vault';
 import { workspaceRouter } from './routers/workspace';
@@ -37,6 +38,7 @@ export const appRouter = router({
   category: categoryRouter,
   chat: chatRouter,
   financial: financialRouter,
+  entity: entityRouter,
   receipt: receiptRouter,
   subscription: subscriptionRouter,
   user: userRouter,

@@ -468,6 +468,40 @@ export const TabBar = memo(function TabBar({
                 <path d="M12 2v20" />
                 <path d="M2 12h10" />
               </svg>
+            ) : tab.type === 'document-node' ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5 shrink-0"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <path d="M9 14h6" />
+                <path d="M9 17h4" />
+              </svg>
+            ) : tab.type === 'entity-card' ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-3.5 shrink-0"
+              >
+                <circle cx="12" cy="5" r="2.5" />
+                <circle cx="5" cy="18" r="2.5" />
+                <circle cx="19" cy="18" r="2.5" />
+                <path d="M10.7 7.2 6.3 15.8" />
+                <path d="m13.3 7.2 4.4 8.6" />
+                <path d="M7.5 18h9" />
+              </svg>
             ) : tab.type === 'rent-vs-buy-card' ? (
               <svg
                 xmlns="http://www.w3.org/2000/svg"

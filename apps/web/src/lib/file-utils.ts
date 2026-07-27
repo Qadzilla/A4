@@ -23,6 +23,23 @@ export interface FileCardData {
   tablePreview?: FileTablePreview;
 }
 
+/** Best-effort mime type from a file name, for items created without upload metadata. */
+export function inferMimeType(fileName: string): string {
+  const ext = fileName.toLowerCase().split('.').pop() ?? '';
+  const map: Record<string, string> = {
+    pdf: 'application/pdf',
+    csv: 'text/csv',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    txt: 'text/plain',
+    md: 'text/markdown',
+  };
+  return map[ext] ?? 'application/octet-stream';
+}
+
 export async function uploadFile(
   file: File,
   workspaceId: string,

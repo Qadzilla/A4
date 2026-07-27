@@ -22,6 +22,8 @@ import { ChartCardContent } from './chart-card-content';
 import { DebtPlannerCardContent } from './debt-planner-card-content';
 import { DepreciationCardContent } from './depreciation-card-content';
 import { EmbedCardContent } from './embed-card-content';
+import { DocumentNodeContent } from './document-node-content';
+import { EntityCardContent } from './entity-card-content';
 import { FileCardContent } from './file-card-content';
 import { HeaderCardContent } from './header-card-content';
 import { InvoiceCardContent } from './invoice-card-content';
@@ -282,6 +284,8 @@ export const CanvasItemRenderer = memo(
           item.type === 'networth-card' ||
           item.type === 'debt-planner-card' ||
           item.type === 'rent-vs-buy-card' ||
+          item.type === 'entity-card' ||
+          item.type === 'document-node' ||
           item.type === 'portfolio-card' ||
           item.type === 'header-card';
 
@@ -531,6 +535,10 @@ export const CanvasItemRenderer = memo(
               <RentVsBuyCardContent item={item} />
             ) : item.type === 'portfolio-card' ? (
               <PortfolioCardContent item={item} />
+            ) : item.type === 'entity-card' ? (
+              <EntityCardContent item={item} />
+            ) : item.type === 'document-node' ? (
+              <DocumentNodeContent item={item} />
             ) : item.type === 'embed-card' ? (
               <EmbedCardContent item={item} />
             ) : (

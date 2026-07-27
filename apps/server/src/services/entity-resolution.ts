@@ -1,4 +1,4 @@
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull } from 'drizzle-orm';
 import type { DB } from '../db';
 import { aiUsage, entities, entityEdges, entityMentions, jobs } from '../db/schema';
 import { calculateCostCents } from '../routes/chat-stream';
@@ -152,7 +152,18 @@ export async function mergeEntities(winnerId: string, loserIds: string[], db: DB
     })
     .where(eq(entities.id, winnerId));
 
-  await db.delete(entities).where(inArray(entities.id, loserIds));
+  // Tombstone losers instead of deleting: canvas cards and old references can
+  // follow mergedInto to the surviving entity
+  await db
+    .update(entities)
+    .set({ mergedInto: winnerId, mentionCount: 0, updatedAt: now })
+    .where(inArray(entities.id, loserIds));
+
+  // Chains stay one hop deep: anything already pointing at a loser repoints
+  await db
+    .update(entities)
+    .set({ mergedInto: winnerId, updatedAt: now })
+    .where(inArray(entities.mergedInto, loserIds));
 }
 
 async function recordRejection(a: EntityRow, b: EntityRow, db: DB): Promise<void> {
@@ -233,7 +244,12 @@ export async function resolveEntities(payload: unknown, db: DB): Promise<void> {
   }
 
   // ── Tier 1: deterministic merchant normalization ──
-  let rows = await db.select().from(entities).where(eq(entities.workspaceId, workspaceId));
+  const liveEntities = () =>
+    db
+      .select()
+      .from(entities)
+      .where(and(eq(entities.workspaceId, workspaceId), isNull(entities.mergedInto)));
+  let rows = await liveEntities();
   const merchantGroups = new Map<string, EntityRow[]>();
   for (const row of rows.filter((r) => r.type === 'merchant')) {
     const key = normalizeMerchantString(row.canonicalName);
@@ -254,7 +270,7 @@ export async function resolveEntities(payload: unknown, db: DB): Promise<void> {
   }
 
   // ── Tier 2: embedding-similarity candidates ──
-  rows = await db.select().from(entities).where(eq(entities.workspaceId, workspaceId));
+  rows = await liveEntities();
   if (rows.length < 2) return;
 
   let embeddings: Float32Array[];
@@ -281,7 +297,7 @@ export async function resolveEntities(payload: unknown, db: DB): Promise<void> {
       // Refresh rejection state (may have changed via merges this run)
       const [freshA] = await db.select().from(entities).where(eq(entities.id, a.id));
       const [freshB] = await db.select().from(entities).where(eq(entities.id, b.id));
-      if (!freshA || !freshB) continue;
+      if (!freshA || !freshB || freshA.mergedInto || freshB.mergedInto) continue;
       if (rejectedSet(freshA).has(b.id) || rejectedSet(freshB).has(a.id)) continue;
 
       const isPerson = a.type === 'person';

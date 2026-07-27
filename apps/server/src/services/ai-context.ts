@@ -396,7 +396,9 @@ export async function buildEntitiesSection(
       mentionCount: entities.mentionCount,
     })
     .from(entities)
-    .where(and(eq(entities.workspaceId, workspaceId), eq(entities.userId, userId)))
+    .where(
+      and(eq(entities.workspaceId, workspaceId), eq(entities.userId, userId), isNull(entities.mergedInto)),
+    )
     .orderBy(desc(entities.mentionCount))
     .limit(ENTITY_CONTEXT_LIMIT);
 

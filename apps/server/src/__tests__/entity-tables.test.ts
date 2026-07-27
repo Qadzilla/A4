@@ -16,6 +16,7 @@ const ENTITY_TABLES_SQL = `
     aliases TEXT NOT NULL DEFAULT '[]',
     mention_count INTEGER NOT NULL DEFAULT 0,
     rejected_merges TEXT NOT NULL DEFAULT '[]',
+    merged_into TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   );

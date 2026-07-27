@@ -486,6 +486,7 @@ export const entities = sqliteTable('entities', {
   aliases: text('aliases').notNull().default('[]'), // JSON string[]
   mentionCount: integer('mention_count').notNull().default(0),
   rejectedMerges: text('rejected_merges').notNull().default('[]'), // JSON string[] of entity ids adjudicated as NOT the same
+  mergedInto: text('merged_into'), // tombstone: id of the winner this entity was merged into
 
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()

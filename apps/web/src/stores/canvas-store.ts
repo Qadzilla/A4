@@ -70,6 +70,8 @@ const defaultNames: Record<string, string> = {
   'networth-card': 'Net Worth',
   'debt-planner-card': 'Debt Paydown Planner',
   'rent-vs-buy-card': 'Rent vs Buy',
+  'entity-card': 'Entity',
+  'document-node': 'Document',
   'portfolio-card': 'Untitled Portfolio',
   'header-card': 'Header',
 };

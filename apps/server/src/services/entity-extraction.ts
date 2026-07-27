@@ -3,7 +3,7 @@ import {
   type EntityType,
   entityExtractionResultSchema,
 } from '@a4/shared-schemas';
-import { and, count, eq, inArray, notInArray, or } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, notInArray, or } from 'drizzle-orm';
 import type { DB } from '../db';
 import {
   aiUsage,
@@ -107,11 +107,12 @@ export async function cleanupMentionsForChunks(
       );
   }
 
-  // Recount and prune zero-mention entities in this workspace
+  // Recount and prune zero-mention entities in this workspace (tombstoned
+  // entities are exempt — they intentionally have zero mentions)
   const workspaceEntities = await db
     .select({ id: entities.id })
     .from(entities)
-    .where(eq(entities.workspaceId, workspaceId));
+    .where(and(eq(entities.workspaceId, workspaceId), isNull(entities.mergedInto)));
   if (workspaceEntities.length === 0) return;
 
   const mentioned = await db
@@ -148,6 +149,7 @@ async function getOrCreateEntity(
         eq(entities.workspaceId, workspaceId),
         eq(entities.type, type),
         eq(entities.normalizedName, normalized),
+        isNull(entities.mergedInto),
       ),
     );
 

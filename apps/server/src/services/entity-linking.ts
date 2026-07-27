@@ -1,5 +1,5 @@
 import type { EntityType } from '@a4/shared-schemas';
-import { and, count, eq, inArray, ne } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, ne } from 'drizzle-orm';
 import type { DB } from '../db';
 import {
   accounts,
@@ -134,7 +134,7 @@ export async function linkStructuredData(payload: unknown, db: DB): Promise<void
   const workspaceEntities = await db
     .select()
     .from(entities)
-    .where(eq(entities.workspaceId, workspaceId));
+    .where(and(eq(entities.workspaceId, workspaceId), isNull(entities.mergedInto)));
   const lookup = new Map<string, string>();
   const addKeys = (name: string, type: string, entityId: string) => {
     lookup.set(`${type}|${normalizeEntityName(name)}`, entityId);

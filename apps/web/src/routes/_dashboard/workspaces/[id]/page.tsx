@@ -16,6 +16,7 @@ import {
   formatFileSize,
   generatePreview,
   getFileTypeLabel,
+  inferMimeType,
   uploadFile,
 } from '../../../../lib/file-utils';
 import type { FileCardData } from '../../../../lib/file-utils';
@@ -46,6 +47,7 @@ const PortfolioCardView = lazy(() => import('../../../../components/canvas/portf
 const ProjectionCardView = lazy(() => import('../../../../components/canvas/projection-card-view').then(m => ({ default: m.ProjectionCardView })));
 const ReceiptCardView = lazy(() => import('../../../../components/canvas/receipt-card-view').then(m => ({ default: m.ReceiptCardView })));
 const RentVsBuyCardView = lazy(() => import('../../../../components/canvas/rent-vs-buy-card-view').then(m => ({ default: m.RentVsBuyCardView })));
+const EntityCardView = lazy(() => import('../../../../components/canvas/entity-card-view').then(m => ({ default: m.EntityCardView })));
 const SecretCardView = lazy(() => import('../../../../components/canvas/secret-card-view').then(m => ({ default: m.SecretCardView })));
 const SubscriptionCardView = lazy(() => import('../../../../components/canvas/subscription-card-view').then(m => ({ default: m.SubscriptionCardView })));
 const TableCardView = lazy(() => import('../../../../components/canvas/table-card-view').then(m => ({ default: m.TableCardView })));
@@ -880,6 +882,10 @@ export default function WorkspaceDetailPage() {
             <PortfolioCardView item={activeItem} workspaceId={id!} />
           ) : activeItem.type === 'rent-vs-buy-card' ? (
             <RentVsBuyCardView item={activeItem} />
+          ) : activeItem.type === 'entity-card' ? (
+            <EntityCardView item={activeItem} workspaceId={id!} />
+          ) : activeItem.type === 'document-node' ? (
+            <FileCardView item={activeItem} workspaceId={id!} />
           ) : activeItem.type === 'embed-card' ? (
             <EmbedCardView item={activeItem} />
           ) : (
@@ -1271,6 +1277,19 @@ export default function WorkspaceDetailPage() {
               />
             ) : panelMode === 'chat' ? (
               <ChatPanel
+                onCitationDragStart={(citation, e) =>
+                  startDrag('document-node', e, {
+                    data: {
+                      fileId: citation.fileId,
+                      fileName: citation.fileName,
+                      fileSize: 0,
+                      mimeType: inferMimeType(citation.fileName),
+                      snippet: citation.chunkContent,
+                      citationIndex: citation.index,
+                    },
+                    name: citation.fileName,
+                  })
+                }
                 messages={chat.messages}
                 message={message}
                 onMessageChange={setMessage}
