@@ -5,7 +5,7 @@ export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
   dbCredentials: {
-    url: 'a4.db',
+    url: process.env.DATABASE_PATH ?? 'a4.db',
   },
   // The FTS5 index over document_chunks (src/db/fts.ts) is runtime-managed DDL,
   // not part of the Drizzle schema — keep push/generate from touching it.

@@ -12,6 +12,8 @@ const envSchema = z.object({
     ? z.string().default('')
     : z.string().min(1, 'CLERK_PUBLISHABLE_KEY is required'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  // SQLite file location — point at a mounted volume in production (e.g. /data/a4.db)
+  DATABASE_PATH: z.string().default('a4.db'),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   // Encrypts user-supplied provider keys (BYOK) at rest; feature is disabled when unset

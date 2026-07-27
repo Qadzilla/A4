@@ -18,6 +18,12 @@ import { appRouter } from './trpc/router';
 
 const app = express();
 
+// Behind Railway/Fly's proxy in production — required for express-rate-limit
+// to key on the real client IP instead of the proxy's
+if (env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Security middleware
 app.use(
   helmet({
