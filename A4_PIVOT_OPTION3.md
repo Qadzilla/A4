@@ -1,7 +1,7 @@
 # The Pivot — Option 3 Deep Dive: Fresh Shell, Transplanted Organs
 
 > **Created:** 2026-07-27
-> **Status:** EXECUTING — P1 (The Cut) complete 2026-07-27; next P2 (The Shell), pending working name
+> **Status:** EXECUTING — P1 complete; P2 (The Shell) first slice SHIPPED 2026-07-27: `apps/app` scaffold live with Basis design tokens (light-first), 4-surface navigation, implicit space, and working AI chat. Remaining P2: PWA polish, error/loading states, design-system depth.
 > **Decision context:** Full rebrand and refocus of A4 onto two pillars — **investing** and **taxes** — for people **25 and under**, replacing the horizontal "financial workspace" with a vertical, opinionated product. Option 3 = rebuild everything the user sees; keep everything the user doesn't.
 > **Scope stance (locked):** V1 ships **both pillars at full depth**.
 
@@ -185,7 +185,7 @@ Same build-unit discipline as Phase 6. Both pillars at full depth, honestly esti
 | Decision | Status (2026-07-27) |
 |---|---|
 | Old product during pivot | ✅ **RESOLVED: Freeze entirely.** P1 deletes the SMB surface from `main`; the old product survives in git history only. |
-| Brand direction | ✅ **RESOLVED: Basis × Keel blend, light-mode-first.** Data-forward precision with calm restraint; the product's primary theme is light (paper-white ground), with dark as the secondary theme. Working name still open — candidates carry into P0 name clearance. |
+| Brand direction | ✅ **RESOLVED: Basis × Keel blend, light-mode-first. Working name: BASIS** (locked; Keel eliminated — active UK fintech at keel.money; final clearance at P6). Data-forward precision with calm restraint; the product's primary theme is light (paper-white ground), with dark as the secondary theme. Working name still open — candidates carry into P0 name clearance. |
 | Brokerage provider | 🔎 **Research complete — recommendation: SnapTrade** (free ≤5 connections, then $1/user/mo; best Robinhood/Webull/Coinbase coverage; same-day self-serve) **plus statement upload as universal fallback**. Full findings: [A4_PIVOT_BROKERAGE_RESEARCH.md](./A4_PIVOT_BROKERAGE_RESEARCH.md). Awaiting your confirmation — due by P3 start. |
 | AI persona | ✅ **RESOLVED: New persona, designed from the chosen brand's voice at P5.** Paige retires with the old brand. |
 | Legal review scheduling | ⏳ Open — needed before P6 ships. |

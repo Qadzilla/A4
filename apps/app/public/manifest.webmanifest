@@ -1,0 +1,10 @@
+{
+  "name": "Basis",
+  "short_name": "Basis",
+  "description": "Know your basis. Investing and taxes, minus the vibes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f6f9",
+  "theme_color": "#f5f6f9",
+  "icons": []
+}

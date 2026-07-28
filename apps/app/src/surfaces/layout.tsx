@@ -1,0 +1,90 @@
+import { BRAND } from '@/brand';
+import { useSpace } from '@/space/useSpace';
+import { FileText, MessageSquare, PieChart, Receipt } from 'lucide-react';
+import { createContext, useContext } from 'react';
+import { NavLink, Outlet } from 'react-router';
+
+const SpaceContext = createContext<string | null>(null);
+
+/** The active space id, guaranteed non-null inside the shell. */
+export function useSpaceId(): string {
+  const id = useContext(SpaceContext);
+  if (!id) throw new Error('useSpaceId called outside a loaded shell');
+  return id;
+}
+
+const SURFACES = [
+  { to: '/portfolio', label: 'Portfolio', icon: PieChart },
+  { to: '/taxes', label: 'Taxes', icon: Receipt },
+  { to: '/chat', label: 'Chat', icon: MessageSquare },
+  { to: '/documents', label: 'Documents', icon: FileText },
+] as const;
+
+function NavItems({ variant }: { variant: 'rail' | 'tabs' }) {
+  return (
+    <>
+      {SURFACES.map(({ to, label, icon: Icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          className={({ isActive }) =>
+            variant === 'rail'
+              ? `flex items-center gap-3 rounded-card px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
+                }`
+              : `flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${
+                  isActive ? 'text-accent' : 'text-muted'
+                }`
+          }
+        >
+          <Icon size={variant === 'rail' ? 16 : 20} strokeWidth={1.75} />
+          {label}
+        </NavLink>
+      ))}
+    </>
+  );
+}
+
+export function Shell() {
+  const { spaceId, isLoading } = useSpace();
+
+  if (isLoading || !spaceId) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center">
+        <span className="eyebrow">Loading…</span>
+      </div>
+    );
+  }
+
+  return (
+    <SpaceContext.Provider value={spaceId}>
+      <div className="min-h-dvh md:flex">
+        {/* Desktop rail */}
+        <aside className="hidden w-52 shrink-0 flex-col border-r border-hairline bg-surface px-3 py-5 md:flex">
+          <div className="mb-8 px-3">
+            <span className="font-mono text-[15px] font-bold tracking-tight">
+              {BRAND.name.toLowerCase()}
+            </span>
+            <span className="text-accent font-mono text-[15px] font-bold">.</span>
+          </div>
+          <nav className="flex flex-col gap-1">
+            <NavItems variant="rail" />
+          </nav>
+          <div className="mt-auto px-3">
+            <p className="eyebrow">{BRAND.tagline}</p>
+          </div>
+        </aside>
+
+        {/* Content */}
+        <main className="min-w-0 flex-1 pb-16 md:pb-0">
+          <Outlet />
+        </main>
+
+        {/* Mobile tab bar */}
+        <nav className="fixed inset-x-0 bottom-0 flex border-t border-hairline bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+          <NavItems variant="tabs" />
+        </nav>
+      </div>
+    </SpaceContext.Provider>
+  );
+}

@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/*
+ * Basis design tokens — light-mode-first (brand decision 2026-07-27).
+ * The Basis × Keel blend: paper-white ground, carbon ink, one electric
+ * accent, tabular numerals, hairline borders. Dark mode arrives later as
+ * an explicit toggle, not an OS default — the product leads light.
+ */
+@theme {
+  --color-paper: #f5f6f9;
+  --color-surface: #ffffff;
+  --color-ink: #171b23;
+  --color-muted: #5c6472;
+  --color-faint: #9aa2b1;
+  --color-hairline: #dfe3ea;
+  --color-accent: #2b59ff;
+  --color-accent-soft: #e9edff;
+  --color-good: #157a54;
+  --color-good-soft: #e2f2ea;
+  --color-warn: #a26a12;
+  --color-warn-soft: #f6ecd8;
+  --color-bad: #b03a2e;
+  --color-bad-soft: #f7e3e0;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-card: 6px;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+}
+
+/* Numbers line up, always */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Monospace eyebrow labels — the Basis signature */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+::selection {
+  background: var(--color-accent-soft);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.35s ease both;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

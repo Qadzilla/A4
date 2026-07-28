@@ -21,6 +21,73 @@ importers:
         specifier: ^2.3.3
         version: 2.8.3
 
+  apps/app:
+    dependencies:
+      '@a4/shared-schemas':
+        specifier: workspace:*
+        version: link:../../packages/shared-schemas
+      '@clerk/clerk-react':
+        specifier: ^5.18.0
+        version: 5.60.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tanstack/react-query':
+        specifier: ^5.64.1
+        version: 5.90.20(react@19.2.4)
+      '@trpc/client':
+        specifier: ^11.0.0-rc.682
+        version: 11.10.0(@trpc/server@11.10.0(typescript@5.9.3))(typescript@5.9.3)
+      '@trpc/tanstack-react-query':
+        specifier: ^11.0.0-rc.682
+        version: 11.10.0(@tanstack/react-query@5.90.20(react@19.2.4))(@trpc/client@11.10.0(@trpc/server@11.10.0(typescript@5.9.3))(typescript@5.9.3))(@trpc/server@11.10.0(typescript@5.9.3))(react@19.2.4)(typescript@5.9.3)
+      lucide-react:
+        specifier: ^0.545.0
+        version: 0.545.0(react@19.2.4)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.4(react@19.2.4)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.13)(react@19.2.4)
+      react-router:
+        specifier: ^7.1.3
+        version: 7.13.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
+      superjson:
+        specifier: ^2.2.2
+        version: 2.2.6
+    devDependencies:
+      '@a4/server':
+        specifier: workspace:^
+        version: link:../server
+      '@a4/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@tailwindcss/vite':
+        specifier: ^4.0.0
+        version: 4.1.18(vite@6.4.1(@types/node@22.19.10)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0))
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.13
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.13)
+      '@vitejs/plugin-react':
+        specifier: ^4.3.4
+        version: 4.7.0(vite@6.4.1(@types/node@22.19.10)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0))
+      tailwindcss:
+        specifier: ^4.0.0
+        version: 4.1.18
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.7
+        version: 6.4.1(@types/node@22.19.10)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)
+
   apps/server:
     dependencies:
       '@a4/shared-schemas':
