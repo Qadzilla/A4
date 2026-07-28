@@ -186,7 +186,7 @@ Same build-unit discipline as Phase 6. Both pillars at full depth, honestly esti
 |---|---|
 | Old product during pivot | ✅ **RESOLVED: Freeze entirely.** P1 deletes the SMB surface from `main`; the old product survives in git history only. |
 | Brand direction | ✅ **RESOLVED: Basis × Keel blend, light-mode-first.** Data-forward precision with calm restraint; the product's primary theme is light (paper-white ground), with dark as the secondary theme. Working name still open — candidates carry into P0 name clearance. |
-| Brokerage provider | 🔎 **Research pass commissioned** (SnapTrade vs Plaid Investments vs statements-only; Robinhood + Coinbase coverage weighted highest). Final pick due by P3 start. |
+| Brokerage provider | 🔎 **Research complete — recommendation: SnapTrade** (free ≤5 connections, then $1/user/mo; best Robinhood/Webull/Coinbase coverage; same-day self-serve) **plus statement upload as universal fallback**. Full findings: [A4_PIVOT_BROKERAGE_RESEARCH.md](./A4_PIVOT_BROKERAGE_RESEARCH.md). Awaiting your confirmation — due by P3 start. |
 | AI persona | ✅ **RESOLVED: New persona, designed from the chosen brand's voice at P5.** Paige retires with the old brand. |
 | Legal review scheduling | ⏳ Open — needed before P6 ships. |
 
