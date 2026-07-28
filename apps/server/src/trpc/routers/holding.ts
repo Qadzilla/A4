@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { holdings } from '../../db/schema';
+import { computeBenchmark } from '../../services/benchmark';
 import { protectedProcedure, router } from '../trpc';
 
 export const holdingRouter = router({
@@ -14,6 +15,22 @@ export const holdingRouter = router({
         .from(holdings)
         .where(and(eq(holdings.workspaceId, input.workspaceId), eq(holdings.userId, ctx.userId)))
         .orderBy(holdings.symbol);
+    }),
+
+  /**
+   * Same-dollars, same-dates S&P 500 counterfactual over positions with a
+   * known cost basis + acquisition date. Null when nothing is comparable —
+   * the client shows an honest empty state instead of a fabricated number.
+   */
+  benchmark: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        return await computeBenchmark(ctx.db, ctx.polygon, ctx.userId, input.workspaceId);
+      } catch (err) {
+        console.warn('[benchmark] computation failed:', err);
+        return null; // market data unavailable — degrade, don't error the surface
+      }
     }),
 
   create: protectedProcedure.input(createHoldingSchema).mutation(async ({ ctx, input }) => {

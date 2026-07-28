@@ -28,7 +28,7 @@ function createTestDb() {
     CREATE TABLE holdings (
       id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
       symbol TEXT NOT NULL, name TEXT NOT NULL, value REAL NOT NULL, target_pct REAL NOT NULL,
-      quantity REAL, cost_basis REAL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      quantity REAL, cost_basis REAL, acquired_at TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     );
     CREATE TABLE accounts (
       id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
@@ -71,8 +71,22 @@ function mockImport(result: object, tokens = { input: 2000, output: 400 }) {
 const FIDELITY_RESULT = {
   institution: 'Fidelity',
   positions: [
-    { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', value: 4500, quantity: 10, costBasis: 4000 },
-    { symbol: 'aapl', name: 'Apple Inc', value: 1500, quantity: 8, costBasis: null },
+    {
+      symbol: 'VOO',
+      name: 'Vanguard S&P 500 ETF',
+      value: 4500,
+      quantity: 10,
+      costBasis: 4000,
+      acquiredAt: '2025-03-10',
+    },
+    {
+      symbol: 'aapl',
+      name: 'Apple Inc',
+      value: 1500,
+      quantity: 8,
+      costBasis: null,
+      acquiredAt: null,
+    },
   ],
   cashBalance: 250.5,
 };
@@ -94,7 +108,13 @@ describe('importStatement', () => {
     const rows = await db.select().from(holdings);
     expect(rows).toHaveLength(2);
     const voo = rows.find((h) => h.symbol === 'VOO');
-    expect(voo).toMatchObject({ value: 4500, quantity: 10, costBasis: 4000, targetPct: 0 });
+    expect(voo).toMatchObject({
+      value: 4500,
+      quantity: 10,
+      costBasis: 4000,
+      targetPct: 0,
+      acquiredAt: '2025-03-10',
+    });
     // Symbols normalize to uppercase
     expect(rows.find((h) => h.symbol === 'AAPL')).toBeDefined();
 

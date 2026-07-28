@@ -118,6 +118,10 @@ The connective tissue and the product's voice. Grounded in real holdings, transa
 
 The quiet fourth surface: every uploaded statement, tax form, and confirmation — searchable by keyword, meaning, and visually ("the page with the cost basis table"), entity-linked, reconciled. Already ~fully built; it just needs a screen.
 
+### Benchmark engine — design (locked at P3)
+
+The "your picks vs the index" number is a **same-dollars, same-dates counterfactual**, not a time-weighted index return: for every position with a known cost basis and acquisition date, compute `costBasis × (SPY_today / SPY_at_acquisition)` using cached daily closes, and sum. Positions missing basis or date are excluded and surfaced as a coverage percentage — the number is never fabricated from partial data. Statement imports capture the earliest lot date per position; true lot-level granularity arrives with brokerage-API history (SnapTrade). Live prices use per-symbol snapshots (60s refresh) with quantity-known positions revalued live; everything degrades to stored values when market data is unavailable.
+
 ### What v1 does NOT include
 
 Options/crypto analytics beyond basic holdings, tax *filing* (we estimate and prepare the picture; filing partners come later), social features, the canvas, multi-workspace, teams, direct trading (never — we are the antidote, not another venue).

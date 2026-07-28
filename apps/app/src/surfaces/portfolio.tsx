@@ -1,11 +1,13 @@
 import { useTRPC } from '@/lib/trpc';
 import { useSpaceId } from '@/surfaces/layout';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, Upload } from 'lucide-react';
 import { Link } from 'react-router';
 
 const usd = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+
+const LIVE_REFRESH_MS = 60_000;
 
 export function PortfolioSurface() {
   const trpc = useTRPC();
@@ -21,6 +23,35 @@ export function PortfolioSurface() {
     trpc.account.list.queryOptions({ workspaceId: spaceId }),
   );
 
+  // Live quotes: one snapshot per symbol, refreshed every minute. Failures
+  // (crypto tickers, closed markets, missing key) degrade to stored values.
+  const snapshotResults = useQueries({
+    queries: holdings.map((h) => ({
+      ...trpc.marketData.getSnapshot.queryOptions({ symbol: h.symbol }),
+      refetchInterval: LIVE_REFRESH_MS,
+      staleTime: LIVE_REFRESH_MS / 2,
+      retry: 0,
+    })),
+  });
+  const livePrice = new Map<string, { price: number; changePct: number }>();
+  holdings.forEach((h, i) => {
+    const snap = snapshotResults[i]?.data;
+    const price = snap?.lastTrade?.price ?? snap?.day?.close ?? snap?.prevDay?.close;
+    if (price && price > 0) {
+      livePrice.set(h.symbol, { price, changePct: snap?.todaysChangePerc ?? 0 });
+    }
+  });
+  /** Live value when we know the share count; stored value otherwise. */
+  const liveValue = (h: (typeof holdings)[number]) => {
+    const quote = livePrice.get(h.symbol);
+    return h.quantity && quote ? h.quantity * quote.price : h.value;
+  };
+
+  const { data: benchmark } = useQuery({
+    ...trpc.holding.benchmark.queryOptions({ workspaceId: spaceId }),
+    staleTime: 5 * 60_000,
+  });
+
   // Dedup rule: investment-container accounts (a brokerage account holding
   // the same positions as the holdings list) are excluded from the cash sum —
   // positions are counted once, in holdings. Imported statements create
@@ -29,15 +60,16 @@ export function PortfolioSurface() {
   const cashAccounts = accounts.filter((a) => !INVESTMENT_CONTAINER_TYPES.has(a.type));
   const containerAccounts = accounts.filter((a) => INVESTMENT_CONTAINER_TYPES.has(a.type));
 
-  const holdingsTotal = holdings.reduce((s, h) => s + h.value, 0);
+  const holdingsTotal = holdings.reduce((s, h) => s + liveValue(h), 0);
   const cashTotal = cashAccounts.reduce((s, a) => s + a.balance, 0);
   const total = holdingsTotal + cashTotal;
+  const isLive = livePrice.size > 0;
   // Unrealized P/L only over positions whose cost basis is actually known —
   // mixing basis-known and basis-unknown positions would fabricate a gain
   const basisKnown = holdings.filter((h) => h.costBasis !== null && h.costBasis !== undefined);
   const unrealized =
     basisKnown.length > 0
-      ? basisKnown.reduce((s, h) => s + (h.value - (h.costBasis ?? 0)), 0)
+      ? basisKnown.reduce((s, h) => s + (liveValue(h) - (h.costBasis ?? 0)), 0)
       : null;
   const unrealizedPartial = basisKnown.length > 0 && basisKnown.length < holdings.length;
   const isLoading = holdingsLoading || accountsLoading;
@@ -74,7 +106,15 @@ export function PortfolioSurface() {
         <EmptyPortfolio />
       ) : (
         <>
-          <h1 className="tnum mb-1 font-mono text-4xl font-bold tracking-tight">{usd(total)}</h1>
+          <h1 className="tnum mb-1 flex items-center gap-3 font-mono text-4xl font-bold tracking-tight">
+            {usd(total)}
+            {isLive && (
+              <span className="flex items-center gap-1.5 rounded-full border border-hairline px-2 py-0.5">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" />
+                <span className="eyebrow">Live</span>
+              </span>
+            )}
+          </h1>
           <p className="mb-10 text-sm text-muted">
             {usd(holdingsTotal)} invested · {usd(cashTotal)} cash
             {unrealized !== null && (
@@ -86,13 +126,53 @@ export function PortfolioSurface() {
             )}
           </p>
 
+          {benchmark && (
+            <section className="mb-10">
+              <h2 className="eyebrow mb-3">vs S&amp;P 500</h2>
+              <div className="rounded-card border border-hairline bg-surface p-5">
+                <div className="mb-3 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="eyebrow mb-1">Your picks</p>
+                    <p className="tnum font-mono text-xl font-bold">{usd(benchmark.actualValue)}</p>
+                  </div>
+                  <div>
+                    <p className="eyebrow mb-1">Same dollars in SPY, same dates</p>
+                    <p className="tnum font-mono text-xl font-bold text-muted">
+                      {usd(benchmark.counterfactualValue)}
+                    </p>
+                  </div>
+                </div>
+                {(() => {
+                  const diff = benchmark.actualValue - benchmark.counterfactualValue;
+                  const ahead = diff >= 0;
+                  return (
+                    <p className="text-sm">
+                      <span className={ahead ? 'text-good' : 'text-bad'}>
+                        {ahead ? "You're ahead by " : "You're behind by "}
+                        {usd(Math.abs(diff))}
+                      </span>
+                      <span className="text-muted">
+                        {' '}
+                        on {usd(benchmark.invested)} invested
+                        {benchmark.coverage < 0.95 &&
+                          ` · covers ${Math.round(benchmark.coverage * 100)}% of your holdings (dated positions only)`}
+                      </span>
+                    </p>
+                  );
+                })()}
+              </div>
+            </section>
+          )}
+
           {holdings.length > 0 && (
             <section className="mb-10">
               <h2 className="eyebrow mb-3">Holdings</h2>
               <div className="overflow-hidden rounded-card border border-hairline bg-surface">
                 {holdings.map((h, i) => {
-                  const pct = holdingsTotal > 0 ? (h.value / holdingsTotal) * 100 : 0;
+                  const value = liveValue(h);
+                  const pct = holdingsTotal > 0 ? (value / holdingsTotal) * 100 : 0;
                   const drift = h.targetPct > 0 ? pct - h.targetPct : null;
+                  const quote = livePrice.get(h.symbol);
                   return (
                     <div
                       key={h.id}
@@ -103,9 +183,21 @@ export function PortfolioSurface() {
                       <div>
                         <span className="font-mono text-sm font-semibold">{h.symbol}</span>
                         <span className="ml-2 text-xs text-muted">{h.name}</span>
+                        {quote && (
+                          <div className="tnum mt-0.5 font-mono text-xs text-muted">
+                            {usd(quote.price)}
+                            {quote.changePct !== 0 && (
+                              <span className={quote.changePct > 0 ? 'text-good' : 'text-bad'}>
+                                {' '}
+                                {quote.changePct > 0 ? '+' : ''}
+                                {quote.changePct.toFixed(2)}% today
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
-                        <div className="tnum font-mono text-sm">{usd(h.value)}</div>
+                        <div className="tnum font-mono text-sm">{usd(value)}</div>
                         <div className="tnum text-xs text-muted">
                           {pct.toFixed(1)}%
                           {drift !== null && Math.abs(drift) > 5 && (

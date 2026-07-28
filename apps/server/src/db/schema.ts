@@ -154,6 +154,7 @@ export const holdings = sqliteTable('holdings', {
   targetPct: real('target_pct').notNull(),
   quantity: real('quantity'), // shares/units, when known (statement import)
   costBasis: real('cost_basis'), // total cost of the position, when known
+  acquiredAt: text('acquired_at'), // YYYY-MM-DD acquisition date, when known — powers the benchmark
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),

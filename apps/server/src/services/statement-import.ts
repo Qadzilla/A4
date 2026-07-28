@@ -31,6 +31,7 @@ const importResultSchema = z.object({
       value: z.number().nonnegative(),
       quantity: z.number().positive().nullable(),
       costBasis: z.number().nonnegative().nullable(),
+      acquiredAt: z.string().nullable(),
     }),
   ),
   cashBalance: z.number().nullable(),
@@ -41,6 +42,7 @@ const IMPORT_SYSTEM_PROMPT = `You extract portfolio positions from brokerage sta
 Rules:
 - Extract each position once: ticker symbol (uppercase), security name, current market value.
 - Include quantity (shares/units) and total cost basis when the statement shows them; otherwise null.
+- acquiredAt is the acquisition/purchase date (YYYY-MM-DD) when the statement shows one; for multiple lots use the earliest; otherwise null.
 - cashBalance is the cash/sweep/money-market balance only — never the total account value.
 - institution is the brokerage name (e.g. "Fidelity", "Robinhood"); null if unclear.
 - Do not invent positions. If the document is not a brokerage statement, return an empty positions array.`;
@@ -59,8 +61,9 @@ const IMPORT_OUTPUT_SCHEMA = {
           value: { type: 'number' },
           quantity: { type: ['number', 'null'] },
           costBasis: { type: ['number', 'null'] },
+          acquiredAt: { type: ['string', 'null'], description: 'YYYY-MM-DD' },
         },
-        required: ['symbol', 'name', 'value', 'quantity', 'costBasis'],
+        required: ['symbol', 'name', 'value', 'quantity', 'costBasis', 'acquiredAt'],
       },
     },
     cashBalance: { type: ['number', 'null'] },
@@ -105,6 +108,7 @@ export async function importStatement(payload: unknown, db: DB): Promise<void> {
   }
   const result = parsed.data;
   const now = new Date();
+  const validDate = (d: string | null) => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null);
 
   // Upsert holdings by symbol
   for (const position of result.positions) {
@@ -128,6 +132,7 @@ export async function importStatement(payload: unknown, db: DB): Promise<void> {
           value: position.value,
           quantity: position.quantity,
           costBasis: position.costBasis,
+          acquiredAt: validDate(position.acquiredAt),
           updatedAt: now,
         })
         .where(eq(holdings.id, existing.id));
@@ -142,6 +147,7 @@ export async function importStatement(payload: unknown, db: DB): Promise<void> {
         targetPct: 0,
         quantity: position.quantity,
         costBasis: position.costBasis,
+        acquiredAt: validDate(position.acquiredAt),
         createdAt: now,
         updatedAt: now,
       });
