@@ -158,6 +158,8 @@ function createTestDb() {
       name TEXT NOT NULL,
       value REAL NOT NULL,
       target_pct REAL NOT NULL,
+      quantity REAL,
+      cost_basis REAL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -249,19 +251,17 @@ function insertAccount(
     workspaceId = 'ws-1',
     userId = 'user-1',
   } = overrides;
-  return db
-    .insert(schema.accounts)
-    .values({
-      id,
-      name,
-      institution,
-      type,
-      balance,
-      workspaceId,
-      userId,
-      createdAt: new Date(NOW),
-      updatedAt: new Date(NOW),
-    });
+  return db.insert(schema.accounts).values({
+    id,
+    name,
+    institution,
+    type,
+    balance,
+    workspaceId,
+    userId,
+    createdAt: new Date(NOW),
+    updatedAt: new Date(NOW),
+  });
 }
 
 function insertHolding(
@@ -285,19 +285,17 @@ function insertHolding(
     workspaceId = 'ws-1',
     userId = 'user-1',
   } = overrides;
-  return db
-    .insert(schema.holdings)
-    .values({
-      id,
-      symbol,
-      name,
-      value,
-      targetPct,
-      workspaceId,
-      userId,
-      createdAt: new Date(NOW),
-      updatedAt: new Date(NOW),
-    });
+  return db.insert(schema.holdings).values({
+    id,
+    symbol,
+    name,
+    value,
+    targetPct,
+    workspaceId,
+    userId,
+    createdAt: new Date(NOW),
+    updatedAt: new Date(NOW),
+  });
 }
 
 function insertMarketBar(
@@ -323,20 +321,18 @@ function insertMarketBar(
     close = 183,
     volume = 50000000,
   } = overrides;
-  return db
-    .insert(schema.marketBars)
-    .values({
-      symbol,
-      timespan,
-      multiplier: 1,
-      timestamp,
-      open,
-      high,
-      low,
-      close,
-      volume,
-      cachedAt: NOW,
-    });
+  return db.insert(schema.marketBars).values({
+    symbol,
+    timespan,
+    multiplier: 1,
+    timestamp,
+    open,
+    high,
+    low,
+    close,
+    volume,
+    cachedAt: NOW,
+  });
 }
 
 function ctx(db: TestDb, overrides: Partial<ToolContext> = {}): ToolContext {

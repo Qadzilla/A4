@@ -72,6 +72,8 @@ function createTestDb() {
       name TEXT NOT NULL,
       value REAL NOT NULL,
       target_pct REAL NOT NULL,
+      quantity REAL,
+      cost_basis REAL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -722,28 +724,26 @@ describe('insights.list — score-based ordering', () => {
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
 
-    await db
-      .insert(workspaceInsights)
-      .values([
-        makeInsight({
-          id: 'info-old',
-          severity: 'info',
-          type: 'subscription_spike',
-          createdAt: fiveDaysAgo,
-        }),
-        makeInsight({
-          id: 'crit-recent',
-          severity: 'critical',
-          type: 'low_cash',
-          createdAt: recent,
-        }),
-        makeInsight({
-          id: 'warn-mid',
-          severity: 'warning',
-          type: 'budget_overspend',
-          createdAt: twoDaysAgo,
-        }),
-      ]);
+    await db.insert(workspaceInsights).values([
+      makeInsight({
+        id: 'info-old',
+        severity: 'info',
+        type: 'subscription_spike',
+        createdAt: fiveDaysAgo,
+      }),
+      makeInsight({
+        id: 'crit-recent',
+        severity: 'critical',
+        type: 'low_cash',
+        createdAt: recent,
+      }),
+      makeInsight({
+        id: 'warn-mid',
+        severity: 'warning',
+        type: 'budget_overspend',
+        createdAt: twoDaysAgo,
+      }),
+    ]);
 
     const conditions = [
       eq(workspaceInsights.userId, USER_ID),

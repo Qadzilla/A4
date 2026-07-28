@@ -21,9 +21,25 @@ export function PortfolioSurface() {
     trpc.account.list.queryOptions({ workspaceId: spaceId }),
   );
 
+  // Dedup rule: investment-container accounts (a brokerage account holding
+  // the same positions as the holdings list) are excluded from the cash sum —
+  // positions are counted once, in holdings. Imported statements create
+  // 'brokerage-cash' accounts carrying the cash sweep only, which DO count.
+  const INVESTMENT_CONTAINER_TYPES = new Set(['brokerage', 'investment', 'retirement']);
+  const cashAccounts = accounts.filter((a) => !INVESTMENT_CONTAINER_TYPES.has(a.type));
+  const containerAccounts = accounts.filter((a) => INVESTMENT_CONTAINER_TYPES.has(a.type));
+
   const holdingsTotal = holdings.reduce((s, h) => s + h.value, 0);
-  const cashTotal = accounts.reduce((s, a) => s + a.balance, 0);
+  const cashTotal = cashAccounts.reduce((s, a) => s + a.balance, 0);
   const total = holdingsTotal + cashTotal;
+  // Unrealized P/L only over positions whose cost basis is actually known —
+  // mixing basis-known and basis-unknown positions would fabricate a gain
+  const basisKnown = holdings.filter((h) => h.costBasis !== null && h.costBasis !== undefined);
+  const unrealized =
+    basisKnown.length > 0
+      ? basisKnown.reduce((s, h) => s + (h.value - (h.costBasis ?? 0)), 0)
+      : null;
+  const unrealizedPartial = basisKnown.length > 0 && basisKnown.length < holdings.length;
   const isLoading = holdingsLoading || accountsLoading;
   const isEmpty = !isLoading && holdings.length === 0 && accounts.length === 0;
 
@@ -59,10 +75,15 @@ export function PortfolioSurface() {
       ) : (
         <>
           <h1 className="tnum mb-1 font-mono text-4xl font-bold tracking-tight">{usd(total)}</h1>
-          {/* P3 note: accounts can overlap holdings (a brokerage account holding
-              the same positions) — proper dedup arrives with the import flow */}
           <p className="mb-10 text-sm text-muted">
-            {usd(holdingsTotal)} in holdings · {usd(cashTotal)} across accounts
+            {usd(holdingsTotal)} invested · {usd(cashTotal)} cash
+            {unrealized !== null && (
+              <span className={unrealized >= 0 ? 'text-good' : 'text-bad'}>
+                {' · '}
+                {unrealized >= 0 ? '+' : ''}
+                {usd(unrealized)} unrealized{unrealizedPartial ? ' (imported positions)' : ''}
+              </span>
+            )}
           </p>
 
           {holdings.length > 0 && (
@@ -103,11 +124,11 @@ export function PortfolioSurface() {
             </section>
           )}
 
-          {accounts.length > 0 && (
+          {cashAccounts.length > 0 && (
             <section>
-              <h2 className="eyebrow mb-3">Accounts</h2>
+              <h2 className="eyebrow mb-3">Cash &amp; accounts</h2>
               <div className="overflow-hidden rounded-card border border-hairline bg-surface">
-                {accounts.map((a, i) => (
+                {cashAccounts.map((a, i) => (
                   <div
                     key={a.id}
                     className={`flex items-center justify-between px-4 py-3 ${
@@ -121,6 +142,34 @@ export function PortfolioSurface() {
                       </span>
                     </div>
                     <span className="tnum font-mono text-sm">{usd(a.balance)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {containerAccounts.length > 0 && (
+            <section className="mt-10">
+              <h2 className="eyebrow mb-3">Investment accounts</h2>
+              <p className="mb-3 text-xs text-muted">
+                These hold the positions listed above — excluded from totals so nothing counts
+                twice.
+              </p>
+              <div className="overflow-hidden rounded-card border border-hairline bg-surface opacity-80">
+                {containerAccounts.map((a, i) => (
+                  <div
+                    key={a.id}
+                    className={`flex items-center justify-between px-4 py-3 ${
+                      i > 0 ? 'border-t border-hairline' : ''
+                    }`}
+                  >
+                    <div>
+                      <span className="text-sm font-medium">{a.name}</span>
+                      <span className="ml-2 text-xs text-muted">
+                        {a.institution} · {a.type}
+                      </span>
+                    </div>
+                    <span className="tnum font-mono text-sm text-muted">{usd(a.balance)}</span>
                   </div>
                 ))}
               </div>

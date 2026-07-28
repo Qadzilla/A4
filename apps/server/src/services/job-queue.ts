@@ -10,6 +10,7 @@ export const JOB_TYPES = {
   resolveEntities: 'resolve-entities',
   linkStructured: 'link-structured',
   embedPages: 'embed-pages',
+  importStatement: 'import-statement',
 } as const;
 
 export type ProcessOutcome = 'idle' | 'done' | 'retried' | 'failed';

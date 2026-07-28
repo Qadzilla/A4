@@ -58,6 +58,8 @@ function createTestDb() {
       name TEXT NOT NULL,
       value REAL NOT NULL,
       target_pct REAL NOT NULL,
+      quantity REAL,
+      cost_basis REAL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );

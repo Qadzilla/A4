@@ -139,6 +139,14 @@ filesRouter.post('/upload', (req, res, next) => {
         mimeType: file.mimetype,
       });
 
+      // Optional holdings import — the client opts in per upload
+      if (req.body.importHoldings === '1') {
+        const { enqueueJob, JOB_TYPES } = await import('../services/job-queue');
+        await enqueueJob(JOB_TYPES.importStatement, { fileId }, { db, maxAttempts: 2 }).catch(
+          (err) => console.error(`[import] Failed to enqueue for ${fileId}:`, err),
+        );
+      }
+
       // Fire-and-forget background embedding for text-extractable files
       if (EMBEDDABLE_MIME_TYPES.has(file.mimetype)) {
         lazyEmbedFile()

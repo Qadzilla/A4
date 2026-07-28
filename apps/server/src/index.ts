@@ -273,6 +273,7 @@ if (env.NODE_ENV !== 'test') {
   import('./services/entity-resolution').then((m) => m.registerEntityResolutionHandler());
   import('./services/entity-linking').then((m) => m.registerEntityLinkingHandler());
   import('./services/page-embedding').then((m) => m.registerPageEmbeddingHandler());
+  import('./services/statement-import').then((m) => m.registerStatementImportHandler());
   startJobWorker();
 }
 

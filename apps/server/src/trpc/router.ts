@@ -4,6 +4,7 @@ import { categorizationRuleRouter } from './routers/categorization-rule';
 import { categoryRouter } from './routers/category';
 import { chatRouter } from './routers/chat';
 import { entityRouter } from './routers/entity';
+import { fileRouter } from './routers/file';
 import { financialRouter } from './routers/financial';
 import { healthRouter } from './routers/health';
 import { holdingRouter } from './routers/holding';
@@ -19,6 +20,7 @@ export const appRouter = router({
   category: categoryRouter,
   chat: chatRouter,
   entity: entityRouter,
+  file: fileRouter,
   financial: financialRouter,
   health: healthRouter,
   holding: holdingRouter,

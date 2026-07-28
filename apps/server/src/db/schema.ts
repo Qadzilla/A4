@@ -152,6 +152,8 @@ export const holdings = sqliteTable('holdings', {
   name: text('name').notNull(),
   value: real('value').notNull(),
   targetPct: real('target_pct').notNull(),
+  quantity: real('quantity'), // shares/units, when known (statement import)
+  costBasis: real('cost_basis'), // total cost of the position, when known
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),
