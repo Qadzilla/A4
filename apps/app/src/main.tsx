@@ -11,3 +11,12 @@ createRoot(root).render(
     <App />
   </StrictMode>,
 );
+
+// PWA: production only — a caching worker in dev fights HMR
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Offline support is progressive enhancement; failure is non-fatal
+    });
+  });
+}

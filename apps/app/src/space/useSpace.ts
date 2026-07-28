@@ -8,12 +8,22 @@ import { useEffect, useRef } from 'react';
  * implicit space, created on first load. The workspaces table survives as
  * plumbing underneath (everything server-side is scoped by it).
  */
-export function useSpace(): { spaceId: string | null; isLoading: boolean } {
+export function useSpace(): {
+  spaceId: string | null;
+  isLoading: boolean;
+  isError: boolean;
+  retry: () => void;
+} {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const creatingRef = useRef(false);
 
-  const { data: workspaces, isLoading } = useQuery(trpc.workspace.list.queryOptions());
+  const {
+    data: workspaces,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery(trpc.workspace.list.queryOptions());
 
   const createMutation = useMutation(
     trpc.workspace.create.mutationOptions({
@@ -30,5 +40,10 @@ export function useSpace(): { spaceId: string | null; isLoading: boolean } {
     }
   }, [isLoading, workspaces, createMutation]);
 
-  return { spaceId, isLoading: isLoading || (workspaces?.length === 0 && !spaceId) };
+  return {
+    spaceId,
+    isLoading: isLoading || (workspaces?.length === 0 && !spaceId),
+    isError,
+    retry: () => void refetch(),
+  };
 }

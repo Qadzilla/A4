@@ -13,9 +13,16 @@ const SUGGESTIONS = [
 
 export function ChatSurface() {
   const spaceId = useSpaceId();
-  const { messages, sendMessage, isStreaming, error, toolActivity, startNewConversation } = useChat(
-    { spaceId },
-  );
+  const {
+    messages,
+    sendMessage,
+    isStreaming,
+    isLoadingConversation,
+    error,
+    retry,
+    toolActivity,
+    startNewConversation,
+  } = useChat({ spaceId });
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -45,7 +52,15 @@ export function ChatSurface() {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6">
         <div className="mx-auto max-w-2xl">
-          {messages.length === 0 && (
+          {isLoadingConversation && messages.length === 0 && (
+            <div className="mt-8 animate-pulse space-y-4">
+              <div className="ml-auto h-9 w-1/2 rounded-card bg-hairline/50" />
+              <div className="h-4 w-4/5 rounded-card bg-hairline/40" />
+              <div className="h-4 w-3/5 rounded-card bg-hairline/40" />
+            </div>
+          )}
+
+          {!isLoadingConversation && messages.length === 0 && (
             <div className="rise mt-8">
               <h1 className="mb-2 text-2xl font-bold tracking-tight">
                 Ask about your actual money.
@@ -100,8 +115,13 @@ export function ChatSurface() {
           )}
 
           {error && (
-            <div className="mb-4 rounded-card border border-bad/30 bg-bad-soft px-4 py-2.5 text-sm text-bad">
-              {error.message}
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-card border border-bad/30 bg-bad-soft px-4 py-2.5 text-sm text-bad">
+              <span>{error.message}</span>
+              {error.retryable && (
+                <button type="button" onClick={retry} className="shrink-0 font-semibold underline">
+                  Retry
+                </button>
+              )}
             </div>
           )}
         </div>

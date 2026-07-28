@@ -46,12 +46,36 @@ function NavItems({ variant }: { variant: 'rail' | 'tabs' }) {
 }
 
 export function Shell() {
-  const { spaceId, isLoading } = useSpace();
+  const { spaceId, isLoading, isError, retry } = useSpace();
+
+  if (isError) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <span className="font-mono text-[15px] font-bold tracking-tight">
+          {BRAND.name.toLowerCase()}
+          <span className="text-accent">.</span>
+        </span>
+        <p className="max-w-xs text-sm text-muted">
+          Can't reach the server right now. Check your connection and try again.
+        </p>
+        <button
+          type="button"
+          onClick={retry}
+          className="rounded-card border border-hairline bg-surface px-4 py-2 text-sm font-medium transition-colors hover:border-accent"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading || !spaceId) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
-        <span className="eyebrow">Loading…</span>
+        <span className="animate-pulse font-mono text-[15px] font-bold tracking-tight">
+          {BRAND.name.toLowerCase()}
+          <span className="text-accent">.</span>
+        </span>
       </div>
     );
   }

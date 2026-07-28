@@ -11,17 +11,44 @@ export function PortfolioSurface() {
   const trpc = useTRPC();
   const spaceId = useSpaceId();
 
-  const { data: holdings = [], isLoading: holdingsLoading } = useQuery(
-    trpc.holding.list.queryOptions({ workspaceId: spaceId }),
-  );
-  const { data: accounts = [] } = useQuery(
+  const {
+    data: holdings = [],
+    isLoading: holdingsLoading,
+    isError: holdingsError,
+    refetch,
+  } = useQuery(trpc.holding.list.queryOptions({ workspaceId: spaceId }));
+  const { data: accounts = [], isLoading: accountsLoading } = useQuery(
     trpc.account.list.queryOptions({ workspaceId: spaceId }),
   );
 
   const holdingsTotal = holdings.reduce((s, h) => s + h.value, 0);
   const cashTotal = accounts.reduce((s, a) => s + a.balance, 0);
   const total = holdingsTotal + cashTotal;
-  const isEmpty = !holdingsLoading && holdings.length === 0 && accounts.length === 0;
+  const isLoading = holdingsLoading || accountsLoading;
+  const isEmpty = !isLoading && holdings.length === 0 && accounts.length === 0;
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-3xl px-5 py-8 md:py-12">
+        <p className="eyebrow mb-1.5">Portfolio</p>
+        <PortfolioSkeleton />
+      </div>
+    );
+  }
+
+  if (holdingsError) {
+    return (
+      <div className="mx-auto max-w-3xl px-5 py-8 md:py-12">
+        <p className="eyebrow mb-1.5">Portfolio</p>
+        <div className="max-w-md rounded-card border border-bad/30 bg-bad-soft p-4 text-sm text-bad">
+          Couldn't load your portfolio.{' '}
+          <button type="button" onClick={() => void refetch()} className="font-semibold underline">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rise mx-auto max-w-3xl px-5 py-8 md:py-12">
@@ -101,6 +128,27 @@ export function PortfolioSurface() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function PortfolioSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="mb-2 h-10 w-56 rounded-card bg-hairline/60" />
+      <div className="mb-10 h-4 w-72 rounded-card bg-hairline/40" />
+      <div className="mb-3 h-3 w-20 rounded-card bg-hairline/40" />
+      <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className={`flex items-center justify-between px-4 py-3.5 ${i > 0 ? 'border-t border-hairline' : ''}`}
+          >
+            <div className="h-4 w-40 rounded-card bg-hairline/50" />
+            <div className="h-4 w-24 rounded-card bg-hairline/50" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -32,6 +32,7 @@ export function useChat({ spaceId }: { spaceId: string }) {
   const [toolActivity, setToolActivity] = useState<ToolActivity[]>([]);
 
   const abortRef = useRef<AbortController | null>(null);
+  const lastFailedRef = useRef<string | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const conversationQuery = useQuery({
@@ -96,6 +97,7 @@ export function useChat({ spaceId }: { spaceId: string }) {
         });
 
         if (!response.ok || !response.body) {
+          lastFailedRef.current = content;
           setError({
             message:
               response.status === 429
@@ -151,6 +153,7 @@ export function useChat({ spaceId }: { spaceId: string }) {
                 );
                 break;
               case 'error':
+                lastFailedRef.current = content;
                 setError({
                   message: (event.message as string) || 'Stream failed.',
                   retryable: true,
@@ -163,6 +166,7 @@ export function useChat({ spaceId }: { spaceId: string }) {
         }
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
+          lastFailedRef.current = content;
           setError({ message: 'Unable to connect. Check your connection.', retryable: true });
         }
       } finally {
@@ -186,12 +190,25 @@ export function useChat({ spaceId }: { spaceId: string }) {
     ],
   );
 
+  const retry = useCallback(() => {
+    const failed = lastFailedRef.current;
+    if (failed) {
+      lastFailedRef.current = null;
+      void sendMessage(failed);
+    }
+  }, [sendMessage]);
+
   return {
     messages: allMessages,
     sendMessage,
     isStreaming,
+    isLoadingConversation: !!conversationId && conversationQuery.isLoading,
     error,
+    retry,
     toolActivity,
-    startNewConversation: () => setConversationId(null),
+    startNewConversation: () => {
+      setConversationId(null);
+      setError(null);
+    },
   };
 }
