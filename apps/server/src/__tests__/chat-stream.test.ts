@@ -38,9 +38,21 @@ vi.mock('../services/ai-context', () => ({
 }));
 vi.mock('../services/ai-tools', () => ({
   getToolDefinitions: vi.fn().mockReturnValue([
-    { name: 'get_accounts', description: 'List accounts', input_schema: { type: 'object', properties: {}, required: [] } },
-    { name: 'get_budget', description: 'Get budget', input_schema: { type: 'object', properties: {}, required: [] } },
-    { name: 'create_canvas_item', description: 'Create item', input_schema: { type: 'object', properties: {}, required: [] } },
+    {
+      name: 'get_accounts',
+      description: 'List accounts',
+      input_schema: { type: 'object', properties: {}, required: [] },
+    },
+    {
+      name: 'get_budget',
+      description: 'Get budget',
+      input_schema: { type: 'object', properties: {}, required: [] },
+    },
+    {
+      name: 'create_canvas_item',
+      description: 'Create item',
+      input_schema: { type: 'object', properties: {}, required: [] },
+    },
   ]),
   executeTool: vi.fn(),
   safeExecuteTool: vi.fn(),
@@ -49,9 +61,9 @@ vi.mock('../services/ai-tools', () => ({
 const envRef = { devBypass: true };
 
 import { chatStreamRouter } from '../routes/chat-stream';
-import { AnthropicServiceError, streamChatCompletion } from '../services/anthropic';
-import { safeExecuteTool } from '../services/ai-tools';
 import { buildDocumentContext } from '../services/ai-context';
+import { safeExecuteTool } from '../services/ai-tools';
+import { AnthropicServiceError, streamChatCompletion } from '../services/anthropic';
 
 const mockBuildDocumentContext = buildDocumentContext as ReturnType<typeof vi.fn>;
 
@@ -122,7 +134,11 @@ async function* mockAnthropicStream(
     yield { type: 'content_block_delta', index: i, delta: { type: 'text_delta', text: texts[i] } };
     yield { type: 'content_block_stop', index: i };
   }
-  yield { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: usage.output_tokens } };
+  yield {
+    type: 'message_delta',
+    delta: { stop_reason: 'end_turn' },
+    usage: { output_tokens: usage.output_tokens },
+  };
   yield { type: 'message_stop' };
 }
 
@@ -160,7 +176,11 @@ async function* mockToolStream(
     blockIndex++;
   }
 
-  yield { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: usage.output_tokens } };
+  yield {
+    type: 'message_delta',
+    delta: { stop_reason: 'tool_use' },
+    usage: { output_tokens: usage.output_tokens },
+  };
   yield { type: 'message_stop' };
 }
 
@@ -382,11 +402,23 @@ describe('POST /api/chat/stream', () => {
     async function* slowStream() {
       yield { type: 'message_start', message: { usage: { input_tokens: 10 } } };
       yield { type: 'content_block_start', index: 0, content_block: { type: 'text' } };
-      yield { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Partial' } };
+      yield {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'text_delta', text: 'Partial' },
+      };
       await new Promise((resolve) => setTimeout(resolve, 500));
-      yield { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: ' response' } };
+      yield {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'text_delta', text: ' response' },
+      };
       yield { type: 'content_block_stop', index: 0 };
-      yield { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } };
+      yield {
+        type: 'message_delta',
+        delta: { stop_reason: 'end_turn' },
+        usage: { output_tokens: 5 },
+      };
       yield { type: 'message_stop' };
     }
 
@@ -448,7 +480,10 @@ describe('POST /api/chat/stream', () => {
 
     // Round 2: Claude responds with text
     mockStreamChatCompletion.mockResolvedValueOnce(
-      mockAnthropicStream(['You have a Checking account with $5,000.'], { input_tokens: 200, output_tokens: 40 }),
+      mockAnthropicStream(['You have a Checking account with $5,000.'], {
+        input_tokens: 200,
+        output_tokens: 40,
+      }),
     );
 
     const result = await postStream(port, { conversationId: 'conv-1' });
@@ -486,51 +521,6 @@ describe('POST /api/chat/stream', () => {
     expect(done!.usage.outputTokens).toBe(70);
   });
 
-  it('sends canvas_update for create_canvas_item', async () => {
-    await seedConversation();
-
-    mockStreamChatCompletion.mockResolvedValueOnce(
-      mockToolStream(
-        [{ id: 'tool-2', name: 'create_canvas_item', input: { type: 'budget-card' } }],
-        'Creating a budget card.',
-        { input_tokens: 100, output_tokens: 30 },
-      ),
-    );
-
-    mockExecuteTool.mockResolvedValueOnce({
-      result: {
-        id: 'item-1',
-        type: 'budget-card',
-        name: 'Budget',
-        x: 0,
-        y: 0,
-        width: 400,
-        height: 300,
-        _canvasUpdate: true,
-      },
-      isError: false,
-    });
-
-    mockStreamChatCompletion.mockResolvedValueOnce(
-      mockAnthropicStream(["I've created a budget card."], { input_tokens: 200, output_tokens: 30 }),
-    );
-
-    const result = await postStream(port, { conversationId: 'conv-1' });
-    const events = parseSSE(result.body);
-
-    // canvas_update event
-    const canvasUpdate = events.find((e) => e.type === 'canvas_update');
-    expect(canvasUpdate).toEqual({
-      type: 'canvas_update',
-      action: 'create',
-      item: { id: 'item-1', type: 'budget-card', name: 'Budget', x: 0, y: 0, width: 400, height: 300 },
-    });
-
-    // tool_result should NOT contain _canvasUpdate
-    const toolResult = events.find((e) => e.type === 'tool_result');
-    expect(toolResult!.result._canvasUpdate).toBeUndefined();
-  });
-
   it('handles multi-tool-call in single round', async () => {
     await seedConversation();
 
@@ -547,8 +537,14 @@ describe('POST /api/chat/stream', () => {
     );
 
     mockExecuteTool
-      .mockResolvedValueOnce({ result: { accounts: [{ id: 'a1', name: 'Savings', balance: 10000 }] }, isError: false })
-      .mockResolvedValueOnce({ result: { categories: [{ name: 'Food', budgeted: 500, actual: 420 }] }, isError: false });
+      .mockResolvedValueOnce({
+        result: { accounts: [{ id: 'a1', name: 'Savings', balance: 10000 }] },
+        isError: false,
+      })
+      .mockResolvedValueOnce({
+        result: { categories: [{ name: 'Food', budgeted: 500, actual: 420 }] },
+        isError: false,
+      });
 
     mockStreamChatCompletion.mockResolvedValueOnce(
       mockAnthropicStream(['Here is your summary.'], { input_tokens: 300, output_tokens: 50 }),
@@ -581,21 +577,19 @@ describe('POST /api/chat/stream', () => {
 
     // Round 1: get_accounts
     mockStreamChatCompletion.mockResolvedValueOnce(
-      mockToolStream(
-        [{ id: 'tool-r1', name: 'get_accounts', input: {} }],
-        '',
-        { input_tokens: 100, output_tokens: 20 },
-      ),
+      mockToolStream([{ id: 'tool-r1', name: 'get_accounts', input: {} }], '', {
+        input_tokens: 100,
+        output_tokens: 20,
+      }),
     );
     mockExecuteTool.mockResolvedValueOnce({ result: { accounts: [] }, isError: false });
 
     // Round 2: get_budget
     mockStreamChatCompletion.mockResolvedValueOnce(
-      mockToolStream(
-        [{ id: 'tool-r2', name: 'get_budget', input: {} }],
-        '',
-        { input_tokens: 200, output_tokens: 30 },
-      ),
+      mockToolStream([{ id: 'tool-r2', name: 'get_budget', input: {} }], '', {
+        input_tokens: 200,
+        output_tokens: 30,
+      }),
     );
     mockExecuteTool.mockResolvedValueOnce({ result: { categories: [] }, isError: false });
 
@@ -621,11 +615,10 @@ describe('POST /api/chat/stream', () => {
     // 11 streamChatCompletion calls (1 initial + 10 in loop), but only 10 executeTool calls
     for (let i = 0; i < 11; i++) {
       mockStreamChatCompletion.mockResolvedValueOnce(
-        mockToolStream(
-          [{ id: `tool-loop-${i}`, name: 'get_accounts', input: {} }],
-          '',
-          { input_tokens: 10, output_tokens: 5 },
-        ),
+        mockToolStream([{ id: `tool-loop-${i}`, name: 'get_accounts', input: {} }], '', {
+          input_tokens: 10,
+          output_tokens: 5,
+        }),
       );
     }
     for (let i = 0; i < 10; i++) {
@@ -648,13 +641,15 @@ describe('POST /api/chat/stream', () => {
     await seedConversation();
 
     mockStreamChatCompletion.mockResolvedValueOnce(
-      mockToolStream(
-        [{ id: 'tool-db', name: 'get_accounts', input: {} }],
-        'Checking...',
-        { input_tokens: 100, output_tokens: 30 },
-      ),
+      mockToolStream([{ id: 'tool-db', name: 'get_accounts', input: {} }], 'Checking...', {
+        input_tokens: 100,
+        output_tokens: 30,
+      }),
     );
-    mockExecuteTool.mockResolvedValueOnce({ result: { accounts: [{ id: 'a1', name: 'Main' }] }, isError: false });
+    mockExecuteTool.mockResolvedValueOnce({
+      result: { accounts: [{ id: 'a1', name: 'Main' }] },
+      isError: false,
+    });
 
     mockStreamChatCompletion.mockResolvedValueOnce(
       mockAnthropicStream(['You have one account.'], { input_tokens: 200, output_tokens: 40 }),
@@ -695,11 +690,10 @@ describe('POST /api/chat/stream', () => {
     await seedConversation();
 
     mockStreamChatCompletion.mockResolvedValueOnce(
-      mockToolStream(
-        [{ id: 'tool-t1', name: 'get_accounts', input: {} }],
-        '',
-        { input_tokens: 150, output_tokens: 25 },
-      ),
+      mockToolStream([{ id: 'tool-t1', name: 'get_accounts', input: {} }], '', {
+        input_tokens: 150,
+        output_tokens: 25,
+      }),
     );
     mockExecuteTool.mockResolvedValueOnce({ result: { accounts: [] }, isError: false });
 
@@ -721,11 +715,10 @@ describe('POST /api/chat/stream', () => {
     await seedConversation();
 
     mockStreamChatCompletion.mockResolvedValueOnce(
-      mockToolStream(
-        [{ id: 'tool-err', name: 'get_accounts', input: {} }],
-        'Checking...',
-        { input_tokens: 100, output_tokens: 30 },
-      ),
+      mockToolStream([{ id: 'tool-err', name: 'get_accounts', input: {} }], 'Checking...', {
+        input_tokens: 100,
+        output_tokens: 30,
+      }),
     );
 
     // Tool returns an error
@@ -736,7 +729,10 @@ describe('POST /api/chat/stream', () => {
 
     // Claude responds after getting error
     mockStreamChatCompletion.mockResolvedValueOnce(
-      mockAnthropicStream(["I couldn't fetch your accounts."], { input_tokens: 200, output_tokens: 40 }),
+      mockAnthropicStream(["I couldn't fetch your accounts."], {
+        input_tokens: 200,
+        output_tokens: 40,
+      }),
     );
 
     const result = await postStream(port, { conversationId: 'conv-1' });
@@ -767,16 +763,18 @@ describe('POST /api/chat/stream', () => {
 
     // Set up tool call that takes time
     mockStreamChatCompletion.mockResolvedValueOnce(
-      mockToolStream(
-        [{ id: 'tool-dc', name: 'get_accounts', input: {} }],
-        'Let me check.',
-        { input_tokens: 100, output_tokens: 30 },
-      ),
+      mockToolStream([{ id: 'tool-dc', name: 'get_accounts', input: {} }], 'Let me check.', {
+        input_tokens: 100,
+        output_tokens: 30,
+      }),
     );
 
     // Tool execution is slow
     mockExecuteTool.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ result: { accounts: [] }, isError: false }), 600)),
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ result: { accounts: [] }, isError: false }), 600),
+        ),
     );
 
     // Set up a second call in case it gets there
@@ -856,9 +854,19 @@ describe('POST /api/chat/stream', () => {
       await insertChunk();
       mockBuildDocumentContext.mockResolvedValueOnce({
         section: '## Relevant Documents\n\n[1] bank.pdf (relevance: 92%)\n> Transaction data',
-        citations: [{ index: 1, fileId: 'file-1', fileName: 'bank.pdf', chunkContent: 'Transaction data', score: 0.92 }],
+        citations: [
+          {
+            index: 1,
+            fileId: 'file-1',
+            fileName: 'bank.pdf',
+            chunkContent: 'Transaction data',
+            score: 0.92,
+          },
+        ],
       });
-      mockStreamChatCompletion.mockResolvedValueOnce(mockAnthropicStream(['Based on your bank statement...']));
+      mockStreamChatCompletion.mockResolvedValueOnce(
+        mockAnthropicStream(['Based on your bank statement...']),
+      );
 
       await postStream(port, { conversationId: 'conv-1' });
 
@@ -875,7 +883,9 @@ describe('POST /api/chat/stream', () => {
       await insertChunk();
       mockBuildDocumentContext.mockResolvedValueOnce({
         section: '## Relevant Documents\n\n[1] bank.pdf',
-        citations: [{ index: 1, fileId: 'file-1', fileName: 'bank.pdf', chunkContent: 'Data', score: 0.90 }],
+        citations: [
+          { index: 1, fileId: 'file-1', fileName: 'bank.pdf', chunkContent: 'Data', score: 0.9 },
+        ],
       });
       mockStreamChatCompletion.mockResolvedValueOnce(mockAnthropicStream(['Answer']));
 
@@ -891,7 +901,9 @@ describe('POST /api/chat/stream', () => {
     it('persists citations on assistant message', async () => {
       await seedConversation();
       await insertChunk();
-      const testCitations = [{ index: 1, fileId: 'file-1', fileName: 'bank.pdf', chunkContent: 'Data', score: 0.90 }];
+      const testCitations = [
+        { index: 1, fileId: 'file-1', fileName: 'bank.pdf', chunkContent: 'Data', score: 0.9 },
+      ];
       mockBuildDocumentContext.mockResolvedValueOnce({
         section: '## Relevant Documents\n\n[1] bank.pdf',
         citations: testCitations,

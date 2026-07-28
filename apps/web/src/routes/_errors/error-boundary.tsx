@@ -28,9 +28,7 @@ export default function ErrorBoundaryPage() {
             />
           </svg>
         </div>
-        <h1 className="mt-4 text-2xl font-semibold text-foreground">
-          Something went wrong
-        </h1>
+        <h1 className="mt-4 text-2xl font-semibold text-foreground">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           An error occurred while loading this page.
         </p>

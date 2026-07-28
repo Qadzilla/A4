@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { env, USE_R2 } from '../env';
+import { USE_R2, env } from '../env';
 
 export interface StorageBackend {
   put(key: string, buffer: Buffer, mimeType: string): Promise<void>;
@@ -45,9 +45,7 @@ class LocalStorageBackend implements StorageBackend {
 // ---------------------------------------------------------------------------
 
 class R2StorageBackend implements StorageBackend {
-  private clientPromise: Promise<
-    import('@aws-sdk/client-s3').S3Client
-  > | null = null;
+  private clientPromise: Promise<import('@aws-sdk/client-s3').S3Client> | null = null;
 
   private async getClient() {
     if (!this.clientPromise) {
@@ -109,6 +107,4 @@ class R2StorageBackend implements StorageBackend {
 // Singleton export
 // ---------------------------------------------------------------------------
 
-export const storage: StorageBackend = USE_R2
-  ? new R2StorageBackend()
-  : new LocalStorageBackend();
+export const storage: StorageBackend = USE_R2 ? new R2StorageBackend() : new LocalStorageBackend();

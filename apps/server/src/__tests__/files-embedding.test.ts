@@ -145,25 +145,19 @@ function postUpload(
   });
 }
 
-function httpDelete(
-  port: number,
-  path: string,
-): Promise<{ status: number; body: any }> {
+function httpDelete(port: number, path: string): Promise<{ status: number; body: any }> {
   return new Promise((resolve, reject) => {
-    const req = http.request(
-      { hostname: '127.0.0.1', port, path, method: 'DELETE' },
-      (res) => {
-        let data = '';
-        res.on('data', (chunk) => (data += chunk));
-        res.on('end', () => {
-          try {
-            resolve({ status: res.statusCode!, body: JSON.parse(data) });
-          } catch {
-            resolve({ status: res.statusCode!, body: data });
-          }
-        });
-      },
-    );
+    const req = http.request({ hostname: '127.0.0.1', port, path, method: 'DELETE' }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode!, body: JSON.parse(data) });
+        } catch {
+          resolve({ status: res.statusCode!, body: data });
+        }
+      });
+    });
     req.on('error', reject);
     req.end();
   });

@@ -140,11 +140,13 @@ describe('insights.list', () => {
     const t2 = new Date('2026-03-01T11:00:00Z');
     const t3 = new Date('2026-03-01T12:00:00Z');
 
-    await db.insert(workspaceInsights).values([
-      makeInsight({ id: 'a', severity: 'info', createdAt: t3 }),
-      makeInsight({ id: 'b', severity: 'critical', createdAt: t1 }),
-      makeInsight({ id: 'c', severity: 'warning', createdAt: t2 }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([
+        makeInsight({ id: 'a', severity: 'info', createdAt: t3 }),
+        makeInsight({ id: 'b', severity: 'critical', createdAt: t1 }),
+        makeInsight({ id: 'c', severity: 'warning', createdAt: t2 }),
+      ]);
 
     const conditions = [
       eq(workspaceInsights.userId, USER_ID),
@@ -152,7 +154,10 @@ describe('insights.list', () => {
       or(isNull(workspaceInsights.expiresAt), gt(workspaceInsights.expiresAt, new Date())),
     ];
 
-    const rows = await db.select().from(workspaceInsights).where(and(...conditions));
+    const rows = await db
+      .select()
+      .from(workspaceInsights)
+      .where(and(...conditions));
 
     rows.sort((a, b) => {
       const sa = severityOrder[a.severity] ?? 2;
@@ -168,11 +173,13 @@ describe('insights.list', () => {
   });
 
   it('filters by status', async () => {
-    await db.insert(workspaceInsights).values([
-      makeInsight({ id: 'a', status: 'active' }),
-      makeInsight({ id: 'b', status: 'dismissed' }),
-      makeInsight({ id: 'c', status: 'engaged' }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([
+        makeInsight({ id: 'a', status: 'active' }),
+        makeInsight({ id: 'b', status: 'dismissed' }),
+        makeInsight({ id: 'c', status: 'engaged' }),
+      ]);
 
     const rows = await db
       .select()
@@ -190,11 +197,13 @@ describe('insights.list', () => {
   });
 
   it('filters by type', async () => {
-    await db.insert(workspaceInsights).values([
-      makeInsight({ id: 'a', type: 'budget_overspend' }),
-      makeInsight({ id: 'b', type: 'low_cash' }),
-      makeInsight({ id: 'c', type: 'budget_overspend' }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([
+        makeInsight({ id: 'a', type: 'budget_overspend' }),
+        makeInsight({ id: 'b', type: 'low_cash' }),
+        makeInsight({ id: 'c', type: 'budget_overspend' }),
+      ]);
 
     const rows = await db
       .select()
@@ -214,11 +223,13 @@ describe('insights.list', () => {
     const past = new Date('2020-01-01T00:00:00Z');
     const future = new Date('2030-01-01T00:00:00Z');
 
-    await db.insert(workspaceInsights).values([
-      makeInsight({ id: 'a', expiresAt: past }),
-      makeInsight({ id: 'b', expiresAt: future }),
-      makeInsight({ id: 'c', expiresAt: null }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([
+        makeInsight({ id: 'a', expiresAt: past }),
+        makeInsight({ id: 'b', expiresAt: future }),
+        makeInsight({ id: 'c', expiresAt: null }),
+      ]);
 
     const rows = await db
       .select()
@@ -238,18 +249,13 @@ describe('insights.list', () => {
 
   it('returns parsed data objects', async () => {
     const dataObj = { categoryName: 'Dining', budgeted: 500, actual: 700, percentOver: 40 };
-    await db.insert(workspaceInsights).values(
-      makeInsight({ data: JSON.stringify(dataObj) }),
-    );
+    await db.insert(workspaceInsights).values(makeInsight({ data: JSON.stringify(dataObj) }));
 
     const rows = await db
       .select()
       .from(workspaceInsights)
       .where(
-        and(
-          eq(workspaceInsights.userId, USER_ID),
-          eq(workspaceInsights.workspaceId, WORKSPACE_ID),
-        ),
+        and(eq(workspaceInsights.userId, USER_ID), eq(workspaceInsights.workspaceId, WORKSPACE_ID)),
       );
 
     const mapped = rows.map((row) => ({
@@ -265,29 +271,22 @@ describe('insights.list', () => {
       .select()
       .from(workspaceInsights)
       .where(
-        and(
-          eq(workspaceInsights.userId, USER_ID),
-          eq(workspaceInsights.workspaceId, WORKSPACE_ID),
-        ),
+        and(eq(workspaceInsights.userId, USER_ID), eq(workspaceInsights.workspaceId, WORKSPACE_ID)),
       );
 
     expect(rows).toHaveLength(0);
   });
 
   it('scopes to authenticated user', async () => {
-    await db.insert(workspaceInsights).values([
-      makeInsight({ userId: USER_ID }),
-      makeInsight({ userId: OTHER_USER }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([makeInsight({ userId: USER_ID }), makeInsight({ userId: OTHER_USER })]);
 
     const rows = await db
       .select()
       .from(workspaceInsights)
       .where(
-        and(
-          eq(workspaceInsights.userId, USER_ID),
-          eq(workspaceInsights.workspaceId, WORKSPACE_ID),
-        ),
+        and(eq(workspaceInsights.userId, USER_ID), eq(workspaceInsights.workspaceId, WORKSPACE_ID)),
       );
 
     expect(rows).toHaveLength(1);
@@ -327,12 +326,7 @@ describe('insights.dismiss', () => {
     const [insight] = await db
       .select()
       .from(workspaceInsights)
-      .where(
-        and(
-          eq(workspaceInsights.id, 'nonexistent'),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
-      );
+      .where(and(eq(workspaceInsights.id, 'nonexistent'), eq(workspaceInsights.userId, USER_ID)));
 
     expect(insight).toBeUndefined();
   });
@@ -344,12 +338,7 @@ describe('insights.dismiss', () => {
     const [insight] = await db
       .select()
       .from(workspaceInsights)
-      .where(
-        and(
-          eq(workspaceInsights.id, id),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
-      );
+      .where(and(eq(workspaceInsights.id, id), eq(workspaceInsights.userId, USER_ID)));
 
     expect(insight).toBeUndefined();
   });
@@ -370,12 +359,7 @@ describe('insights.engage', () => {
     const [insight] = await db
       .select()
       .from(workspaceInsights)
-      .where(
-        and(
-          eq(workspaceInsights.id, insightId),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
-      );
+      .where(and(eq(workspaceInsights.id, insightId), eq(workspaceInsights.userId, USER_ID)));
 
     expect(insight).toBeDefined();
 
@@ -417,19 +401,14 @@ describe('insights.engage', () => {
     const insightId = crypto.randomUUID();
     const existingConvId = crypto.randomUUID();
 
-    await db.insert(workspaceInsights).values(
-      makeInsight({ id: insightId, status: 'engaged', conversationId: existingConvId }),
-    );
+    await db
+      .insert(workspaceInsights)
+      .values(makeInsight({ id: insightId, status: 'engaged', conversationId: existingConvId }));
 
     const [insight] = await db
       .select()
       .from(workspaceInsights)
-      .where(
-        and(
-          eq(workspaceInsights.id, insightId),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
-      );
+      .where(and(eq(workspaceInsights.id, insightId), eq(workspaceInsights.userId, USER_ID)));
 
     expect(insight).toBeDefined();
     expect(insight?.status).toBe('engaged');
@@ -444,12 +423,7 @@ describe('insights.engage', () => {
     const [insight] = await db
       .select()
       .from(workspaceInsights)
-      .where(
-        and(
-          eq(workspaceInsights.id, 'nonexistent'),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
-      );
+      .where(and(eq(workspaceInsights.id, 'nonexistent'), eq(workspaceInsights.userId, USER_ID)));
 
     expect(insight).toBeUndefined();
   });
@@ -463,18 +437,7 @@ describe('insights.generate', () => {
   });
 
   it('creates new insights from engine results', async () => {
-    // Seed budget data that will trigger budget_overspend analyzer
     const now = new Date();
-    await db.insert(schema.budgetCategories).values({
-      id: crypto.randomUUID(),
-      workspaceId: WORKSPACE_ID,
-      userId: USER_ID,
-      name: 'Dining',
-      budgeted: 500,
-      actual: 800,
-      createdAt: now,
-      updatedAt: now,
-    });
 
     // Seed low-cash account
     await db.insert(schema.accounts).values({
@@ -523,16 +486,6 @@ describe('insights.generate', () => {
 
   it('is idempotent — second call generates 0', async () => {
     const now = new Date();
-    await db.insert(schema.budgetCategories).values({
-      id: crypto.randomUUID(),
-      workspaceId: WORKSPACE_ID,
-      userId: USER_ID,
-      name: 'Dining',
-      budgeted: 500,
-      actual: 800,
-      createdAt: now,
-      updatedAt: now,
-    });
 
     const { generateInsights } = await import('../services/insight-engine');
 
@@ -575,8 +528,8 @@ describe('insights.getUnreadCount', () => {
       makeInsight({ status: 'active', expiresAt: null }),
       makeInsight({ status: 'active', expiresAt: future }),
       makeInsight({ status: 'active', expiresAt: past }), // expired — excluded
-      makeInsight({ status: 'dismissed' }),                // dismissed — excluded
-      makeInsight({ status: 'engaged' }),                  // engaged — excluded
+      makeInsight({ status: 'dismissed' }), // dismissed — excluded
+      makeInsight({ status: 'engaged' }), // engaged — excluded
     ]);
 
     const rows = await db
@@ -595,10 +548,9 @@ describe('insights.getUnreadCount', () => {
   });
 
   it('returns 0 when no active insights', async () => {
-    await db.insert(workspaceInsights).values([
-      makeInsight({ status: 'dismissed' }),
-      makeInsight({ status: 'engaged' }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([makeInsight({ status: 'dismissed' }), makeInsight({ status: 'engaged' })]);
 
     const rows = await db
       .select()
@@ -628,10 +580,7 @@ describe('insights.getLastGeneratedAt', () => {
       .select({ createdAt: workspaceInsights.createdAt })
       .from(workspaceInsights)
       .where(
-        and(
-          eq(workspaceInsights.workspaceId, WORKSPACE_ID),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
+        and(eq(workspaceInsights.workspaceId, WORKSPACE_ID), eq(workspaceInsights.userId, USER_ID)),
       )
       .orderBy(desc(workspaceInsights.createdAt))
       .limit(1);
@@ -646,20 +595,19 @@ describe('insights.getLastGeneratedAt', () => {
     const t2 = new Date('2026-03-01T11:00:00Z');
     const t3 = new Date('2026-03-01T12:00:00Z');
 
-    await db.insert(workspaceInsights).values([
-      makeInsight({ id: 'a', createdAt: t1 }),
-      makeInsight({ id: 'b', createdAt: t2 }),
-      makeInsight({ id: 'c', createdAt: t3 }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([
+        makeInsight({ id: 'a', createdAt: t1 }),
+        makeInsight({ id: 'b', createdAt: t2 }),
+        makeInsight({ id: 'c', createdAt: t3 }),
+      ]);
 
     const [latest] = await db
       .select({ createdAt: workspaceInsights.createdAt })
       .from(workspaceInsights)
       .where(
-        and(
-          eq(workspaceInsights.workspaceId, WORKSPACE_ID),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
+        and(eq(workspaceInsights.workspaceId, WORKSPACE_ID), eq(workspaceInsights.userId, USER_ID)),
       )
       .orderBy(desc(workspaceInsights.createdAt))
       .limit(1);
@@ -677,22 +625,21 @@ describe('insights.getEngagementStats', () => {
   });
 
   it('returns aggregate stats', async () => {
-    await db.insert(workspaceInsights).values([
-      makeInsight({ status: 'engaged' }),
-      makeInsight({ status: 'engaged' }),
-      makeInsight({ status: 'dismissed' }),
-      makeInsight({ status: 'dismissed' }),
-      makeInsight({ status: 'active' }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([
+        makeInsight({ status: 'engaged' }),
+        makeInsight({ status: 'engaged' }),
+        makeInsight({ status: 'dismissed' }),
+        makeInsight({ status: 'dismissed' }),
+        makeInsight({ status: 'active' }),
+      ]);
 
     const rows = await db
       .select()
       .from(workspaceInsights)
       .where(
-        and(
-          eq(workspaceInsights.workspaceId, WORKSPACE_ID),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
+        and(eq(workspaceInsights.workspaceId, WORKSPACE_ID), eq(workspaceInsights.userId, USER_ID)),
       );
 
     const total = rows.length;
@@ -707,25 +654,27 @@ describe('insights.getEngagementStats', () => {
   });
 
   it('returns per-type breakdown', async () => {
-    await db.insert(workspaceInsights).values([
-      makeInsight({ type: 'low_cash', status: 'engaged' }),
-      makeInsight({ type: 'low_cash', status: 'dismissed' }),
-      makeInsight({ type: 'budget_overspend', status: 'dismissed' }),
-      makeInsight({ type: 'budget_overspend', status: 'dismissed' }),
-      makeInsight({ type: 'budget_overspend', status: 'engaged' }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([
+        makeInsight({ type: 'low_cash', status: 'engaged' }),
+        makeInsight({ type: 'low_cash', status: 'dismissed' }),
+        makeInsight({ type: 'budget_overspend', status: 'dismissed' }),
+        makeInsight({ type: 'budget_overspend', status: 'dismissed' }),
+        makeInsight({ type: 'budget_overspend', status: 'engaged' }),
+      ]);
 
     const rows = await db
       .select()
       .from(workspaceInsights)
       .where(
-        and(
-          eq(workspaceInsights.workspaceId, WORKSPACE_ID),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
+        and(eq(workspaceInsights.workspaceId, WORKSPACE_ID), eq(workspaceInsights.userId, USER_ID)),
       );
 
-    const byType: Record<string, { generated: number; dismissed: number; engaged: number; rate: number }> = {};
+    const byType: Record<
+      string,
+      { generated: number; dismissed: number; engaged: number; rate: number }
+    > = {};
     for (const row of rows) {
       if (!byType[row.type]) byType[row.type] = { generated: 0, dismissed: 0, engaged: 0, rate: 0 };
       const entry = byType[row.type]!;
@@ -748,10 +697,7 @@ describe('insights.getEngagementStats', () => {
       .select()
       .from(workspaceInsights)
       .where(
-        and(
-          eq(workspaceInsights.workspaceId, WORKSPACE_ID),
-          eq(workspaceInsights.userId, USER_ID),
-        ),
+        and(eq(workspaceInsights.workspaceId, WORKSPACE_ID), eq(workspaceInsights.userId, USER_ID)),
       );
 
     const total = rows.length;
@@ -776,11 +722,28 @@ describe('insights.list — score-based ordering', () => {
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
 
-    await db.insert(workspaceInsights).values([
-      makeInsight({ id: 'info-old', severity: 'info', type: 'subscription_spike', createdAt: fiveDaysAgo }),
-      makeInsight({ id: 'crit-recent', severity: 'critical', type: 'low_cash', createdAt: recent }),
-      makeInsight({ id: 'warn-mid', severity: 'warning', type: 'budget_overspend', createdAt: twoDaysAgo }),
-    ]);
+    await db
+      .insert(workspaceInsights)
+      .values([
+        makeInsight({
+          id: 'info-old',
+          severity: 'info',
+          type: 'subscription_spike',
+          createdAt: fiveDaysAgo,
+        }),
+        makeInsight({
+          id: 'crit-recent',
+          severity: 'critical',
+          type: 'low_cash',
+          createdAt: recent,
+        }),
+        makeInsight({
+          id: 'warn-mid',
+          severity: 'warning',
+          type: 'budget_overspend',
+          createdAt: twoDaysAgo,
+        }),
+      ]);
 
     const conditions = [
       eq(workspaceInsights.userId, USER_ID),
@@ -788,7 +751,10 @@ describe('insights.list — score-based ordering', () => {
       or(isNull(workspaceInsights.expiresAt), gt(workspaceInsights.expiresAt, new Date())),
     ];
 
-    const rows = await db.select().from(workspaceInsights).where(and(...conditions));
+    const rows = await db
+      .select()
+      .from(workspaceInsights)
+      .where(and(...conditions));
     rows.sort((a, b) => scoreInsight(b) - scoreInsight(a));
 
     const mapped = rows.map((row) => ({

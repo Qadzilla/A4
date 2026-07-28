@@ -213,12 +213,7 @@ describe('getUsage query logic', () => {
       })
       .from(aiUsage)
       .innerJoin(conversations, eq(aiUsage.conversationId, conversations.id))
-      .where(
-        and(
-          eq(aiUsage.userId, 'user-1'),
-          eq(conversations.workspaceId, 'ws-1'),
-        ),
-      );
+      .where(and(eq(aiUsage.userId, 'user-1'), eq(conversations.workspaceId, 'ws-1')));
 
     expect(rows.length).toBe(1);
     expect(rows[0]!.inputTokens).toBe(1000);

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
 import { cn } from '@a4/ui';
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
 const TYPING_SPEED = 50;
 const DELETING_SPEED = 30;
@@ -86,7 +86,7 @@ export function HeroChatInput() {
     <div
       className={cn(
         'w-full max-w-3xl transition-all duration-300 relative z-10 mx-auto mt-12 mb-8',
-        isFocused ? 'scale-[1.02]' : 'scale-100'
+        isFocused ? 'scale-[1.02]' : 'scale-100',
       )}
     >
       <div
@@ -94,19 +94,17 @@ export function HeroChatInput() {
           'bg-[#161616] border rounded-3xl overflow-hidden transition-all duration-300 shadow-2xl relative',
           isFocused
             ? 'border-primary/50 ring-2 ring-primary/10 shadow-primary/5'
-            : 'border-white/10 hover:border-white/20'
+            : 'border-white/10 hover:border-white/20',
         )}
       >
         {/* Animated cursor blip */}
         <div className="absolute top-6 left-6 pointer-events-none flex items-center z-20">
-            <span className="text-lg font-medium text-white/90">
-                {text}
-            </span>
-            <motion.span
-              animate={{ opacity: [1, 0] }}
-              transition={{ repeat: Infinity, duration: 0.8 }}
-              className="w-[2px] h-6 bg-primary ml-1 block"
-            />
+          <span className="text-lg font-medium text-white/90">{text}</span>
+          <motion.span
+            animate={{ opacity: [1, 0] }}
+            transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8 }}
+            className="w-[2px] h-6 bg-primary ml-1 block"
+          />
         </div>
 
         {/* Text Area (Disabled since it's just visual) */}
@@ -130,12 +128,19 @@ export function HeroChatInput() {
               type="button"
               className={cn(
                 'relative z-10 flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors duration-300 flex items-center justify-center gap-1.5',
-                mode === 'project'
-                  ? 'text-white'
-                  : 'text-white/50 hover:text-white'
+                mode === 'project' ? 'text-white' : 'text-white/50 hover:text-white',
               )}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-3 h-3"
+              >
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               </svg>
               Project
@@ -144,12 +149,19 @@ export function HeroChatInput() {
               type="button"
               className={cn(
                 'relative z-10 flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors duration-300 flex items-center justify-center gap-1.5',
-                mode === 'quick'
-                  ? 'text-white'
-                  : 'text-white/50 hover:text-white'
+                mode === 'quick' ? 'text-white' : 'text-white/50 hover:text-white',
               )}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-3 h-3"
+              >
                 <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1-1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
               </svg>
               Analysis
@@ -163,10 +175,19 @@ export function HeroChatInput() {
               'w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm',
               text.length > 5
                 ? 'bg-primary text-black hover:scale-105'
-                : 'bg-white/10 text-white/30'
+                : 'bg-white/10 text-white/30',
             )}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-5 h-5"
+            >
               <path d="m5 12 7-7 7 7" />
               <path d="M12 19V5" />
             </svg>

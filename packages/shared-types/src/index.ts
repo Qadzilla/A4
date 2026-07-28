@@ -10,11 +10,9 @@ import type {
   createAccountSchema,
   createCategorySchema,
   createConversationSchema,
-  createFolderSchema,
   createTransactionSchema,
   createWorkspaceSchema,
   currencySchema,
-  folderSchema,
   messageRoleSchema,
   messageSchema,
   realtimeQuoteSchema,
@@ -31,7 +29,6 @@ import type {
   updateAccountGroupSchema,
   updateAccountSchema,
   updateCategorySchema,
-  updateFolderSchema,
   updateProfileSchema,
   updateTransactionSchema,
   updateWorkspaceSchema,
@@ -48,9 +45,6 @@ export type CreateWorkspace = z.infer<typeof createWorkspaceSchema>;
 export type UpdateWorkspace = z.infer<typeof updateWorkspaceSchema>;
 
 // Folder types
-export type Folder = z.infer<typeof folderSchema>;
-export type CreateFolder = z.infer<typeof createFolderSchema>;
-export type UpdateFolder = z.infer<typeof updateFolderSchema>;
 
 // Chat types
 export type Message = z.infer<typeof messageSchema>;

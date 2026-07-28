@@ -92,10 +92,7 @@ describe('embedFile', () => {
       { content: 'Hello world.', tokenCount: 3, chunkIndex: 0 },
       { content: 'This is a test.', tokenCount: 4, chunkIndex: 1 },
     ]);
-    mockEmbedTexts.mockResolvedValue([
-      new Float32Array([0.1, 0.2]),
-      new Float32Array([0.3, 0.4]),
-    ]);
+    mockEmbedTexts.mockResolvedValue([new Float32Array([0.1, 0.2]), new Float32Array([0.3, 0.4])]);
 
     const result = await embedFile('file-1', db);
 
@@ -138,9 +135,7 @@ describe('embedFile', () => {
     });
 
     mockExtractText.mockResolvedValue('New content here.');
-    mockChunkText.mockReturnValue([
-      { content: 'New content here.', tokenCount: 4, chunkIndex: 0 },
-    ]);
+    mockChunkText.mockReturnValue([{ content: 'New content here.', tokenCount: 4, chunkIndex: 0 }]);
     mockEmbedTexts.mockResolvedValue([new Float32Array([0.5, 0.6])]);
 
     const result = await embedFile('file-1', db);
@@ -157,9 +152,7 @@ describe('embedFile', () => {
 
   it('propagates embedding API failure', async () => {
     mockExtractText.mockResolvedValue('Some text.');
-    mockChunkText.mockReturnValue([
-      { content: 'Some text.', tokenCount: 3, chunkIndex: 0 },
-    ]);
+    mockChunkText.mockReturnValue([{ content: 'Some text.', tokenCount: 3, chunkIndex: 0 }]);
     mockEmbedTexts.mockRejectedValue(new Error('OpenAI API error'));
 
     await expect(embedFile('file-1', db)).rejects.toThrow('OpenAI API error');

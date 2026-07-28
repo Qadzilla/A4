@@ -68,9 +68,27 @@ describe('conversations table', () => {
     const now = new Date();
 
     await db.insert(conversations).values([
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', createdAt: now, updatedAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-2', createdAt: now, updatedAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', createdAt: now, updatedAt: now },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-2',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
 
     const user1Convos = await db
@@ -173,10 +191,38 @@ describe('messages table', () => {
     const t3 = new Date('2026-03-01T10:02:00Z');
 
     await db.insert(messages).values([
-      { id: 'msg-1', conversationId: 'conv-A', userId: 'user-1', role: 'user', content: 'Hello', createdAt: t1 },
-      { id: 'msg-2', conversationId: 'conv-A', userId: 'user-1', role: 'assistant', content: 'Hi there', createdAt: t2 },
-      { id: 'msg-3', conversationId: 'conv-A', userId: 'user-1', role: 'user', content: 'Thanks', createdAt: t3 },
-      { id: 'msg-4', conversationId: 'conv-B', userId: 'user-1', role: 'user', content: 'Other convo', createdAt: t1 },
+      {
+        id: 'msg-1',
+        conversationId: 'conv-A',
+        userId: 'user-1',
+        role: 'user',
+        content: 'Hello',
+        createdAt: t1,
+      },
+      {
+        id: 'msg-2',
+        conversationId: 'conv-A',
+        userId: 'user-1',
+        role: 'assistant',
+        content: 'Hi there',
+        createdAt: t2,
+      },
+      {
+        id: 'msg-3',
+        conversationId: 'conv-A',
+        userId: 'user-1',
+        role: 'user',
+        content: 'Thanks',
+        createdAt: t3,
+      },
+      {
+        id: 'msg-4',
+        conversationId: 'conv-B',
+        userId: 'user-1',
+        role: 'user',
+        content: 'Other convo',
+        createdAt: t1,
+      },
     ]);
 
     const convAMessages = await db
@@ -223,7 +269,9 @@ describe('messages table — tool columns', () => {
   it('stores an assistant message with toolCalls JSON', async () => {
     const id = crypto.randomUUID();
     const now = new Date();
-    const toolCallsJson = JSON.stringify([{ id: 'tc_1', name: 'query_data', input: { table: 'transactions' } }]);
+    const toolCallsJson = JSON.stringify([
+      { id: 'tc_1', name: 'query_data', input: { table: 'transactions' } },
+    ]);
 
     await db.insert(messages).values({
       id,
@@ -266,10 +314,40 @@ describe('messages table — tool columns', () => {
     const t4 = new Date('2026-03-01T10:03:00Z');
 
     await db.insert(messages).values([
-      { id: 'msg-1', conversationId: 'conv-T', userId: 'user-1', role: 'user', content: 'Query revenue', createdAt: t1 },
-      { id: 'msg-2', conversationId: 'conv-T', userId: 'user-1', role: 'assistant', content: '', toolCalls: '[{"id":"tc_1","name":"query"}]', createdAt: t2 },
-      { id: 'msg-3', conversationId: 'conv-T', userId: 'user-1', role: 'tool', content: '{"total":50000}', toolCallId: 'tc_1', createdAt: t3 },
-      { id: 'msg-4', conversationId: 'conv-T', userId: 'user-1', role: 'assistant', content: 'Revenue was $50k.', createdAt: t4 },
+      {
+        id: 'msg-1',
+        conversationId: 'conv-T',
+        userId: 'user-1',
+        role: 'user',
+        content: 'Query revenue',
+        createdAt: t1,
+      },
+      {
+        id: 'msg-2',
+        conversationId: 'conv-T',
+        userId: 'user-1',
+        role: 'assistant',
+        content: '',
+        toolCalls: '[{"id":"tc_1","name":"query"}]',
+        createdAt: t2,
+      },
+      {
+        id: 'msg-3',
+        conversationId: 'conv-T',
+        userId: 'user-1',
+        role: 'tool',
+        content: '{"total":50000}',
+        toolCallId: 'tc_1',
+        createdAt: t3,
+      },
+      {
+        id: 'msg-4',
+        conversationId: 'conv-T',
+        userId: 'user-1',
+        role: 'assistant',
+        content: 'Revenue was $50k.',
+        createdAt: t4,
+      },
     ]);
 
     const rows = await db

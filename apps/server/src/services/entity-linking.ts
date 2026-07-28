@@ -1,22 +1,13 @@
 import type { EntityType } from '@a4/shared-schemas';
 import { and, count, eq, inArray, isNull, ne } from 'drizzle-orm';
 import type { DB } from '../db';
-import {
-  accounts,
-  entities,
-  entityMentions,
-  invoices,
-  jobs,
-  receipts,
-  subscriptions,
-  transactions,
-} from '../db/schema';
+import { accounts, entities, entityMentions, jobs, transactions } from '../db/schema';
 import { cleanupMentionsForChunks, normalizeEntityName } from './entity-extraction';
 import { normalizeMerchantString } from './entity-resolution';
 import { JOB_TYPES, enqueueJob, registerJobHandler } from './job-queue';
 
 interface StructuredRow {
-  sourceType: 'transaction' | 'invoice' | 'receipt' | 'subscription' | 'account';
+  sourceType: 'transaction' | 'account';
   sourceId: string;
   name: string;
   entityType: EntityType;
@@ -48,33 +39,6 @@ async function collectStructuredRows(workspaceId: string, db: DB): Promise<Struc
     });
   }
 
-  const rcpts = await db.select().from(receipts).where(eq(receipts.workspaceId, workspaceId));
-  for (const r of rcpts) {
-    rows.push({
-      sourceType: 'receipt',
-      sourceId: r.id,
-      name: r.merchant,
-      entityType: 'merchant',
-      amount: r.amount,
-      date: parseRowDate(r.date),
-    });
-  }
-
-  const subs = await db
-    .select()
-    .from(subscriptions)
-    .where(eq(subscriptions.workspaceId, workspaceId));
-  for (const s of subs) {
-    rows.push({
-      sourceType: 'subscription',
-      sourceId: s.id,
-      name: s.name,
-      entityType: 'merchant',
-      amount: s.amount,
-      date: null,
-    });
-  }
-
   const accts = await db.select().from(accounts).where(eq(accounts.workspaceId, workspaceId));
   for (const a of accts) {
     rows.push({
@@ -87,26 +51,12 @@ async function collectStructuredRows(workspaceId: string, db: DB): Promise<Struc
     });
   }
 
-  const invs = await db.select().from(invoices).where(eq(invoices.workspaceId, workspaceId));
-  for (const inv of invs) {
-    if (inv.toName) {
-      rows.push({
-        sourceType: 'invoice',
-        sourceId: inv.id,
-        name: inv.toName,
-        entityType: 'organization',
-        amount: null,
-        date: parseRowDate(inv.date),
-      });
-    }
-  }
-
   return rows.filter((r) => r.name.trim().length > 0);
 }
 
 /**
- * Deterministically links structured financial rows (transactions, receipts,
- * subscriptions, accounts, invoice counterparties) to entities by normalized
+ * Deterministically links structured financial rows (transactions, accounts)
+ * to entities by normalized
  * name — canonical names and aliases both match, with the aggressive merchant
  * normalizer tried first. Unmatched names become new entities; structured rows
  * are first-class entity sources.

@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
-import { entities, entityEdges, entityMentions } from '../../db/schema';
 import type { DB } from '../../db';
+import { entities, entityEdges, entityMentions } from '../../db/schema';
 import { protectedProcedure, router } from '../trpc';
 
 const MAX_GRAPH_NODES = 50;
@@ -24,11 +24,7 @@ function serialize(entity: EntityRow) {
  * Follows the mergedInto tombstone chain to the surviving entity, so canvas
  * cards keep working after resolution merges the entity they reference.
  */
-async function resolveLiveEntity(
-  id: string,
-  userId: string,
-  db: DB,
-): Promise<EntityRow | null> {
+async function resolveLiveEntity(id: string, userId: string, db: DB): Promise<EntityRow | null> {
   let currentId = id;
   for (let hops = 0; hops < 5; hops++) {
     const [row] = await db
@@ -95,9 +91,7 @@ export const entityRouter = router({
       const mentions = await ctx.db
         .select()
         .from(entityMentions)
-        .where(
-          and(eq(entityMentions.entityId, entity.id), eq(entityMentions.userId, ctx.userId)),
-        )
+        .where(and(eq(entityMentions.entityId, entity.id), eq(entityMentions.userId, ctx.userId)))
         .orderBy(desc(entityMentions.createdAt))
         .limit(input.limit ?? 50);
 
@@ -131,10 +125,7 @@ export const entityRouter = router({
         .select()
         .from(entityEdges)
         .where(
-          and(
-            eq(entityEdges.workspaceId, entity.workspaceId),
-            eq(entityEdges.userId, ctx.userId),
-          ),
+          and(eq(entityEdges.workspaceId, entity.workspaceId), eq(entityEdges.userId, ctx.userId)),
         );
 
       const visited = new Set<string>([entity.id]);

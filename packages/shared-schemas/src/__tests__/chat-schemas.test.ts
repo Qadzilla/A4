@@ -407,8 +407,20 @@ describe('sseEventSchema — tool events', () => {
       type: 'done',
       usage: { inputTokens: 100, outputTokens: 50 },
       citations: [
-        { index: 0, fileId: 'file-1', fileName: 'report.pdf', chunkContent: 'Revenue was $1.2M', score: 0.95 },
-        { index: 1, fileId: 'file-2', fileName: 'forecast.csv', chunkContent: 'Q2 projection', score: 0.82 },
+        {
+          index: 0,
+          fileId: 'file-1',
+          fileName: 'report.pdf',
+          chunkContent: 'Revenue was $1.2M',
+          score: 0.95,
+        },
+        {
+          index: 1,
+          fileId: 'file-2',
+          fileName: 'forecast.csv',
+          chunkContent: 'Q2 projection',
+          score: 0.82,
+        },
       ],
     });
     expect(result.success).toBe(true);
@@ -426,6 +438,9 @@ describe('sseEventSchema — tool events', () => {
     expect(sseEventSchema.safeParse({ type: 'message_start', messageId: UUID }).success).toBe(true);
     expect(sseEventSchema.safeParse({ type: 'text_delta', text: 'hi' }).success).toBe(true);
     expect(sseEventSchema.safeParse({ type: 'error', message: 'fail' }).success).toBe(true);
-    expect(sseEventSchema.safeParse({ type: 'done', usage: { inputTokens: 10, outputTokens: 5 } }).success).toBe(true);
+    expect(
+      sseEventSchema.safeParse({ type: 'done', usage: { inputTokens: 10, outputTokens: 5 } })
+        .success,
+    ).toBe(true);
   });
 });

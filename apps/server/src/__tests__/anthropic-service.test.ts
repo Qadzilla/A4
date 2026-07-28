@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock env before importing the service
 vi.mock('../env', () => ({
@@ -38,9 +38,14 @@ vi.mock('@anthropic-ai/sdk', () => {
   return { default: MockAnthropic, APIError };
 });
 
-import { _resetClient, streamChatCompletion, chatCompletion, AnthropicServiceError } from '../services/anthropic';
-import { env } from '../env';
 import Anthropic from '@anthropic-ai/sdk';
+import { env } from '../env';
+import {
+  AnthropicServiceError,
+  _resetClient,
+  chatCompletion,
+  streamChatCompletion,
+} from '../services/anthropic';
 
 describe('AnthropicService', () => {
   beforeEach(() => {
@@ -143,7 +148,11 @@ describe('AnthropicService', () => {
         {
           name: 'get_weather',
           description: 'Get weather for a location',
-          input_schema: { type: 'object' as const, properties: { location: { type: 'string' } }, required: ['location'] },
+          input_schema: {
+            type: 'object' as const,
+            properties: { location: { type: 'string' } },
+            required: ['location'],
+          },
         },
       ];
 
@@ -170,12 +179,19 @@ describe('AnthropicService', () => {
           role: 'assistant' as const,
           content: [
             { type: 'text' as const, text: 'I will call the tool.' },
-            { type: 'tool_use' as const, id: 'toolu_1', name: 'get_weather', input: { location: 'NYC' } },
+            {
+              type: 'tool_use' as const,
+              id: 'toolu_1',
+              name: 'get_weather',
+              input: { location: 'NYC' },
+            },
           ],
         },
         {
           role: 'user' as const,
-          content: [{ type: 'tool_result' as const, tool_use_id: 'toolu_1', content: 'Sunny, 72°F' }],
+          content: [
+            { type: 'tool_result' as const, tool_use_id: 'toolu_1', content: 'Sunny, 72°F' },
+          ],
         },
       ];
 
@@ -184,9 +200,7 @@ describe('AnthropicService', () => {
         systemPrompt: 'You are helpful.',
       });
 
-      expect(mockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ messages }),
-      );
+      expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ messages }));
     });
 
     it('accepts options without tools (backward compatibility)', async () => {
@@ -249,7 +263,9 @@ describe('AnthropicService', () => {
     });
 
     it('throws AnthropicServiceError on API failure', async () => {
-      mockCreate.mockRejectedValueOnce(new Anthropic.APIError(500, undefined, 'Server error', undefined));
+      mockCreate.mockRejectedValueOnce(
+        new Anthropic.APIError(500, undefined, 'Server error', undefined),
+      );
 
       try {
         await chatCompletion({
@@ -266,7 +282,9 @@ describe('AnthropicService', () => {
 
   describe('error mapping', () => {
     it('maps 401 APIError to ANTHROPIC_AUTH_ERROR', async () => {
-      mockCreate.mockRejectedValueOnce(new Anthropic.APIError(401, undefined, 'Unauthorized', undefined));
+      mockCreate.mockRejectedValueOnce(
+        new Anthropic.APIError(401, undefined, 'Unauthorized', undefined),
+      );
 
       try {
         await streamChatCompletion({
@@ -281,7 +299,9 @@ describe('AnthropicService', () => {
     });
 
     it('maps 429 APIError to ANTHROPIC_RATE_LIMIT', async () => {
-      mockCreate.mockRejectedValueOnce(new Anthropic.APIError(429, undefined, 'Rate limited', undefined));
+      mockCreate.mockRejectedValueOnce(
+        new Anthropic.APIError(429, undefined, 'Rate limited', undefined),
+      );
 
       try {
         await streamChatCompletion({
@@ -296,7 +316,9 @@ describe('AnthropicService', () => {
     });
 
     it('maps 529 APIError to ANTHROPIC_OVERLOADED', async () => {
-      mockCreate.mockRejectedValueOnce(new Anthropic.APIError(529, undefined, 'Overloaded', undefined));
+      mockCreate.mockRejectedValueOnce(
+        new Anthropic.APIError(529, undefined, 'Overloaded', undefined),
+      );
 
       try {
         await streamChatCompletion({

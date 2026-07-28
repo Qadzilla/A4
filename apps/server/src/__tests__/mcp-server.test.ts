@@ -52,10 +52,9 @@ describe('buildMcpToolDefinitions', () => {
   it('exposes the registry minus destructive tools', () => {
     const defs = buildMcpToolDefinitions();
     const names = defs.map((d) => d.name);
-    expect(names).not.toContain('delete_canvas_item');
     expect(names).toContain('search_entities');
-    expect(names).toContain('create_canvas_item');
-    expect(defs).toHaveLength(38); // 39 registry tools minus 1 excluded
+    expect(names).toContain('calculate_tax');
+    expect(defs).toHaveLength(10); // full curated registry — nothing excluded
   });
 
   it('injects a required workspaceId parameter on workspace-scoped tools', () => {
@@ -69,11 +68,12 @@ describe('buildMcpToolDefinitions', () => {
     expect(inputSchema.required).toContain('workspaceId');
   });
 
-  it('leaves cross-workspace tools without a workspaceId requirement', () => {
+  it('requires workspaceId on every exposed tool', () => {
     const defs = buildMcpToolDefinitions();
-    const list = defs.find((d) => d.name === 'list_workspaces');
-    const inputSchema = list?.inputSchema as { properties?: Record<string, unknown> };
-    expect(inputSchema.properties?.workspaceId).toBeUndefined();
+    for (const def of defs) {
+      const inputSchema = def.inputSchema as { required?: string[] };
+      expect(inputSchema.required).toContain('workspaceId');
+    }
   });
 });
 
@@ -133,17 +133,13 @@ describe('executeMcpTool', () => {
     expect(found[0]!.name).toBe('Amazon');
   });
 
-  it('runs list_workspaces without a workspaceId, scoped to the token owner', async () => {
+  it('rejects tools that previously ran without a workspaceId', async () => {
     await seedWorkspace(db, 'ws-1', 'user-1');
-    await seedWorkspace(db, 'ws-2', 'user-1');
-    await seedWorkspace(db, 'ws-other', 'user-2');
-
-    const { result, isError } = await executeMcpTool('list_workspaces', {}, 'user-1', db as never);
-    expect(isError).toBe(false);
-    expect(result.workspaces as unknown[]).toHaveLength(2);
+    const { isError } = await executeMcpTool('list_workspaces', {}, 'user-1', db as never);
+    expect(isError).toBe(true); // tool no longer exists in the registry
   });
 
-  it('refuses excluded tools even when called directly', async () => {
+  it('errors cleanly on unknown or retired tools', async () => {
     await seedWorkspace(db, 'ws-1', 'user-1');
     const { result, isError } = await executeMcpTool(
       'delete_canvas_item',
@@ -152,6 +148,6 @@ describe('executeMcpTool', () => {
       db as never,
     );
     expect(isError).toBe(true);
-    expect(result.error).toContain('not available over MCP');
+    expect(String(result.error)).toBeTruthy();
   });
 });

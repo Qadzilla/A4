@@ -1,11 +1,11 @@
-import { TRPCError } from '@trpc/server';
-import { and, desc, eq, gt, isNull, or } from 'drizzle-orm';
-import { z } from 'zod';
 import {
   dismissInsightInputSchema,
   engageInsightInputSchema,
   listInsightsInputSchema,
 } from '@a4/shared-schemas';
+import { TRPCError } from '@trpc/server';
+import { and, desc, eq, gt, isNull, or } from 'drizzle-orm';
+import { z } from 'zod';
 import { conversations, workspaceInsights } from '../../db/schema';
 import { generateInsights, scoreInsight } from '../../services/insight-engine';
 import { protectedProcedure, router } from '../trpc';
@@ -16,112 +16,96 @@ const notExpired = or(
 );
 
 export const insightsRouter = router({
-  list: protectedProcedure
-    .input(listInsightsInputSchema)
-    .query(async ({ ctx, input }) => {
-      const conditions = [
-        eq(workspaceInsights.userId, ctx.userId),
-        eq(workspaceInsights.workspaceId, input.workspaceId),
-        or(isNull(workspaceInsights.expiresAt), gt(workspaceInsights.expiresAt, new Date())),
-      ];
+  list: protectedProcedure.input(listInsightsInputSchema).query(async ({ ctx, input }) => {
+    const conditions = [
+      eq(workspaceInsights.userId, ctx.userId),
+      eq(workspaceInsights.workspaceId, input.workspaceId),
+      or(isNull(workspaceInsights.expiresAt), gt(workspaceInsights.expiresAt, new Date())),
+    ];
 
-      if (input.status) {
-        conditions.push(eq(workspaceInsights.status, input.status));
-      }
-      if (input.type) {
-        conditions.push(eq(workspaceInsights.type, input.type));
-      }
-      if (input.severity) {
-        conditions.push(eq(workspaceInsights.severity, input.severity));
-      }
+    if (input.status) {
+      conditions.push(eq(workspaceInsights.status, input.status));
+    }
+    if (input.type) {
+      conditions.push(eq(workspaceInsights.type, input.type));
+    }
+    if (input.severity) {
+      conditions.push(eq(workspaceInsights.severity, input.severity));
+    }
 
-      const rows = await ctx.db
-        .select()
-        .from(workspaceInsights)
-        .where(and(...conditions));
+    const rows = await ctx.db
+      .select()
+      .from(workspaceInsights)
+      .where(and(...conditions));
 
-      rows.sort((a, b) => scoreInsight(b) - scoreInsight(a));
+    rows.sort((a, b) => scoreInsight(b) - scoreInsight(a));
 
-      return rows.map((row) => ({
-        ...row,
-        data: row.data ? JSON.parse(row.data) : null,
-        relevanceScore: scoreInsight(row),
-      }));
-    }),
+    return rows.map((row) => ({
+      ...row,
+      data: row.data ? JSON.parse(row.data) : null,
+      relevanceScore: scoreInsight(row),
+    }));
+  }),
 
-  dismiss: protectedProcedure
-    .input(dismissInsightInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const [insight] = await ctx.db
-        .select()
-        .from(workspaceInsights)
-        .where(
-          and(
-            eq(workspaceInsights.id, input.id),
-            eq(workspaceInsights.userId, ctx.userId),
-          ),
-        );
+  dismiss: protectedProcedure.input(dismissInsightInputSchema).mutation(async ({ ctx, input }) => {
+    const [insight] = await ctx.db
+      .select()
+      .from(workspaceInsights)
+      .where(and(eq(workspaceInsights.id, input.id), eq(workspaceInsights.userId, ctx.userId)));
 
-      if (!insight) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Insight not found' });
-      }
+    if (!insight) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Insight not found' });
+    }
 
-      await ctx.db
-        .update(workspaceInsights)
-        .set({ status: 'dismissed' })
-        .where(eq(workspaceInsights.id, input.id));
+    await ctx.db
+      .update(workspaceInsights)
+      .set({ status: 'dismissed' })
+      .where(eq(workspaceInsights.id, input.id));
 
-      return { success: true };
-    }),
+    return { success: true };
+  }),
 
-  engage: protectedProcedure
-    .input(engageInsightInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const [insight] = await ctx.db
-        .select()
-        .from(workspaceInsights)
-        .where(
-          and(
-            eq(workspaceInsights.id, input.id),
-            eq(workspaceInsights.userId, ctx.userId),
-          ),
-        );
+  engage: protectedProcedure.input(engageInsightInputSchema).mutation(async ({ ctx, input }) => {
+    const [insight] = await ctx.db
+      .select()
+      .from(workspaceInsights)
+      .where(and(eq(workspaceInsights.id, input.id), eq(workspaceInsights.userId, ctx.userId)));
 
-      if (!insight) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Insight not found' });
-      }
+    if (!insight) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Insight not found' });
+    }
 
-      if (insight.status === 'engaged' && insight.conversationId) {
-        return {
-          insightId: insight.id,
-          conversationId: insight.conversationId,
-          insight: { ...insight, data: insight.data ? JSON.parse(insight.data) : null },
-        };
-      }
-
-      const conversationId = crypto.randomUUID();
-      const now = new Date();
-
-      await ctx.db.insert(conversations).values({
-        id: conversationId,
-        workspaceId: insight.workspaceId,
-        userId: ctx.userId,
-        title: insight.title,
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await ctx.db
-        .update(workspaceInsights)
-        .set({ status: 'engaged', conversationId })
-        .where(eq(workspaceInsights.id, input.id));
-
+    if (insight.status === 'engaged' && insight.conversationId) {
       return {
         insightId: insight.id,
-        conversationId,
+        conversationId: insight.conversationId,
         insight: { ...insight, data: insight.data ? JSON.parse(insight.data) : null },
       };
-    }),
+    }
+
+    const conversationId = crypto.randomUUID();
+    const now = new Date();
+
+    await ctx.db.insert(conversations).values({
+      id: conversationId,
+      workspaceId: insight.workspaceId,
+      userId: ctx.userId,
+      title: insight.title,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await ctx.db
+      .update(workspaceInsights)
+      .set({ status: 'engaged', conversationId })
+      .where(eq(workspaceInsights.id, input.id));
+
+    return {
+      insightId: insight.id,
+      conversationId,
+      insight: { ...insight, data: insight.data ? JSON.parse(insight.data) : null },
+    };
+  }),
 
   generate: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
@@ -184,7 +168,10 @@ export const insightsRouter = router({
       const engaged = rows.filter((r) => r.status === 'engaged').length;
       const engagementRate = dismissed + engaged > 0 ? engaged / (engaged + dismissed) : 0;
 
-      const byType: Record<string, { generated: number; dismissed: number; engaged: number; rate: number }> = {};
+      const byType: Record<
+        string,
+        { generated: number; dismissed: number; engaged: number; rate: number }
+      > = {};
       for (const row of rows) {
         if (!byType[row.type]) {
           byType[row.type] = { generated: 0, dismissed: 0, engaged: 0, rate: 0 };

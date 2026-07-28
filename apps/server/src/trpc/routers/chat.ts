@@ -5,7 +5,9 @@ import { z } from 'zod';
 import { aiUsage, conversations, messages } from '../../db/schema';
 import { protectedProcedure, router } from '../trpc';
 
-function sumUsageRows(rows: { inputTokens: number; outputTokens: number; costCents: number | null }[]) {
+function sumUsageRows(
+  rows: { inputTokens: number; outputTokens: number; costCents: number | null }[],
+) {
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
   let totalCostCents = 0;
@@ -25,7 +27,10 @@ export const chatRouter = router({
         .select()
         .from(conversations)
         .where(
-          and(eq(conversations.userId, ctx.userId), eq(conversations.workspaceId, input.workspaceId)),
+          and(
+            eq(conversations.userId, ctx.userId),
+            eq(conversations.workspaceId, input.workspaceId),
+          ),
         )
         .orderBy(desc(conversations.updatedAt));
 
@@ -151,10 +156,7 @@ export const chatRouter = router({
           .from(aiUsage)
           .innerJoin(conversations, eq(aiUsage.conversationId, conversations.id))
           .where(
-            and(
-              eq(aiUsage.userId, ctx.userId),
-              eq(conversations.workspaceId, input.workspaceId),
-            ),
+            and(eq(aiUsage.userId, ctx.userId), eq(conversations.workspaceId, input.workspaceId)),
           );
 
         return sumUsageRows(rows);

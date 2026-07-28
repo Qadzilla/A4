@@ -3,16 +3,7 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../db/schema';
-import {
-  accounts,
-  entities,
-  entityMentions,
-  invoices,
-  jobs,
-  receipts,
-  subscriptions,
-  transactions,
-} from '../db/schema';
+import { accounts, entities, entityMentions, jobs, transactions } from '../db/schema';
 import { enqueueLinkStructuredData, linkStructuredData } from '../services/entity-linking';
 import { JOB_TYPES } from '../services/job-queue';
 
@@ -153,58 +144,17 @@ describe('linkStructuredData', () => {
       type: 'checking',
       balance: 1000,
     });
-    await db.insert(invoices).values({
-      ...base,
-      id: 'i1',
-      invoiceNumber: 'INV-1',
-      date: '2026-07-01',
-      dueDate: '2026-07-31',
-      toName: 'Acme LLC',
-      taxRate: 0,
-      status: 'sent',
-    });
 
     await linkStructuredData({ workspaceId: 'ws-1' }, db as never);
 
     const all = await db.select().from(entities);
-    expect(all).toHaveLength(3);
+    expect(all).toHaveLength(2);
     const byName = new Map(all.map((e) => [e.canonicalName, e.type]));
     expect(byName.get('Corner Bakery')).toBe('merchant');
     expect(byName.get('Chase')).toBe('institution');
-    expect(byName.get('Acme LLC')).toBe('organization');
 
     const mentions = await db.select().from(entityMentions);
-    expect(mentions.map((m) => m.sourceType).sort()).toEqual(['account', 'invoice', 'transaction']);
-  });
-
-  it('links receipts and subscriptions as merchant mentions', async () => {
-    await db.insert(receipts).values({
-      ...base,
-      id: 'r1',
-      date: '2026-07-02',
-      merchant: 'Home Depot',
-      amount: 84.2,
-      tax: 6.2,
-      paymentMethod: 'card',
-      status: 'pending',
-    });
-    await db.insert(subscriptions).values({
-      ...base,
-      id: 's1',
-      name: 'Netflix',
-      amount: 15.49,
-      frequency: 'monthly',
-      startDate: '2026-01-01',
-      nextBillingDate: '2026-08-01',
-      status: 'active',
-    });
-
-    await linkStructuredData({ workspaceId: 'ws-1' }, db as never);
-
-    const mentions = await db.select().from(entityMentions);
-    expect(mentions.map((m) => m.sourceType).sort()).toEqual(['receipt', 'subscription']);
-    const receiptMention = mentions.find((m) => m.sourceType === 'receipt')!;
-    expect(receiptMention.amount).toBe(84.2);
+    expect(mentions.map((m) => m.sourceType).sort()).toEqual(['account', 'transaction']);
   });
 
   it('is a full rebuild — rerunning does not duplicate, and deleted rows unlink', async () => {

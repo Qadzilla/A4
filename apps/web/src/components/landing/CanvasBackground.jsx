@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 // --- Utility helpers ---
 function lerp(a, b, t) {
@@ -49,7 +49,7 @@ function buildCardContent() {
       points.push(val);
     }
     const goesUp = points[points.length - 1] > points[0];
-    return { type: "sparkline", points, goesUp };
+    return { type: 'sparkline', points, goesUp };
   } else if (r < 0.35) {
     const candles = [];
     let base = randomRange(0.3, 0.6);
@@ -58,10 +58,15 @@ function buildCardContent() {
       const close = open + randomRange(-0.15, 0.15);
       const high = Math.max(open, close) + randomRange(0.02, 0.08);
       const low = Math.min(open, close) - randomRange(0.02, 0.08);
-      candles.push({ open: Math.max(0.05, open), close: Math.max(0.05, close), high: Math.min(0.95, high), low: Math.max(0.05, low) });
+      candles.push({
+        open: Math.max(0.05, open),
+        close: Math.max(0.05, close),
+        high: Math.min(0.95, high),
+        low: Math.max(0.05, low),
+      });
       base = close;
     }
-    return { type: "candles", candles };
+    return { type: 'candles', candles };
   } else if (r < 0.5) {
     const points = [];
     let val = randomRange(0.3, 0.7);
@@ -71,17 +76,21 @@ function buildCardContent() {
       points.push(val);
     }
     const goesUp = Math.random() > 0.4;
-    return { type: "kpi", points, goesUp };
+    return { type: 'kpi', points, goesUp };
   } else if (r < 0.65) {
     const bars = [];
     for (let i = 0; i < Math.floor(randomRange(4, 8)); i++) bars.push(randomRange(0.15, 0.95));
-    return { type: "bars", bars };
+    return { type: 'bars', bars };
   } else if (r < 0.78) {
     const rows = [];
     for (let i = 0; i < Math.floor(randomRange(3, 6)); i++) {
-      rows.push({ labelW: randomRange(0.25, 0.45), valueW: randomRange(0.12, 0.25), positive: Math.random() > 0.4 });
+      rows.push({
+        labelW: randomRange(0.25, 0.45),
+        valueW: randomRange(0.12, 0.25),
+        positive: Math.random() > 0.4,
+      });
     }
-    return { type: "table", rows };
+    return { type: 'table', rows };
   } else if (r < 0.88) {
     const segments = [];
     let total = 0;
@@ -90,7 +99,7 @@ function buildCardContent() {
       segments.push(v);
       total += v;
     }
-    return { type: "donut", segments: segments.map(s => s / total) };
+    return { type: 'donut', segments: segments.map((s) => s / total) };
   } else {
     const segments = [];
     let total = 0;
@@ -99,7 +108,7 @@ function buildCardContent() {
       segments.push(v);
       total += v;
     }
-    return { type: "stacked", segments: segments.map(s => s / total) };
+    return { type: 'stacked', segments: segments.map((s) => s / total) };
   }
 }
 
@@ -119,7 +128,7 @@ function createCard(vw, vh, spawnFromRight) {
     dy: randomRange(-0.05, 0.05),
     content: buildCardContent(),
     hasGreenAccent: Math.random() < 0.22,
-    greenSide: Math.random() < 0.5 ? "top" : "left",
+    greenSide: Math.random() < 0.5 ? 'top' : 'left',
     sizeMultiplier,
     opacity: spawnFromRight ? 0 : 1,
   };
@@ -151,7 +160,7 @@ export default function CanvasBackground() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
 
     function resize() {
       const dpr = window.devicePixelRatio || 1;
@@ -159,8 +168,8 @@ export default function CanvasBackground() {
       const vh = window.innerHeight;
       canvas.width = vw * dpr;
       canvas.height = vh * dpr;
-      canvas.style.width = vw + "px";
-      canvas.style.height = vh + "px";
+      canvas.style.width = vw + 'px';
+      canvas.style.height = vh + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       if (!stateRef.current) {
@@ -192,8 +201,7 @@ export default function CanvasBackground() {
     }
 
     resize();
-    window.addEventListener("resize", resize);
-
+    window.addEventListener('resize', resize);
 
     function getCardCenter(card) {
       return { x: card.x + card.w / 2, y: card.y + card.h / 2 };
@@ -235,7 +243,7 @@ export default function CanvasBackground() {
         roundRect(ctx, 0, 0, card.w, card.h, 0);
         ctx.clip();
         ctx.fillStyle = `rgba(16, 185, 129, ${0.4 * alpha})`;
-        if (card.greenSide === "top") {
+        if (card.greenSide === 'top') {
           ctx.fillRect(0, 0, card.w, 2.5);
         } else {
           ctx.fillRect(0, 0, 2.5, card.h);
@@ -251,7 +259,7 @@ export default function CanvasBackground() {
       const green = (a) => `rgba(16, 185, 129, ${Math.min(1, a * 2.5) * alpha})`;
       const red = (a) => `rgba(248, 113, 113, ${Math.min(1, a * 2.5) * alpha})`;
 
-      if (c.type === "sparkline") {
+      if (c.type === 'sparkline') {
         ctx.fillStyle = white(0.05);
         ctx.fillRect(pad, pad, innerW * 0.4, 2);
         const chartY = pad + 14;
@@ -260,7 +268,8 @@ export default function CanvasBackground() {
         for (let i = 0; i < c.points.length; i++) {
           const px = pad + (i / (c.points.length - 1)) * innerW;
           const py = chartY + (1 - c.points[i]) * chartH;
-          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
         }
         ctx.strokeStyle = c.goesUp ? green(0.12) : red(0.1);
         ctx.lineWidth = 1.5;
@@ -272,8 +281,7 @@ export default function CanvasBackground() {
         ctx.closePath();
         ctx.fillStyle = c.goesUp ? green(0.03) : red(0.02);
         ctx.fill();
-
-      } else if (c.type === "candles") {
+      } else if (c.type === 'candles') {
         const chartY = pad + 6;
         const chartH = innerH - 10;
         const candleW = Math.min(8, (innerW / c.candles.length) * 0.55);
@@ -294,8 +302,7 @@ export default function CanvasBackground() {
           ctx.fillStyle = color(0.1);
           ctx.fillRect(cx - candleW / 2, bodyTop, candleW, Math.max(1, bodyBot - bodyTop));
         }
-
-      } else if (c.type === "kpi") {
+      } else if (c.type === 'kpi') {
         ctx.fillStyle = white(0.06);
         ctx.fillRect(pad, pad, innerW * 0.55, 6);
         ctx.fillStyle = c.goesUp ? green(0.1) : red(0.08);
@@ -307,14 +314,14 @@ export default function CanvasBackground() {
           for (let i = 0; i < c.points.length; i++) {
             const px = pad + (i / (c.points.length - 1)) * innerW;
             const py = chartY + (1 - c.points[i]) * chartH;
-            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
           }
           ctx.strokeStyle = c.goesUp ? green(0.1) : red(0.08);
           ctx.lineWidth = 1;
           ctx.stroke();
         }
-
-      } else if (c.type === "bars") {
+      } else if (c.type === 'bars') {
         ctx.fillStyle = white(0.04);
         ctx.fillRect(pad, pad, innerW * 0.35, 2);
         const chartY = pad + 10;
@@ -327,8 +334,7 @@ export default function CanvasBackground() {
           ctx.fillStyle = white(0.05);
           ctx.fillRect(pad + gap * (i + 1) + barW * i, baseY - bh, barW, bh);
         }
-
-      } else if (c.type === "table") {
+      } else if (c.type === 'table') {
         for (let i = 0; i < c.rows.length; i++) {
           const rowY = pad + i * 14;
           if (rowY + 4 > card.h - pad) break;
@@ -342,8 +348,7 @@ export default function CanvasBackground() {
             ctx.fillRect(pad, rowY + 10, innerW, 0.5);
           }
         }
-
-      } else if (c.type === "donut") {
+      } else if (c.type === 'donut') {
         const cx = pad + Math.min(innerW, innerH) * 0.35;
         const cy = pad + innerH * 0.5;
         const outerR = Math.min(innerW, innerH) * 0.32;
@@ -365,8 +370,7 @@ export default function CanvasBackground() {
           ctx.fillStyle = white(0.04);
           ctx.fillRect(legendX, ly, innerW * 0.2, 2);
         }
-
-      } else if (c.type === "stacked") {
+      } else if (c.type === 'stacked') {
         ctx.fillStyle = white(0.04);
         ctx.fillRect(pad, pad, innerW * 0.5, 2);
         const barY = pad + innerH * 0.4;
@@ -415,9 +419,12 @@ export default function CanvasBackground() {
         ctx.beginPath();
         ctx.moveTo(ac.x, ac.y);
         ctx.bezierCurveTo(
-          mx + conn.cpOffsetX1, my + conn.cpOffsetY1,
-          mx + conn.cpOffsetX2, my + conn.cpOffsetY2,
-          bc.x, bc.y
+          mx + conn.cpOffsetX1,
+          my + conn.cpOffsetY1,
+          mx + conn.cpOffsetX2,
+          my + conn.cpOffsetY2,
+          bc.x,
+          bc.y,
         );
         ctx.strokeStyle = `rgba(74,222,128,${baseOpacity})`;
         ctx.lineWidth = 1.5;
@@ -447,7 +454,10 @@ export default function CanvasBackground() {
 
       if (occupied.length > 0) {
         const topGap = occupied[0] + 60;
-        if (topGap > bestGap) { bestGap = topGap; bestY = topGap / 2 - 60; }
+        if (topGap > bestGap) {
+          bestGap = topGap;
+          bestY = topGap / 2 - 60;
+        }
       }
       for (let i = 0; i < occupied.length - 1; i++) {
         const gap = occupied[i + 1] - occupied[i];
@@ -458,7 +468,9 @@ export default function CanvasBackground() {
       }
       if (occupied.length > 0) {
         const bottomGap = vh + 60 - occupied[occupied.length - 1];
-        if (bottomGap > bestGap) { bestY = occupied[occupied.length - 1] + bottomGap / 2; }
+        if (bottomGap > bestGap) {
+          bestY = occupied[occupied.length - 1] + bottomGap / 2;
+        }
       }
 
       return bestY + randomRange(-30, 30);
@@ -545,7 +557,7 @@ export default function CanvasBackground() {
     rafRef.current = requestAnimationFrame(frame);
 
     return () => {
-      window.removeEventListener("resize", resize);
+      window.removeEventListener('resize', resize);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
@@ -554,11 +566,11 @@ export default function CanvasBackground() {
     <canvas
       ref={canvasRef}
       style={{
-        position: "absolute",
+        position: 'absolute',
         inset: 0,
         zIndex: 0,
-        pointerEvents: "none",
-        display: "block",
+        pointerEvents: 'none',
+        display: 'block',
       }}
     />
   );

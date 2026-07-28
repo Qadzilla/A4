@@ -124,9 +124,27 @@ describe('chat router — DB operations', () => {
       const t2 = new Date('2026-03-01T11:00:00Z');
       const t3 = new Date('2026-03-01T12:00:00Z');
 
-      await insertConversation(db, { id: 'c-1', workspaceId: 'ws-1', userId: 'user-1', updatedAt: t1, createdAt: t1 });
-      await insertConversation(db, { id: 'c-2', workspaceId: 'ws-1', userId: 'user-1', updatedAt: t3, createdAt: t2 });
-      await insertConversation(db, { id: 'c-3', workspaceId: 'ws-1', userId: 'user-1', updatedAt: t2, createdAt: t3 });
+      await insertConversation(db, {
+        id: 'c-1',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        updatedAt: t1,
+        createdAt: t1,
+      });
+      await insertConversation(db, {
+        id: 'c-2',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        updatedAt: t3,
+        createdAt: t2,
+      });
+      await insertConversation(db, {
+        id: 'c-3',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        updatedAt: t2,
+        createdAt: t3,
+      });
 
       const results = await db
         .select()
@@ -170,9 +188,24 @@ describe('chat router — DB operations', () => {
       await insertConversation(db, { id: 'c-1', workspaceId: 'ws-1', userId: 'user-1' });
       await insertConversation(db, { id: 'c-2', workspaceId: 'ws-1', userId: 'user-1' });
 
-      await insertMessage(db, { id: 'm-1', conversationId: 'c-1', userId: 'user-1', content: 'Hello' });
-      await insertMessage(db, { id: 'm-2', conversationId: 'c-1', userId: 'user-1', content: 'World' });
-      await insertMessage(db, { id: 'm-3', conversationId: 'c-2', userId: 'user-1', content: 'Hi' });
+      await insertMessage(db, {
+        id: 'm-1',
+        conversationId: 'c-1',
+        userId: 'user-1',
+        content: 'Hello',
+      });
+      await insertMessage(db, {
+        id: 'm-2',
+        conversationId: 'c-1',
+        userId: 'user-1',
+        content: 'World',
+      });
+      await insertMessage(db, {
+        id: 'm-3',
+        conversationId: 'c-2',
+        userId: 'user-1',
+        content: 'Hi',
+      });
 
       const convoIds = ['c-1', 'c-2'];
       const counts = await db
@@ -195,9 +228,28 @@ describe('chat router — DB operations', () => {
       const t2 = new Date('2026-03-01T10:01:00Z');
       const t3 = new Date('2026-03-01T10:02:00Z');
 
-      await insertMessage(db, { id: 'm-1', conversationId: 'c-1', userId: 'user-1', content: 'Hello', createdAt: t1 });
-      await insertMessage(db, { id: 'm-2', conversationId: 'c-1', userId: 'user-1', content: 'Reply', role: 'assistant', createdAt: t2 });
-      await insertMessage(db, { id: 'm-3', conversationId: 'c-1', userId: 'user-1', content: 'Thanks', createdAt: t3 });
+      await insertMessage(db, {
+        id: 'm-1',
+        conversationId: 'c-1',
+        userId: 'user-1',
+        content: 'Hello',
+        createdAt: t1,
+      });
+      await insertMessage(db, {
+        id: 'm-2',
+        conversationId: 'c-1',
+        userId: 'user-1',
+        content: 'Reply',
+        role: 'assistant',
+        createdAt: t2,
+      });
+      await insertMessage(db, {
+        id: 'm-3',
+        conversationId: 'c-1',
+        userId: 'user-1',
+        content: 'Thanks',
+        createdAt: t3,
+      });
 
       const [conversation] = await db
         .select()
@@ -262,10 +314,7 @@ describe('chat router — DB operations', () => {
         createdAt: now,
       });
 
-      await db
-        .update(conversations)
-        .set({ updatedAt: now })
-        .where(eq(conversations.id, 'c-1'));
+      await db.update(conversations).set({ updatedAt: now }).where(eq(conversations.id, 'c-1'));
 
       const [msg] = await db.select().from(messages).where(eq(messages.id, msgId));
       expect(msg).toBeDefined();
@@ -301,14 +350,30 @@ describe('chat router — DB operations', () => {
   describe('deleteConversation', () => {
     it('deletes conversation and all its messages', async () => {
       await insertConversation(db, { id: 'c-1', workspaceId: 'ws-1', userId: 'user-1' });
-      await insertMessage(db, { id: 'm-1', conversationId: 'c-1', userId: 'user-1', content: 'Hello' });
-      await insertMessage(db, { id: 'm-2', conversationId: 'c-1', userId: 'user-1', content: 'World' });
+      await insertMessage(db, {
+        id: 'm-1',
+        conversationId: 'c-1',
+        userId: 'user-1',
+        content: 'Hello',
+      });
+      await insertMessage(db, {
+        id: 'm-2',
+        conversationId: 'c-1',
+        userId: 'user-1',
+        content: 'World',
+      });
 
       await db.delete(messages).where(eq(messages.conversationId, 'c-1'));
       await db.delete(conversations).where(eq(conversations.id, 'c-1'));
 
-      const remainingMessages = await db.select().from(messages).where(eq(messages.conversationId, 'c-1'));
-      const remainingConvos = await db.select().from(conversations).where(eq(conversations.id, 'c-1'));
+      const remainingMessages = await db
+        .select()
+        .from(messages)
+        .where(eq(messages.conversationId, 'c-1'));
+      const remainingConvos = await db
+        .select()
+        .from(conversations)
+        .where(eq(conversations.id, 'c-1'));
 
       expect(remainingMessages).toHaveLength(0);
       expect(remainingConvos).toHaveLength(0);
@@ -330,7 +395,10 @@ describe('chat router — DB operations', () => {
       await db.delete(messages).where(eq(messages.conversationId, 'nonexistent'));
       await db.delete(conversations).where(eq(conversations.id, 'nonexistent'));
 
-      const results = await db.select().from(conversations).where(eq(conversations.id, 'nonexistent'));
+      const results = await db
+        .select()
+        .from(conversations)
+        .where(eq(conversations.id, 'nonexistent'));
       expect(results).toHaveLength(0);
     });
   });

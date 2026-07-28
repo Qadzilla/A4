@@ -158,8 +158,20 @@ describe('entity router', () => {
       await insertEntity(db, 'e-acct', 'checking ...8842', { type: 'account_ref' });
       await insertEntity(db, 'e-chase', 'Chase', { type: 'institution' });
       await db.insert(entityEdges).values([
-        { ...base, id: 'g1', fromEntityId: 'e-amz', toEntityId: 'e-acct', relationship: 'charged to' },
-        { ...base, id: 'g2', fromEntityId: 'e-acct', toEntityId: 'e-chase', relationship: 'account at' },
+        {
+          ...base,
+          id: 'g1',
+          fromEntityId: 'e-amz',
+          toEntityId: 'e-acct',
+          relationship: 'charged to',
+        },
+        {
+          ...base,
+          id: 'g2',
+          fromEntityId: 'e-acct',
+          toEntityId: 'e-chase',
+          relationship: 'account at',
+        },
       ]);
 
       const depth1 = await caller(db).getConnections({ id: 'e-amz' });

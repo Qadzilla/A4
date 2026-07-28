@@ -213,19 +213,6 @@ async function iterateStream(
   return { accumulatedText, toolUseBlocks, inputTokens, outputTokens, stopReason };
 }
 
-// --- Canvas update action logic ---
-
-function getCanvasAction(toolName: string): 'create' | 'update' | null {
-  if (
-    toolName === 'create_canvas_item' ||
-    toolName === 'create_connection' ||
-    toolName === 'create_scenario_comparison'
-  )
-    return 'create';
-  if (toolName === 'update_canvas_item' || toolName === 'position_items') return 'update';
-  return null;
-}
-
 // --- Main handler ---
 
 chatStreamRouter.post('/', async (req, res) => {
@@ -424,22 +411,6 @@ chatStreamRouter.post('/', async (req, res) => {
             toolName: block.name,
             durationMs: Date.now() - toolStartTime,
           });
-
-          // Send canvas_update if applicable
-          if (toolResult._canvasUpdate) {
-            const action = getCanvasAction(block.name);
-            if (action) {
-              if (Array.isArray(toolResult.createdItems)) {
-                // Multi-item creation (scenario comparison)
-                for (const item of toolResult.createdItems as Array<Record<string, unknown>>) {
-                  sendSSE(res, { type: 'canvas_update', action, item });
-                }
-              } else {
-                const { _canvasUpdate: _omitted, ...canvasData } = toolResult;
-                sendSSE(res, { type: 'canvas_update', action, item: canvasData });
-              }
-            }
-          }
 
           // Strip _canvasUpdate from result before sending to client/Claude
           const { _canvasUpdate: _stripped, ...cleanResult } = toolResult;

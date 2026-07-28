@@ -1,8 +1,8 @@
 import { ROUTES } from '@/constants';
 import { AuthGuard } from '@/features/auth';
-import { lazy, Suspense } from 'react';
-import { createBrowserRouter } from 'react-router';
 import ErrorBoundaryPage from '@/routes/_errors/error-boundary';
+import { Suspense, lazy } from 'react';
+import { createBrowserRouter } from 'react-router';
 
 // Auth pages
 const SignInPage = lazy(() => import('@/routes/_auth/sign-in'));

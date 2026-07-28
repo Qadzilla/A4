@@ -72,12 +72,42 @@ describe('workspaceInsights table', () => {
   it('filters insights by workspace', async () => {
     const now = new Date();
     await db.insert(workspaceInsights).values([
-      { id: crypto.randomUUID(), workspaceId: 'ws-A', userId: 'user-1', type: 'low_cash', severity: 'critical', title: 'Low cash', summary: 'Cash is low', createdAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-A', userId: 'user-1', type: 'debt_deadline', severity: 'warning', title: 'Debt due', summary: 'Payment due soon', createdAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-B', userId: 'user-1', type: 'low_cash', severity: 'info', title: 'Low cash', summary: 'Cash is low', createdAt: now },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-A',
+        userId: 'user-1',
+        type: 'low_cash',
+        severity: 'critical',
+        title: 'Low cash',
+        summary: 'Cash is low',
+        createdAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-A',
+        userId: 'user-1',
+        type: 'debt_deadline',
+        severity: 'warning',
+        title: 'Debt due',
+        summary: 'Payment due soon',
+        createdAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-B',
+        userId: 'user-1',
+        type: 'low_cash',
+        severity: 'info',
+        title: 'Low cash',
+        summary: 'Cash is low',
+        createdAt: now,
+      },
     ]);
 
-    const results = await db.select().from(workspaceInsights).where(eq(workspaceInsights.workspaceId, 'ws-A'));
+    const results = await db
+      .select()
+      .from(workspaceInsights)
+      .where(eq(workspaceInsights.workspaceId, 'ws-A'));
     expect(results).toHaveLength(2);
     expect(results.every((r) => r.workspaceId === 'ws-A')).toBe(true);
   });
@@ -85,12 +115,45 @@ describe('workspaceInsights table', () => {
   it('filters insights by status', async () => {
     const now = new Date();
     await db.insert(workspaceInsights).values([
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', type: 'low_cash', severity: 'critical', title: 'A', summary: 'A', status: 'active', createdAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', type: 'low_cash', severity: 'info', title: 'B', summary: 'B', status: 'dismissed', createdAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', type: 'low_cash', severity: 'warning', title: 'C', summary: 'C', status: 'engaged', createdAt: now },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        type: 'low_cash',
+        severity: 'critical',
+        title: 'A',
+        summary: 'A',
+        status: 'active',
+        createdAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        type: 'low_cash',
+        severity: 'info',
+        title: 'B',
+        summary: 'B',
+        status: 'dismissed',
+        createdAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        type: 'low_cash',
+        severity: 'warning',
+        title: 'C',
+        summary: 'C',
+        status: 'engaged',
+        createdAt: now,
+      },
     ]);
 
-    const results = await db.select().from(workspaceInsights).where(eq(workspaceInsights.status, 'active'));
+    const results = await db
+      .select()
+      .from(workspaceInsights)
+      .where(eq(workspaceInsights.status, 'active'));
     expect(results).toHaveLength(1);
     expect(results[0]?.title).toBe('A');
   });
@@ -98,12 +161,42 @@ describe('workspaceInsights table', () => {
   it('filters insights by type', async () => {
     const now = new Date();
     await db.insert(workspaceInsights).values([
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', type: 'budget_overspend', severity: 'warning', title: 'Budget', summary: 'Over', createdAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', type: 'low_cash', severity: 'critical', title: 'Cash', summary: 'Low', createdAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', type: 'budget_overspend', severity: 'info', title: 'Budget2', summary: 'Over2', createdAt: now },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        type: 'budget_overspend',
+        severity: 'warning',
+        title: 'Budget',
+        summary: 'Over',
+        createdAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        type: 'low_cash',
+        severity: 'critical',
+        title: 'Cash',
+        summary: 'Low',
+        createdAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        type: 'budget_overspend',
+        severity: 'info',
+        title: 'Budget2',
+        summary: 'Over2',
+        createdAt: now,
+      },
     ]);
 
-    const results = await db.select().from(workspaceInsights).where(eq(workspaceInsights.type, 'budget_overspend'));
+    const results = await db
+      .select()
+      .from(workspaceInsights)
+      .where(eq(workspaceInsights.type, 'budget_overspend'));
     expect(results).toHaveLength(2);
     expect(results.every((r) => r.type === 'budget_overspend')).toBe(true);
   });
@@ -123,7 +216,10 @@ describe('workspaceInsights table', () => {
       createdAt: now,
     });
 
-    await db.update(workspaceInsights).set({ status: 'dismissed' }).where(eq(workspaceInsights.id, id));
+    await db
+      .update(workspaceInsights)
+      .set({ status: 'dismissed' })
+      .where(eq(workspaceInsights.id, id));
 
     const [result] = await db.select().from(workspaceInsights).where(eq(workspaceInsights.id, id));
     expect(result?.status).toBe('dismissed');
@@ -145,7 +241,10 @@ describe('workspaceInsights table', () => {
       createdAt: now,
     });
 
-    await db.update(workspaceInsights).set({ status: 'engaged', conversationId: convId }).where(eq(workspaceInsights.id, id));
+    await db
+      .update(workspaceInsights)
+      .set({ status: 'engaged', conversationId: convId })
+      .where(eq(workspaceInsights.id, id));
 
     const [result] = await db.select().from(workspaceInsights).where(eq(workspaceInsights.id, id));
     expect(result?.status).toBe('engaged');
@@ -198,12 +297,42 @@ describe('workspaceInsights table', () => {
     const t3 = new Date('2026-03-01T12:00:00Z');
 
     await db.insert(workspaceInsights).values([
-      { id: 'ins-1', workspaceId: 'ws-1', userId: 'user-1', type: 'low_cash', severity: 'critical', title: 'First', summary: 'A', createdAt: t1 },
-      { id: 'ins-2', workspaceId: 'ws-1', userId: 'user-1', type: 'low_cash', severity: 'warning', title: 'Second', summary: 'B', createdAt: t2 },
-      { id: 'ins-3', workspaceId: 'ws-1', userId: 'user-1', type: 'low_cash', severity: 'info', title: 'Third', summary: 'C', createdAt: t3 },
+      {
+        id: 'ins-1',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        type: 'low_cash',
+        severity: 'critical',
+        title: 'First',
+        summary: 'A',
+        createdAt: t1,
+      },
+      {
+        id: 'ins-2',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        type: 'low_cash',
+        severity: 'warning',
+        title: 'Second',
+        summary: 'B',
+        createdAt: t2,
+      },
+      {
+        id: 'ins-3',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        type: 'low_cash',
+        severity: 'info',
+        title: 'Third',
+        summary: 'C',
+        createdAt: t3,
+      },
     ]);
 
-    const results = await db.select().from(workspaceInsights).orderBy(desc(workspaceInsights.createdAt));
+    const results = await db
+      .select()
+      .from(workspaceInsights)
+      .orderBy(desc(workspaceInsights.createdAt));
     expect(results).toHaveLength(3);
     expect(results[0]?.id).toBe('ins-3');
     expect(results[1]?.id).toBe('ins-2');

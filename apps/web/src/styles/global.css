@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap");
 @import "tailwindcss";
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
 @import "@a4/tailwind-config/base.css";
@@ -72,35 +72,88 @@
   }
 }
 
-
 /* Paige card flip animation */
 @keyframes darkCover {
-  0%, 18% { transform: rotateY(0deg); }
-  32% { transform: rotateY(-155deg); }
-  62% { transform: rotateY(-155deg); }
-  78% { transform: rotateY(0deg); }
-  100% { transform: rotateY(0deg); }
+  0%,
+  18% {
+    transform: rotateY(0deg);
+  }
+  32% {
+    transform: rotateY(-155deg);
+  }
+  62% {
+    transform: rotateY(-155deg);
+  }
+  78% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
 }
 @keyframes darkPaige {
-  0%, 24% { opacity: 0; transform: scale(0.92); }
-  34% { opacity: 1; transform: scale(1); }
-  58% { opacity: 1; transform: scale(1); }
-  68% { opacity: 0; transform: scale(0.92); }
-  100% { opacity: 0; transform: scale(0.92); }
+  0%,
+  24% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  34% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  58% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  68% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
 }
 @keyframes darkShadow {
-  0%, 18% { width: 120px; opacity: 1; }
-  32% { width: 160px; opacity: 0.7; }
-  62% { width: 160px; opacity: 0.7; }
-  78% { width: 120px; opacity: 1; }
-  100% { width: 120px; opacity: 1; }
+  0%,
+  18% {
+    width: 120px;
+    opacity: 1;
+  }
+  32% {
+    width: 160px;
+    opacity: 0.7;
+  }
+  62% {
+    width: 160px;
+    opacity: 0.7;
+  }
+  78% {
+    width: 120px;
+    opacity: 1;
+  }
+  100% {
+    width: 120px;
+    opacity: 1;
+  }
 }
 @keyframes darkLabel {
-  0%, 28% { opacity: 0; }
-  38% { opacity: 1; }
-  56% { opacity: 1; }
-  66% { opacity: 0; }
-  100% { opacity: 0; }
+  0%,
+  28% {
+    opacity: 0;
+  }
+  38% {
+    opacity: 1;
+  }
+  56% {
+    opacity: 1;
+  }
+  66% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 @keyframes dash {
@@ -111,7 +164,7 @@
 
 /* Landing page footer hover styles */
 .landing-page footer a:hover {
-  color: #FFFFFF !important;
+  color: #ffffff !important;
 }
 
 .landing-page footer .footer-bottom a:hover {
@@ -151,10 +204,18 @@ svg[data-visible="true"] .workflow-connector-2 {
   stroke-dashoffset: 1;
   transition: stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.canvas-connector.delay-1 { transition-delay: 0.15s; }
-.canvas-connector.delay-2 { transition-delay: 0.3s; }
-.canvas-connector.delay-3 { transition-delay: 0.45s; }
-.canvas-connector.delay-4 { transition-delay: 0.6s; }
+.canvas-connector.delay-1 {
+  transition-delay: 0.15s;
+}
+.canvas-connector.delay-2 {
+  transition-delay: 0.3s;
+}
+.canvas-connector.delay-3 {
+  transition-delay: 0.45s;
+}
+.canvas-connector.delay-4 {
+  transition-delay: 0.6s;
+}
 svg[data-visible="true"] .canvas-connector {
   stroke-dashoffset: 0;
 }
@@ -165,8 +226,12 @@ svg[data-visible="true"] .canvas-connector {
   stroke-dashoffset: 1;
   transition: stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.doc-connector.delay-1 { transition-delay: 0.3s; }
-.doc-connector.delay-2 { transition-delay: 0.6s; }
+.doc-connector.delay-1 {
+  transition-delay: 0.3s;
+}
+.doc-connector.delay-2 {
+  transition-delay: 0.6s;
+}
 svg[data-visible="true"] .doc-connector {
   stroke-dashoffset: 0;
 }

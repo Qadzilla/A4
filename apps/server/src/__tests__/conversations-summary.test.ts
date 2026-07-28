@@ -100,10 +100,7 @@ describe('conversations.summary column', () => {
       updatedAt: now,
     });
 
-    await db
-      .update(conversations)
-      .set({ summary: null })
-      .where(eq(conversations.id, id));
+    await db.update(conversations).set({ summary: null }).where(eq(conversations.id, id));
 
     const [result] = await db.select().from(conversations).where(eq(conversations.id, id));
     expect(result?.summary).toBeNull();
@@ -113,9 +110,28 @@ describe('conversations.summary column', () => {
     const now = new Date();
 
     await db.insert(conversations).values([
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', summary: 'Has a summary', createdAt: now, updatedAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', createdAt: now, updatedAt: now },
-      { id: crypto.randomUUID(), workspaceId: 'ws-1', userId: 'user-1', createdAt: now, updatedAt: now },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        summary: 'Has a summary',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
 
     const results = await db

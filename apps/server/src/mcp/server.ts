@@ -14,11 +14,11 @@ import { verifyAccessToken } from '../services/personal-access-tokens';
  * call is scoped to a workspace the token's owner actually owns.
  */
 
-/** Destructive tools stay out of the external surface in v1. */
-const EXCLUDED_TOOLS = new Set(['delete_canvas_item']);
+/** Destructive tools stay out of the external surface (none in the current registry). */
+const EXCLUDED_TOOLS = new Set<string>([]);
 
-/** Tools that operate across workspaces and take no workspaceId. */
-const WORKSPACE_OPTIONAL_TOOLS = new Set(['list_workspaces']);
+/** Tools that operate across workspaces and take no workspaceId (none currently). */
+const WORKSPACE_OPTIONAL_TOOLS = new Set<string>([]);
 
 interface McpToolDefinition {
   name: string;

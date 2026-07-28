@@ -1,6 +1,6 @@
 import { DEV_AUTH_BYPASS } from '@/lib/clerk';
 import { useClerk } from '@clerk/clerk-react';
-import { lazy, Suspense } from 'react';
+import { Suspense, lazy } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 
 const LandingPage = lazy(() => import('@/routes/_public/landing'));

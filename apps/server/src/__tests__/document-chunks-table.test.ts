@@ -89,9 +89,39 @@ describe('document_chunks table', () => {
     const emb = makeEmbedding([0.1]);
 
     await db.insert(documentChunks).values([
-      { id: 'c-2', fileId: 'file-A', workspaceId: 'ws-1', userId: 'user-1', chunkIndex: 2, content: 'Third chunk', tokenCount: 5, embedding: emb, createdAt: now },
-      { id: 'c-0', fileId: 'file-A', workspaceId: 'ws-1', userId: 'user-1', chunkIndex: 0, content: 'First chunk', tokenCount: 5, embedding: emb, createdAt: now },
-      { id: 'c-1', fileId: 'file-A', workspaceId: 'ws-1', userId: 'user-1', chunkIndex: 1, content: 'Second chunk', tokenCount: 5, embedding: emb, createdAt: now },
+      {
+        id: 'c-2',
+        fileId: 'file-A',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        chunkIndex: 2,
+        content: 'Third chunk',
+        tokenCount: 5,
+        embedding: emb,
+        createdAt: now,
+      },
+      {
+        id: 'c-0',
+        fileId: 'file-A',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        chunkIndex: 0,
+        content: 'First chunk',
+        tokenCount: 5,
+        embedding: emb,
+        createdAt: now,
+      },
+      {
+        id: 'c-1',
+        fileId: 'file-A',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        chunkIndex: 1,
+        content: 'Second chunk',
+        tokenCount: 5,
+        embedding: emb,
+        createdAt: now,
+      },
     ]);
 
     const rows = await db
@@ -111,11 +141,34 @@ describe('document_chunks table', () => {
     const emb = makeEmbedding([0.5]);
 
     await db.insert(documentChunks).values([
-      { id: 'c-ws1', fileId: 'file-1', workspaceId: 'ws-1', userId: 'user-1', chunkIndex: 0, content: 'WS1 chunk', tokenCount: 3, embedding: emb, createdAt: now },
-      { id: 'c-ws2', fileId: 'file-2', workspaceId: 'ws-2', userId: 'user-1', chunkIndex: 0, content: 'WS2 chunk', tokenCount: 3, embedding: emb, createdAt: now },
+      {
+        id: 'c-ws1',
+        fileId: 'file-1',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        chunkIndex: 0,
+        content: 'WS1 chunk',
+        tokenCount: 3,
+        embedding: emb,
+        createdAt: now,
+      },
+      {
+        id: 'c-ws2',
+        fileId: 'file-2',
+        workspaceId: 'ws-2',
+        userId: 'user-1',
+        chunkIndex: 0,
+        content: 'WS2 chunk',
+        tokenCount: 3,
+        embedding: emb,
+        createdAt: now,
+      },
     ]);
 
-    const ws1Rows = await db.select().from(documentChunks).where(eq(documentChunks.workspaceId, 'ws-1'));
+    const ws1Rows = await db
+      .select()
+      .from(documentChunks)
+      .where(eq(documentChunks.workspaceId, 'ws-1'));
     expect(ws1Rows).toHaveLength(1);
     expect(ws1Rows[0]?.content).toBe('WS1 chunk');
   });
@@ -125,9 +178,39 @@ describe('document_chunks table', () => {
     const emb = makeEmbedding([0.1]);
 
     await db.insert(documentChunks).values([
-      { id: 'c-d1', fileId: 'file-del', workspaceId: 'ws-1', userId: 'user-1', chunkIndex: 0, content: 'A', tokenCount: 1, embedding: emb, createdAt: now },
-      { id: 'c-d2', fileId: 'file-del', workspaceId: 'ws-1', userId: 'user-1', chunkIndex: 1, content: 'B', tokenCount: 1, embedding: emb, createdAt: now },
-      { id: 'c-keep', fileId: 'file-keep', workspaceId: 'ws-1', userId: 'user-1', chunkIndex: 0, content: 'C', tokenCount: 1, embedding: emb, createdAt: now },
+      {
+        id: 'c-d1',
+        fileId: 'file-del',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        chunkIndex: 0,
+        content: 'A',
+        tokenCount: 1,
+        embedding: emb,
+        createdAt: now,
+      },
+      {
+        id: 'c-d2',
+        fileId: 'file-del',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        chunkIndex: 1,
+        content: 'B',
+        tokenCount: 1,
+        embedding: emb,
+        createdAt: now,
+      },
+      {
+        id: 'c-keep',
+        fileId: 'file-keep',
+        workspaceId: 'ws-1',
+        userId: 'user-1',
+        chunkIndex: 0,
+        content: 'C',
+        tokenCount: 1,
+        embedding: emb,
+        createdAt: now,
+      },
     ]);
 
     await db.delete(documentChunks).where(eq(documentChunks.fileId, 'file-del'));
@@ -157,7 +240,11 @@ describe('document_chunks table', () => {
     const [result] = await db.select().from(documentChunks).where(eq(documentChunks.id, 'c-float'));
     expect(result?.embedding).toBeInstanceOf(Buffer);
 
-    const f32 = new Float32Array(result!.embedding.buffer, result!.embedding.byteOffset, result!.embedding.byteLength / 4);
+    const f32 = new Float32Array(
+      result!.embedding.buffer,
+      result!.embedding.byteOffset,
+      result!.embedding.byteLength / 4,
+    );
     expect(f32).toHaveLength(4);
     for (let i = 0; i < values.length; i++) {
       expect(f32[i]).toBeCloseTo(values[i]!, 5);
@@ -176,7 +263,13 @@ describe('messages table — citations column', () => {
     const id = crypto.randomUUID();
     const now = new Date();
     const citations = JSON.stringify([
-      { index: 0, fileId: 'file-1', fileName: 'report.pdf', chunkContent: 'Revenue was $1.2M', score: 0.95 },
+      {
+        index: 0,
+        fileId: 'file-1',
+        fileName: 'report.pdf',
+        chunkContent: 'Revenue was $1.2M',
+        score: 0.95,
+      },
     ]);
 
     await db.insert(messages).values({

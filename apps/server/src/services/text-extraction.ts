@@ -1,5 +1,5 @@
-import Papa from 'papaparse';
 import { unzipSync } from 'fflate';
+import Papa from 'papaparse';
 
 export async function extractText(buffer: Buffer, mimeType: string): Promise<string> {
   if (mimeType === 'text/plain') {
@@ -36,9 +36,7 @@ function extractCsv(buffer: Buffer): string {
   try {
     const content = buffer.toString('utf-8');
     const result = Papa.parse<string[]>(content, { header: false, skipEmptyLines: true });
-    return (result.data as string[][])
-      .map((row) => row.join(' | '))
-      .join('\n');
+    return (result.data as string[][]).map((row) => row.join(' | ')).join('\n');
   } catch (err) {
     console.warn('[text-extraction] Failed to parse CSV:', err);
     return '';
@@ -118,7 +116,9 @@ function extractXlsx(buffer: Buffer): string {
     if (!sheetData) return '';
     // Cap at 5MB of XML to avoid OOM on huge spreadsheets
     const MAX_XML_BYTES = 5 * 1024 * 1024;
-    const sheetXml = decoder.decode(sheetData.length > MAX_XML_BYTES ? sheetData.slice(0, MAX_XML_BYTES) : sheetData);
+    const sheetXml = decoder.decode(
+      sheetData.length > MAX_XML_BYTES ? sheetData.slice(0, MAX_XML_BYTES) : sheetData,
+    );
 
     function colIndex(ref: string): number {
       const letters = ref.replace(/\d+/g, '');
@@ -134,7 +134,9 @@ function extractXlsx(buffer: Buffer): string {
     for (const rowMatch of sheetXml.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)) {
       if (grid.length >= MAX_ROWS) break;
       const cells: [number, string][] = [];
-      for (const cellMatch of (rowMatch[1] ?? '').matchAll(/<c\s([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      for (const cellMatch of (rowMatch[1] ?? '').matchAll(
+        /<c\s([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g,
+      )) {
         const attrs = cellMatch[1] ?? '';
         const inner = cellMatch[2] ?? '';
         const refMatch = attrs.match(/r="([A-Z]+)\d+"/);

@@ -3,13 +3,8 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as schema from '../db/schema';
 import {
-  analyzeBudgetOverspend,
-  analyzeDebtDeadline,
-  analyzeHighSpendingCategory,
   analyzeLowCash,
-  analyzeNetworthChange,
   analyzePortfolioDrift,
-  analyzeSubscriptionSpike,
   generateInsights,
   scoreInsight,
 } from '../services/insight-engine';
@@ -114,64 +109,6 @@ const WS = 'ws-test';
 const USER = 'user-test';
 const now = new Date();
 
-describe('analyzeBudgetOverspend', () => {
-  let db: ReturnType<typeof createTestDb>;
-
-  beforeEach(() => {
-    db = createTestDb();
-  });
-
-  it('returns critical when 50%+ over budget', async () => {
-    await db.insert(schema.budgetCategories).values({
-      id: 'bc-1', workspaceId: WS, userId: USER, name: 'Dining',
-      budgeted: 100, actual: 200, createdAt: now, updatedAt: now,
-    });
-    const results = await analyzeBudgetOverspend(db, USER, WS);
-    expect(results).toHaveLength(1);
-    expect(results[0]?.severity).toBe('critical');
-    expect(results[0]?.type).toBe('budget_overspend');
-  });
-
-  it('returns warning when 20-49% over budget', async () => {
-    await db.insert(schema.budgetCategories).values({
-      id: 'bc-1', workspaceId: WS, userId: USER, name: 'Groceries',
-      budgeted: 500, actual: 625, createdAt: now, updatedAt: now,
-    });
-    const results = await analyzeBudgetOverspend(db, USER, WS);
-    expect(results).toHaveLength(1);
-    expect(results[0]?.severity).toBe('warning');
-  });
-
-  it('returns info when 1-19% over budget', async () => {
-    await db.insert(schema.budgetCategories).values({
-      id: 'bc-1', workspaceId: WS, userId: USER, name: 'Transport',
-      budgeted: 200, actual: 220, createdAt: now, updatedAt: now,
-    });
-    const results = await analyzeBudgetOverspend(db, USER, WS);
-    expect(results).toHaveLength(1);
-    expect(results[0]?.severity).toBe('info');
-  });
-
-  it('skips under-budget categories', async () => {
-    await db.insert(schema.budgetCategories).values({
-      id: 'bc-1', workspaceId: WS, userId: USER, name: 'Dining',
-      budgeted: 500, actual: 400, createdAt: now, updatedAt: now,
-    });
-    const results = await analyzeBudgetOverspend(db, USER, WS);
-    expect(results).toHaveLength(0);
-  });
-
-  it('handles multiple over-budget categories', async () => {
-    await db.insert(schema.budgetCategories).values([
-      { id: 'bc-1', workspaceId: WS, userId: USER, name: 'Dining', budgeted: 100, actual: 200, createdAt: now, updatedAt: now },
-      { id: 'bc-2', workspaceId: WS, userId: USER, name: 'Travel', budgeted: 300, actual: 500, createdAt: now, updatedAt: now },
-      { id: 'bc-3', workspaceId: WS, userId: USER, name: 'OK', budgeted: 100, actual: 50, createdAt: now, updatedAt: now },
-    ]);
-    const results = await analyzeBudgetOverspend(db, USER, WS);
-    expect(results).toHaveLength(2);
-  });
-});
-
 describe('analyzeLowCash', () => {
   let db: ReturnType<typeof createTestDb>;
 
@@ -181,8 +118,15 @@ describe('analyzeLowCash', () => {
 
   it('returns critical when total liquid < 100', async () => {
     await db.insert(schema.accounts).values({
-      id: 'acc-1', workspaceId: WS, userId: USER, name: 'Checking',
-      institution: 'Bank', type: 'checking', balance: 50, createdAt: now, updatedAt: now,
+      id: 'acc-1',
+      workspaceId: WS,
+      userId: USER,
+      name: 'Checking',
+      institution: 'Bank',
+      type: 'checking',
+      balance: 50,
+      createdAt: now,
+      updatedAt: now,
     });
     const results = await analyzeLowCash(db, USER, WS);
     expect(results).toHaveLength(1);
@@ -191,8 +135,28 @@ describe('analyzeLowCash', () => {
 
   it('returns warning when total liquid 100-499', async () => {
     await db.insert(schema.accounts).values([
-      { id: 'acc-1', workspaceId: WS, userId: USER, name: 'Checking', institution: 'Bank', type: 'checking', balance: 200, createdAt: now, updatedAt: now },
-      { id: 'acc-2', workspaceId: WS, userId: USER, name: 'Savings', institution: 'Bank', type: 'savings', balance: 100, createdAt: now, updatedAt: now },
+      {
+        id: 'acc-1',
+        workspaceId: WS,
+        userId: USER,
+        name: 'Checking',
+        institution: 'Bank',
+        type: 'checking',
+        balance: 200,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'acc-2',
+        workspaceId: WS,
+        userId: USER,
+        name: 'Savings',
+        institution: 'Bank',
+        type: 'savings',
+        balance: 100,
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
     const results = await analyzeLowCash(db, USER, WS);
     expect(results).toHaveLength(1);
@@ -201,8 +165,15 @@ describe('analyzeLowCash', () => {
 
   it('skips when total liquid >= 500', async () => {
     await db.insert(schema.accounts).values({
-      id: 'acc-1', workspaceId: WS, userId: USER, name: 'Checking',
-      institution: 'Bank', type: 'checking', balance: 5000, createdAt: now, updatedAt: now,
+      id: 'acc-1',
+      workspaceId: WS,
+      userId: USER,
+      name: 'Checking',
+      institution: 'Bank',
+      type: 'checking',
+      balance: 5000,
+      createdAt: now,
+      updatedAt: now,
     });
     const results = await analyzeLowCash(db, USER, WS);
     expect(results).toHaveLength(0);
@@ -210,23 +181,17 @@ describe('analyzeLowCash', () => {
 
   it('skips when no checking/savings accounts', async () => {
     await db.insert(schema.accounts).values({
-      id: 'acc-1', workspaceId: WS, userId: USER, name: 'Credit Card',
-      institution: 'Bank', type: 'credit_card', balance: -500, createdAt: now, updatedAt: now,
+      id: 'acc-1',
+      workspaceId: WS,
+      userId: USER,
+      name: 'Credit Card',
+      institution: 'Bank',
+      type: 'credit_card',
+      balance: -500,
+      createdAt: now,
+      updatedAt: now,
     });
     const results = await analyzeLowCash(db, USER, WS);
-    expect(results).toHaveLength(0);
-  });
-});
-
-describe('analyzeDebtDeadline', () => {
-  let db: ReturnType<typeof createTestDb>;
-
-  beforeEach(() => {
-    db = createTestDb();
-  });
-
-  it('returns empty array (TODO: requires dueDate column)', async () => {
-    const results = await analyzeDebtDeadline(db, USER, WS);
     expect(results).toHaveLength(0);
   });
 });
@@ -241,8 +206,28 @@ describe('analyzePortfolioDrift', () => {
   it('returns warning for >5% drift', async () => {
     // 60/40 split vs 50/50 target → 10% drift each (>5 but <=15 = warning)
     await db.insert(schema.holdings).values([
-      { id: 'h-1', workspaceId: WS, userId: USER, symbol: 'AAPL', name: 'Apple', value: 6000, targetPct: 50, createdAt: now, updatedAt: now },
-      { id: 'h-2', workspaceId: WS, userId: USER, symbol: 'GOOG', name: 'Google', value: 4000, targetPct: 50, createdAt: now, updatedAt: now },
+      {
+        id: 'h-1',
+        workspaceId: WS,
+        userId: USER,
+        symbol: 'AAPL',
+        name: 'Apple',
+        value: 6000,
+        targetPct: 50,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'h-2',
+        workspaceId: WS,
+        userId: USER,
+        symbol: 'GOOG',
+        name: 'Google',
+        value: 4000,
+        targetPct: 50,
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
     const results = await analyzePortfolioDrift(db, USER, WS);
     expect(results).toHaveLength(2);
@@ -251,8 +236,28 @@ describe('analyzePortfolioDrift', () => {
 
   it('returns critical for >15% drift', async () => {
     await db.insert(schema.holdings).values([
-      { id: 'h-1', workspaceId: WS, userId: USER, symbol: 'AAPL', name: 'Apple', value: 9000, targetPct: 50, createdAt: now, updatedAt: now },
-      { id: 'h-2', workspaceId: WS, userId: USER, symbol: 'GOOG', name: 'Google', value: 1000, targetPct: 50, createdAt: now, updatedAt: now },
+      {
+        id: 'h-1',
+        workspaceId: WS,
+        userId: USER,
+        symbol: 'AAPL',
+        name: 'Apple',
+        value: 9000,
+        targetPct: 50,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'h-2',
+        workspaceId: WS,
+        userId: USER,
+        symbol: 'GOOG',
+        name: 'Google',
+        value: 1000,
+        targetPct: 50,
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
     const results = await analyzePortfolioDrift(db, USER, WS);
     expect(results.some((r) => r.severity === 'critical')).toBe(true);
@@ -260,8 +265,28 @@ describe('analyzePortfolioDrift', () => {
 
   it('skips holdings without targetPct', async () => {
     await db.insert(schema.holdings).values([
-      { id: 'h-1', workspaceId: WS, userId: USER, symbol: 'AAPL', name: 'Apple', value: 5000, targetPct: 0, createdAt: now, updatedAt: now },
-      { id: 'h-2', workspaceId: WS, userId: USER, symbol: 'GOOG', name: 'Google', value: 5000, targetPct: 0, createdAt: now, updatedAt: now },
+      {
+        id: 'h-1',
+        workspaceId: WS,
+        userId: USER,
+        symbol: 'AAPL',
+        name: 'Apple',
+        value: 5000,
+        targetPct: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'h-2',
+        workspaceId: WS,
+        userId: USER,
+        symbol: 'GOOG',
+        name: 'Google',
+        value: 5000,
+        targetPct: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
     const results = await analyzePortfolioDrift(db, USER, WS);
     expect(results).toHaveLength(0);
@@ -269,191 +294,17 @@ describe('analyzePortfolioDrift', () => {
 
   it('skips when portfolio value is 0', async () => {
     await db.insert(schema.holdings).values({
-      id: 'h-1', workspaceId: WS, userId: USER, symbol: 'AAPL', name: 'Apple', value: 0, targetPct: 50, createdAt: now, updatedAt: now,
+      id: 'h-1',
+      workspaceId: WS,
+      userId: USER,
+      symbol: 'AAPL',
+      name: 'Apple',
+      value: 0,
+      targetPct: 50,
+      createdAt: now,
+      updatedAt: now,
     });
     const results = await analyzePortfolioDrift(db, USER, WS);
-    expect(results).toHaveLength(0);
-  });
-});
-
-describe('analyzeNetworthChange', () => {
-  let db: ReturnType<typeof createTestDb>;
-
-  beforeEach(() => {
-    db = createTestDb();
-  });
-
-  it('returns info for >10% increase', async () => {
-    const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
-    await db.insert(schema.networthEntries).values([
-      { id: 'nw-1', workspaceId: WS, userId: USER, name: 'Previous', categoryId: 'cat-1', value: 10000, createdAt: tenDaysAgo, updatedAt: tenDaysAgo },
-      { id: 'nw-2', workspaceId: WS, userId: USER, name: 'Current', categoryId: 'cat-1', value: 12000, createdAt: now, updatedAt: now },
-    ]);
-    const results = await analyzeNetworthChange(db, USER, WS);
-    expect(results).toHaveLength(1);
-    expect(results[0]?.severity).toBe('info');
-  });
-
-  it('returns critical for >20% decrease', async () => {
-    const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
-    await db.insert(schema.networthEntries).values([
-      { id: 'nw-1', workspaceId: WS, userId: USER, name: 'Previous', categoryId: 'cat-1', value: 10000, createdAt: tenDaysAgo, updatedAt: tenDaysAgo },
-      { id: 'nw-2', workspaceId: WS, userId: USER, name: 'Current', categoryId: 'cat-1', value: 7000, createdAt: now, updatedAt: now },
-    ]);
-    const results = await analyzeNetworthChange(db, USER, WS);
-    expect(results).toHaveLength(1);
-    expect(results[0]?.severity).toBe('critical');
-  });
-
-  it('skips when change is <= 10%', async () => {
-    const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
-    await db.insert(schema.networthEntries).values([
-      { id: 'nw-1', workspaceId: WS, userId: USER, name: 'Previous', categoryId: 'cat-1', value: 10000, createdAt: tenDaysAgo, updatedAt: tenDaysAgo },
-      { id: 'nw-2', workspaceId: WS, userId: USER, name: 'Current', categoryId: 'cat-1', value: 10500, createdAt: now, updatedAt: now },
-    ]);
-    const results = await analyzeNetworthChange(db, USER, WS);
-    expect(results).toHaveLength(0);
-  });
-
-  it('skips when fewer than 2 entries', async () => {
-    await db.insert(schema.networthEntries).values({
-      id: 'nw-1', workspaceId: WS, userId: USER, name: 'Only', categoryId: 'cat-1', value: 10000, createdAt: now, updatedAt: now,
-    });
-    const results = await analyzeNetworthChange(db, USER, WS);
-    expect(results).toHaveLength(0);
-  });
-
-  it('skips entries less than 7 days apart', async () => {
-    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-    await db.insert(schema.networthEntries).values([
-      { id: 'nw-1', workspaceId: WS, userId: USER, name: 'Previous', categoryId: 'cat-1', value: 10000, createdAt: threeDaysAgo, updatedAt: threeDaysAgo },
-      { id: 'nw-2', workspaceId: WS, userId: USER, name: 'Current', categoryId: 'cat-1', value: 15000, createdAt: now, updatedAt: now },
-    ]);
-    const results = await analyzeNetworthChange(db, USER, WS);
-    expect(results).toHaveLength(0);
-  });
-});
-
-describe('analyzeSubscriptionSpike', () => {
-  let db: ReturnType<typeof createTestDb>;
-
-  beforeEach(() => {
-    db = createTestDb();
-  });
-
-  it('returns info for 15-50% increase', async () => {
-    // Baseline insight with currentMonthly = 100
-    await db.insert(schema.workspaceInsights).values({
-      id: 'ins-1', workspaceId: WS, userId: USER, type: 'subscription_spike',
-      severity: 'info', title: 'Old', summary: 'Old',
-      data: JSON.stringify({ currentMonthly: 100, dedupeKey: 'subscription_spike:monthly' }),
-      status: 'dismissed', createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-    });
-    // Active subscription totaling ~130/mo (30% increase)
-    await db.insert(schema.subscriptions).values({
-      id: 'sub-1', workspaceId: WS, userId: USER, name: 'Netflix',
-      amount: 130, frequency: 'monthly', startDate: '2026-01-01',
-      nextBillingDate: '2026-04-01', status: 'active', createdAt: now, updatedAt: now,
-    });
-    const results = await analyzeSubscriptionSpike(db, USER, WS);
-    expect(results).toHaveLength(1);
-    expect(results[0]?.severity).toBe('info');
-  });
-
-  it('returns warning for >50% increase', async () => {
-    await db.insert(schema.workspaceInsights).values({
-      id: 'ins-1', workspaceId: WS, userId: USER, type: 'subscription_spike',
-      severity: 'info', title: 'Old', summary: 'Old',
-      data: JSON.stringify({ currentMonthly: 100, dedupeKey: 'subscription_spike:monthly' }),
-      status: 'dismissed', createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-    });
-    await db.insert(schema.subscriptions).values({
-      id: 'sub-1', workspaceId: WS, userId: USER, name: 'Premium Suite',
-      amount: 200, frequency: 'monthly', startDate: '2026-01-01',
-      nextBillingDate: '2026-04-01', status: 'active', createdAt: now, updatedAt: now,
-    });
-    const results = await analyzeSubscriptionSpike(db, USER, WS);
-    expect(results).toHaveLength(1);
-    expect(results[0]?.severity).toBe('warning');
-  });
-
-  it('normalizes yearly subscriptions to monthly', async () => {
-    await db.insert(schema.workspaceInsights).values({
-      id: 'ins-1', workspaceId: WS, userId: USER, type: 'subscription_spike',
-      severity: 'info', title: 'Old', summary: 'Old',
-      data: JSON.stringify({ currentMonthly: 50, dedupeKey: 'subscription_spike:monthly' }),
-      status: 'active', createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-    });
-    // $1200/year = $100/month → 100% increase over baseline of $50
-    await db.insert(schema.subscriptions).values({
-      id: 'sub-1', workspaceId: WS, userId: USER, name: 'Annual Service',
-      amount: 1200, frequency: 'annual', startDate: '2026-01-01',
-      nextBillingDate: '2027-01-01', status: 'active', createdAt: now, updatedAt: now,
-    });
-    const results = await analyzeSubscriptionSpike(db, USER, WS);
-    expect(results).toHaveLength(1);
-    // $1200 / 12 = $100, baseline = $50, change = 100%
-    expect(results[0]?.severity).toBe('warning');
-  });
-
-  it('skips on first run (no baseline)', async () => {
-    await db.insert(schema.subscriptions).values({
-      id: 'sub-1', workspaceId: WS, userId: USER, name: 'Netflix',
-      amount: 15, frequency: 'monthly', startDate: '2026-01-01',
-      nextBillingDate: '2026-04-01', status: 'active', createdAt: now, updatedAt: now,
-    });
-    const results = await analyzeSubscriptionSpike(db, USER, WS);
-    expect(results).toHaveLength(0);
-  });
-});
-
-describe('analyzeHighSpendingCategory', () => {
-  let db: ReturnType<typeof createTestDb>;
-
-  beforeEach(() => {
-    db = createTestDb();
-  });
-
-  it('returns info when 40-60% of total', async () => {
-    await db.insert(schema.budgetCategories).values([
-      { id: 'bc-1', workspaceId: WS, userId: USER, name: 'Rent', budgeted: 2000, actual: 2000, createdAt: now, updatedAt: now },
-      { id: 'bc-2', workspaceId: WS, userId: USER, name: 'Food', budgeted: 500, actual: 1500, createdAt: now, updatedAt: now },
-      { id: 'bc-3', workspaceId: WS, userId: USER, name: 'Fun', budgeted: 200, actual: 500, createdAt: now, updatedAt: now },
-    ]);
-    const results = await analyzeHighSpendingCategory(db, USER, WS);
-    // Rent = 2000/4000 = 50% → info
-    expect(results).toHaveLength(1);
-    expect(results[0]?.severity).toBe('info');
-    expect(results[0]?.title).toContain('Rent');
-  });
-
-  it('returns warning when >60% of total', async () => {
-    await db.insert(schema.budgetCategories).values([
-      { id: 'bc-1', workspaceId: WS, userId: USER, name: 'Rent', budgeted: 3000, actual: 3000, createdAt: now, updatedAt: now },
-      { id: 'bc-2', workspaceId: WS, userId: USER, name: 'Food', budgeted: 500, actual: 500, createdAt: now, updatedAt: now },
-    ]);
-    const results = await analyzeHighSpendingCategory(db, USER, WS);
-    // Rent = 3000/3500 ≈ 85.7% → warning
-    expect(results).toHaveLength(1);
-    expect(results[0]?.severity).toBe('warning');
-  });
-
-  it('skips when no category exceeds 40%', async () => {
-    await db.insert(schema.budgetCategories).values([
-      { id: 'bc-1', workspaceId: WS, userId: USER, name: 'A', budgeted: 500, actual: 300, createdAt: now, updatedAt: now },
-      { id: 'bc-2', workspaceId: WS, userId: USER, name: 'B', budgeted: 500, actual: 350, createdAt: now, updatedAt: now },
-      { id: 'bc-3', workspaceId: WS, userId: USER, name: 'C', budgeted: 500, actual: 350, createdAt: now, updatedAt: now },
-    ]);
-    const results = await analyzeHighSpendingCategory(db, USER, WS);
-    expect(results).toHaveLength(0);
-  });
-
-  it('skips when total spending is 0', async () => {
-    await db.insert(schema.budgetCategories).values([
-      { id: 'bc-1', workspaceId: WS, userId: USER, name: 'A', budgeted: 500, actual: 0, createdAt: now, updatedAt: now },
-      { id: 'bc-2', workspaceId: WS, userId: USER, name: 'B', budgeted: 500, actual: 0, createdAt: now, updatedAt: now },
-    ]);
-    const results = await analyzeHighSpendingCategory(db, USER, WS);
     expect(results).toHaveLength(0);
   });
 });
@@ -468,57 +319,122 @@ describe('generateInsights — deduplication', () => {
   it('filters out candidates with matching active dedupeKeys', async () => {
     // Insert an active insight with a dedupeKey matching what budget_overspend would generate
     await db.insert(schema.workspaceInsights).values({
-      id: 'existing-1', workspaceId: WS, userId: USER, type: 'budget_overspend',
-      severity: 'warning', title: 'Existing', summary: 'Existing',
-      data: JSON.stringify({ dedupeKey: 'budget_overspend:bc-1', categoryName: 'Dining', budgeted: 100, actual: 150, percentOver: 50 }),
-      status: 'active', createdAt: now,
+      id: 'existing-1',
+      workspaceId: WS,
+      userId: USER,
+      type: 'low_cash',
+      severity: 'warning',
+      title: 'Existing',
+      summary: 'Existing',
+      data: JSON.stringify({
+        dedupeKey: 'low_cash:workspace',
+        totalLiquid: 300,
+        threshold: 500,
+        lowestAccount: 'Checking',
+        lowestBalance: 300,
+      }),
+      status: 'active',
+      createdAt: now,
     });
 
-    // Seed budget data that would generate the same dedupeKey
-    await db.insert(schema.budgetCategories).values({
-      id: 'bc-1', workspaceId: WS, userId: USER, name: 'Dining',
-      budgeted: 100, actual: 200, createdAt: now, updatedAt: now,
+    // Seed account data that would generate the same dedupeKey
+    await db.insert(schema.accounts).values({
+      id: 'acct-1',
+      workspaceId: WS,
+      userId: USER,
+      name: 'Checking',
+      institution: 'Chase',
+      type: 'checking',
+      balance: 300,
+      createdAt: now,
+      updatedAt: now,
     });
 
     const results = await generateInsights(db, USER, WS);
-    const budgetInsights = results.filter((r) => r.type === 'budget_overspend');
+    const budgetInsights = results.filter((r) => r.type === 'low_cash');
     expect(budgetInsights).toHaveLength(0);
   });
 
   it('allows regeneration after dismissal', async () => {
     // Insert a dismissed insight — should NOT block new candidates
     await db.insert(schema.workspaceInsights).values({
-      id: 'dismissed-1', workspaceId: WS, userId: USER, type: 'budget_overspend',
-      severity: 'warning', title: 'Old', summary: 'Old',
-      data: JSON.stringify({ dedupeKey: 'budget_overspend:bc-1', categoryName: 'Dining', budgeted: 100, actual: 150, percentOver: 50 }),
-      status: 'dismissed', createdAt: now,
+      id: 'dismissed-1',
+      workspaceId: WS,
+      userId: USER,
+      type: 'low_cash',
+      severity: 'warning',
+      title: 'Old',
+      summary: 'Old',
+      data: JSON.stringify({
+        dedupeKey: 'low_cash:workspace',
+        totalLiquid: 300,
+        threshold: 500,
+        lowestAccount: 'Checking',
+        lowestBalance: 300,
+      }),
+      status: 'dismissed',
+      createdAt: now,
     });
 
-    await db.insert(schema.budgetCategories).values({
-      id: 'bc-1', workspaceId: WS, userId: USER, name: 'Dining',
-      budgeted: 100, actual: 200, createdAt: now, updatedAt: now,
+    await db.insert(schema.accounts).values({
+      id: 'acct-1',
+      workspaceId: WS,
+      userId: USER,
+      name: 'Checking',
+      institution: 'Chase',
+      type: 'checking',
+      balance: 300,
+      createdAt: now,
+      updatedAt: now,
     });
 
     const results = await generateInsights(db, USER, WS);
-    const budgetInsights = results.filter((r) => r.type === 'budget_overspend');
+    const budgetInsights = results.filter((r) => r.type === 'low_cash');
     expect(budgetInsights).toHaveLength(1);
   });
 
   it('runs all analyzers in parallel and returns combined results', async () => {
-    // Seed data for multiple analyzers
-    await db.insert(schema.budgetCategories).values({
-      id: 'bc-1', workspaceId: WS, userId: USER, name: 'Dining',
-      budgeted: 100, actual: 200, createdAt: now, updatedAt: now,
-    });
+    // Seed data for both surviving analyzers: low cash + portfolio drift
     await db.insert(schema.accounts).values({
-      id: 'acc-1', workspaceId: WS, userId: USER, name: 'Checking',
-      institution: 'Bank', type: 'checking', balance: 50, createdAt: now, updatedAt: now,
+      id: 'acct-1',
+      workspaceId: WS,
+      userId: USER,
+      name: 'Checking',
+      institution: 'Chase',
+      type: 'checking',
+      balance: 300,
+      createdAt: now,
+      updatedAt: now,
     });
+    await db.insert(schema.holdings).values([
+      {
+        id: 'h-1',
+        workspaceId: WS,
+        userId: USER,
+        symbol: 'AAPL',
+        name: 'Apple',
+        value: 9000,
+        targetPct: 50,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'h-2',
+        workspaceId: WS,
+        userId: USER,
+        symbol: 'VOO',
+        name: 'Vanguard',
+        value: 1000,
+        targetPct: 50,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
 
     const results = await generateInsights(db, USER, WS);
     const types = new Set(results.map((r) => r.type));
-    expect(types.has('budget_overspend')).toBe(true);
     expect(types.has('low_cash')).toBe(true);
+    expect(types.has('portfolio_drift')).toBe(true);
   });
 });
 
@@ -530,7 +446,11 @@ describe('scoreInsight', () => {
 
   it('info + old + low-confidence → score < 0.3', () => {
     const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
-    const score = scoreInsight({ type: 'subscription_spike', severity: 'info', createdAt: eightDaysAgo });
+    const score = scoreInsight({
+      type: 'subscription_spike',
+      severity: 'info',
+      createdAt: eightDaysAgo,
+    });
     expect(score).toBeLessThan(0.3);
   });
 
@@ -538,13 +458,21 @@ describe('scoreInsight', () => {
     const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
     const hundredHoursAgo = new Date(Date.now() - 100 * 60 * 60 * 1000);
     const newer = scoreInsight({ type: 'low_cash', severity: 'warning', createdAt: oneHourAgo });
-    const older = scoreInsight({ type: 'low_cash', severity: 'warning', createdAt: hundredHoursAgo });
+    const older = scoreInsight({
+      type: 'low_cash',
+      severity: 'warning',
+      createdAt: hundredHoursAgo,
+    });
     expect(newer).toBeGreaterThan(older);
   });
 
   it('severity dominates — critical + old beats info + new', () => {
     const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
-    const critical = scoreInsight({ type: 'low_cash', severity: 'critical', createdAt: sixDaysAgo });
+    const critical = scoreInsight({
+      type: 'low_cash',
+      severity: 'critical',
+      createdAt: sixDaysAgo,
+    });
     const info = scoreInsight({ type: 'low_cash', severity: 'info', createdAt: new Date() });
     expect(critical).toBeGreaterThan(info);
   });
@@ -568,16 +496,29 @@ describe('engagement-aware suppression', () => {
     // Seed 8 dismissed low_cash insights
     for (let i = 0; i < 8; i++) {
       await db.insert(schema.workspaceInsights).values({
-        id: `sup-${i}`, workspaceId: WS, userId: USER, type: 'low_cash',
-        severity: 'warning', title: 'Low cash', summary: 'Low',
-        status: 'dismissed', createdAt: now,
+        id: `sup-${i}`,
+        workspaceId: WS,
+        userId: USER,
+        type: 'low_cash',
+        severity: 'warning',
+        title: 'Low cash',
+        summary: 'Low',
+        status: 'dismissed',
+        createdAt: now,
       });
     }
 
     // Seed account data that would trigger low_cash
     await db.insert(schema.accounts).values({
-      id: 'acc-1', workspaceId: WS, userId: USER, name: 'Checking',
-      institution: 'Bank', type: 'checking', balance: 50, createdAt: now, updatedAt: now,
+      id: 'acc-1',
+      workspaceId: WS,
+      userId: USER,
+      name: 'Checking',
+      institution: 'Bank',
+      type: 'checking',
+      balance: 50,
+      createdAt: now,
+      updatedAt: now,
     });
 
     const results = await generateInsights(db, USER, WS);
@@ -589,15 +530,28 @@ describe('engagement-aware suppression', () => {
     // Seed 3 dismissed low_cash insights
     for (let i = 0; i < 3; i++) {
       await db.insert(schema.workspaceInsights).values({
-        id: `sup-${i}`, workspaceId: WS, userId: USER, type: 'low_cash',
-        severity: 'warning', title: 'Low cash', summary: 'Low',
-        status: 'dismissed', createdAt: now,
+        id: `sup-${i}`,
+        workspaceId: WS,
+        userId: USER,
+        type: 'low_cash',
+        severity: 'warning',
+        title: 'Low cash',
+        summary: 'Low',
+        status: 'dismissed',
+        createdAt: now,
       });
     }
 
     await db.insert(schema.accounts).values({
-      id: 'acc-1', workspaceId: WS, userId: USER, name: 'Checking',
-      institution: 'Bank', type: 'checking', balance: 50, createdAt: now, updatedAt: now,
+      id: 'acc-1',
+      workspaceId: WS,
+      userId: USER,
+      name: 'Checking',
+      institution: 'Bank',
+      type: 'checking',
+      balance: 50,
+      createdAt: now,
+      updatedAt: now,
     });
 
     const results = await generateInsights(db, USER, WS);
@@ -609,22 +563,41 @@ describe('engagement-aware suppression', () => {
     // Seed 6 dismissed + 2 engaged (25% rate)
     for (let i = 0; i < 6; i++) {
       await db.insert(schema.workspaceInsights).values({
-        id: `dis-${i}`, workspaceId: WS, userId: USER, type: 'low_cash',
-        severity: 'warning', title: 'Low cash', summary: 'Low',
-        status: 'dismissed', createdAt: now,
+        id: `dis-${i}`,
+        workspaceId: WS,
+        userId: USER,
+        type: 'low_cash',
+        severity: 'warning',
+        title: 'Low cash',
+        summary: 'Low',
+        status: 'dismissed',
+        createdAt: now,
       });
     }
     for (let i = 0; i < 2; i++) {
       await db.insert(schema.workspaceInsights).values({
-        id: `eng-${i}`, workspaceId: WS, userId: USER, type: 'low_cash',
-        severity: 'warning', title: 'Low cash', summary: 'Low',
-        status: 'engaged', createdAt: now,
+        id: `eng-${i}`,
+        workspaceId: WS,
+        userId: USER,
+        type: 'low_cash',
+        severity: 'warning',
+        title: 'Low cash',
+        summary: 'Low',
+        status: 'engaged',
+        createdAt: now,
       });
     }
 
     await db.insert(schema.accounts).values({
-      id: 'acc-1', workspaceId: WS, userId: USER, name: 'Checking',
-      institution: 'Bank', type: 'checking', balance: 50, createdAt: now, updatedAt: now,
+      id: 'acc-1',
+      workspaceId: WS,
+      userId: USER,
+      name: 'Checking',
+      institution: 'Bank',
+      type: 'checking',
+      balance: 50,
+      createdAt: now,
+      updatedAt: now,
     });
 
     const results = await generateInsights(db, USER, WS);

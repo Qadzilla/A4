@@ -1,5 +1,5 @@
-import { DEV_AUTH_BYPASS } from '@/lib/clerk';
 import CanvasBackground from '@/components/landing/CanvasBackground';
+import { DEV_AUTH_BYPASS } from '@/lib/clerk';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import { Check } from 'lucide-react';
 import { Link } from 'react-router';
@@ -63,9 +63,9 @@ function EarlyAccessContent({
             You&apos;re on the list{firstName ? `, ${firstName}` : ''}.
           </h1>
           <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-white/60">
-            A4 is being built right now — an AI workspace that turns your financial
-            documents into living budgets, forecasts, and answers. We&apos;re polishing
-            the final pieces before opening the doors.
+            A4 is being built right now — an AI workspace that turns your financial documents into
+            living budgets, forecasts, and answers. We&apos;re polishing the final pieces before
+            opening the doors.
           </p>
 
           <div className="mx-auto mt-10 max-w-sm rounded-2xl border border-white/10 bg-[#161616] p-5 text-left">
@@ -74,7 +74,16 @@ function EarlyAccessContent({
               <li className="flex gap-2.5">
                 <span className="mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <span>
-                  Your spot is reserved{email ? <> under <span className="text-white/80">{email}</span></> : ''}.
+                  Your spot is reserved
+                  {email ? (
+                    <>
+                      {' '}
+                      under <span className="text-white/80">{email}</span>
+                    </>
+                  ) : (
+                    ''
+                  )}
+                  .
                 </span>
               </li>
               <li className="flex gap-2.5">

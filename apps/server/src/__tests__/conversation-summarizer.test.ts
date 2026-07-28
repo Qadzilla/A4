@@ -99,7 +99,9 @@ describe('summarizeConversation', () => {
       { role: 'user', content: 'Also show margins.' },
     ]);
 
-    mockChatCompletion.mockResolvedValueOnce('Discussed Q1 ($500k) and Q2 ($600k) revenue with margin comparison.');
+    mockChatCompletion.mockResolvedValueOnce(
+      'Discussed Q1 ($500k) and Q2 ($600k) revenue with margin comparison.',
+    );
 
     await summarizeConversation(db, 'conv-1');
 
@@ -113,7 +115,9 @@ describe('summarizeConversation', () => {
     );
 
     const [conv] = await db.select().from(conversations);
-    expect(conv?.summary).toBe('Discussed Q1 ($500k) and Q2 ($600k) revenue with margin comparison.');
+    expect(conv?.summary).toBe(
+      'Discussed Q1 ($500k) and Q2 ($600k) revenue with margin comparison.',
+    );
   });
 
   it('skips summarization when fewer than 4 user messages', async () => {
