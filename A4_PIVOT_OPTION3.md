@@ -1,7 +1,7 @@
 # The Pivot — Option 3 Deep Dive: Fresh Shell, Transplanted Organs
 
 > **Created:** 2026-07-27
-> **Status:** Proposal — awaiting brand pick and go/no-go
+> **Status:** EXECUTING — P1 (The Cut) complete 2026-07-27; next P2 (The Shell), pending working name
 > **Decision context:** Full rebrand and refocus of A4 onto two pillars — **investing** and **taxes** — for people **25 and under**, replacing the horizontal "financial workspace" with a vertical, opinionated product. Option 3 = rebuild everything the user sees; keep everything the user doesn't.
 > **Scope stance (locked):** V1 ships **both pillars at full depth**.
 
