@@ -33,7 +33,7 @@ vi.mock('../services/anthropic', () => ({
   },
 }));
 vi.mock('../services/ai-context', () => ({
-  buildWorkspaceContext: vi.fn().mockResolvedValue('You are Paige, a financial AI assistant.'),
+  buildWorkspaceContext: vi.fn().mockResolvedValue('You are Bip, the Basis AI.'),
   buildDocumentContext: vi.fn().mockResolvedValue({ section: '', citations: [] }),
 }));
 vi.mock('../services/ai-tools', () => ({

@@ -9,6 +9,7 @@ import {
   files,
   holdings,
   marketBars,
+  trades,
   transactions,
   workspaces,
 } from '../db/schema';
@@ -17,11 +18,15 @@ import { findUnmatchedTransactions } from './reconciliation';
 const lazySearchDocuments = () => import('./vector-search').then((m) => m.searchDocuments);
 import {
   computeProjection,
+  computeRealizedGains,
   computeTaxEstimate,
   createDefaultProjectionData,
   createDefaultTaxEstimatorData,
 } from '../lib/calc';
-import type { ProjectionCardData, TaxEstimatorData } from '../lib/calc';
+import type { LotTrade, ProjectionCardData, TaxEstimatorData } from '../lib/calc';
+import { getPolygonService } from '../trpc/context';
+import { computeBenchmark } from './benchmark';
+import { buildTaxPicture } from './tax-picture';
 
 export interface ToolContext {
   db: DB;
@@ -50,6 +55,153 @@ function truncateSchedule<T>(
     rows: [...schedule.slice(0, half), ...schedule.slice(-half)],
     truncated: true,
     totalRows: schedule.length,
+  };
+}
+
+async function loadTrades(ctx: ToolContext): Promise<LotTrade[]> {
+  const rows = await ctx.db
+    .select()
+    .from(trades)
+    .where(and(eq(trades.workspaceId, ctx.workspaceId), eq(trades.userId, ctx.userId)));
+  return rows.map((t) => ({
+    id: t.id,
+    symbol: t.symbol,
+    side: t.side as 'buy' | 'sell',
+    tradeDate: t.tradeDate,
+    units: t.units,
+    price: t.price,
+    fees: t.fees,
+  }));
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const LONG_TERM_DAYS = 365;
+const WASH_WINDOW_DAYS = 30;
+
+/**
+ * The pre-trade check behind Bip's most important behavior: surfacing what a
+ * sale actually costs BEFORE it happens. FIFO order, per-lot terms, tax at
+ * the user's marginal/LTCG position, and wash-sale exposure.
+ */
+async function preTradeCheck(
+  ctx: ToolContext,
+  symbol: string,
+  requestedUnits: number | undefined,
+): Promise<Record<string, unknown>> {
+  const [holding] = await ctx.db
+    .select()
+    .from(holdings)
+    .where(
+      and(
+        eq(holdings.workspaceId, ctx.workspaceId),
+        eq(holdings.userId, ctx.userId),
+        eq(holdings.symbol, symbol),
+      ),
+    );
+  const allTrades = await loadTrades(ctx);
+  const summary = computeRealizedGains(allTrades);
+  const openLots = summary.openLots.filter((l) => l.symbol === symbol);
+
+  // Best available per-unit price: live holding value ÷ quantity, else null
+  const currentPrice =
+    holding && holding.quantity && holding.quantity > 0 ? holding.value / holding.quantity : null;
+
+  if (!holding && openLots.length === 0) {
+    return {
+      available: false,
+      reason: `No position or trade history found for ${symbol}.`,
+    };
+  }
+
+  const totalUnits =
+    openLots.length > 0 ? openLots.reduce((s, l) => s + l.units, 0) : (holding?.quantity ?? null);
+  const unitsToSell =
+    requestedUnits && requestedUnits > 0 && totalUnits !== null
+      ? Math.min(requestedUnits, totalUnits)
+      : totalUnits;
+
+  const today = Date.now();
+  const lots = openLots.map((lot) => {
+    const heldDays = Math.floor(
+      (today - new Date(`${lot.acquiredAt}T00:00:00Z`).getTime()) / DAY_MS,
+    );
+    return {
+      acquiredAt: lot.acquiredAt,
+      units: lot.units,
+      costPerUnit: lot.costPerUnit,
+      term: heldDays > LONG_TERM_DAYS ? 'long' : 'short',
+      daysUntilLongTerm: heldDays > LONG_TERM_DAYS ? 0 : LONG_TERM_DAYS + 1 - heldDays,
+    };
+  });
+
+  // Simulate the FIFO sale where lots + a price are known
+  let estimatedGainShort: number | null = null;
+  let estimatedGainLong: number | null = null;
+  if (lots.length > 0 && currentPrice !== null && unitsToSell !== null) {
+    let remaining = unitsToSell;
+    estimatedGainShort = 0;
+    estimatedGainLong = 0;
+    for (const lot of lots) {
+      if (remaining <= 0) break;
+      const take = Math.min(lot.units, remaining);
+      const gain = take * (currentPrice - lot.costPerUnit);
+      if (lot.term === 'long') estimatedGainLong += gain;
+      else estimatedGainShort += gain;
+      remaining -= take;
+    }
+  }
+
+  // Wash-sale exposure: selling at a loss with buys in the last 30 days
+  // disallows the loss; rebuying within 30 days after would too.
+  const cutoff = new Date(today - WASH_WINDOW_DAYS * DAY_MS).toISOString().slice(0, 10);
+  const recentBuys = allTrades.filter(
+    (t) => t.side === 'buy' && t.symbol.toUpperCase() === symbol && t.tradeDate >= cutoff,
+  );
+  const estimatedTotalGain =
+    estimatedGainShort !== null && estimatedGainLong !== null
+      ? estimatedGainShort + estimatedGainLong
+      : null;
+  const washSaleRisk =
+    estimatedTotalGain !== null && estimatedTotalGain < 0
+      ? recentBuys.length > 0
+        ? 'selling now at a loss triggers a wash sale — replacement shares were bought within the last 30 days'
+        : 'selling at a loss is fine ONLY if no replacement shares are bought within 30 days after the sale'
+      : null;
+
+  // Tax context: marginal rates + 0% LTCG headroom
+  const picture = await buildTaxPicture(ctx.db, ctx.userId, ctx.workspaceId);
+  const ltcgRoom = picture.result.ltcgZeroBracketRoom;
+  const estimatedTax =
+    estimatedGainShort !== null && estimatedGainLong !== null
+      ? Math.max(0, estimatedGainShort) * (picture.result.marginalFederalRate / 100) +
+        Math.max(0, estimatedGainLong - ltcgRoom) * 0.15
+      : null;
+
+  return {
+    available: true,
+    symbol,
+    currentValue: holding?.value ?? null,
+    currentPricePerUnit: currentPrice,
+    unitsToSell,
+    lots,
+    estimatedGain:
+      estimatedTotalGain !== null
+        ? {
+            total: estimatedTotalGain,
+            shortTerm: estimatedGainShort,
+            longTerm: estimatedGainLong,
+            estimatedFederalTax: estimatedTax,
+            note:
+              ltcgRoom > 0
+                ? `Long-term gains up to $${Math.round(ltcgRoom)} fall in the 0% federal bracket this year.`
+                : null,
+          }
+        : {
+            note: 'Gain cannot be estimated — lot history or share quantity is missing. Import statements or connect a brokerage for lot-level data.',
+          },
+    washSaleRisk,
+    marginalFederalRatePct: picture.result.marginalFederalRate,
+    basedOn: lots.length > 0 ? 'lot history' : 'holding record only',
   };
 }
 
@@ -563,6 +715,108 @@ const TOOLS: ToolRegistration[] = [
           date: t.date,
         })),
       };
+    },
+  },
+
+  // 11. get_tax_picture
+  {
+    definition: {
+      name: 'get_tax_picture',
+      description:
+        "The user's year-round tax picture: projected total tax and refund/owed, effective and marginal rates, the 0% long-term capital gains headroom (ltcgZeroBracketRoom), quarterly safe-harbor payment plan, and unrealized-gains context. Use this before discussing any trade's tax impact.",
+      input_schema: { type: 'object' as const, properties: {}, required: [] },
+    },
+    execute: async (_input, ctx) => {
+      const picture = await buildTaxPicture(ctx.db, ctx.userId, ctx.workspaceId);
+      return picture as unknown as Record<string, unknown>;
+    },
+  },
+
+  // 12. estimate_capital_gains
+  {
+    definition: {
+      name: 'estimate_capital_gains',
+      description:
+        'Realized capital gains for a tax year, computed from the imported trade history via FIFO lot matching: short/long totals, wash-sale disallowances, and per-sale detail. Returns available:false when no trades are imported.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          taxYear: { type: 'number', description: 'Tax year (defaults to the current year)' },
+        },
+        required: [],
+      },
+    },
+    execute: async (input, ctx) => {
+      const rows = await loadTrades(ctx);
+      if (rows.length === 0) {
+        return {
+          available: false,
+          reason: 'No trade history imported — connect a brokerage or upload statements.',
+        };
+      }
+      const taxYear = (input.taxYear as number | undefined) ?? new Date().getFullYear();
+      const summary = computeRealizedGains(rows, taxYear);
+      return {
+        available: true,
+        taxYear,
+        shortTermGain: summary.shortTermGain,
+        longTermGain: summary.longTermGain,
+        washDisallowed: summary.washDisallowed,
+        uncoveredUnits: summary.uncoveredUnits,
+        sales: summary.sales.slice(0, 40),
+      };
+    },
+  },
+
+  // 13. benchmark_comparison
+  {
+    definition: {
+      name: 'benchmark_comparison',
+      description:
+        'Same-dollars, same-dates S&P 500 counterfactual: what the money invested in current positions would be worth had it gone into SPY on the same acquisition dates. Includes coverage (fraction of holdings comparable). Returns available:false when data is insufficient.',
+      input_schema: { type: 'object' as const, properties: {}, required: [] },
+    },
+    execute: async (_input, ctx) => {
+      const polygon = getPolygonService();
+      if (!polygon) return { available: false, reason: 'Market data is not configured.' };
+      try {
+        const result = await computeBenchmark(ctx.db, polygon, ctx.userId, ctx.workspaceId);
+        if (!result) {
+          return {
+            available: false,
+            reason:
+              'Not enough data — positions need a known cost basis and acquisition date (statement imports provide these).',
+          };
+        }
+        return { available: true, ...result } as unknown as Record<string, unknown>;
+      } catch {
+        return { available: false, reason: 'Market data is currently unreachable.' };
+      }
+    },
+  },
+
+  // 14. pre_trade_check
+  {
+    definition: {
+      name: 'pre_trade_check',
+      description:
+        "Check the consequences of selling a position BEFORE the user does it: per-lot holding periods (short vs long, days until long-term), estimated gain at the current value, the estimated tax at the user's rates, and wash-sale warnings. Always run this when the user is considering selling something.",
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          symbol: { type: 'string', description: 'Ticker symbol of the position to sell' },
+          units: {
+            type: 'number',
+            description: 'Units to sell (defaults to the whole position)',
+          },
+        },
+        required: ['symbol'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const symbol = (input.symbol as string).toUpperCase();
+      const requestedUnits = input.units as number | undefined;
+      return preTradeCheck(ctx, symbol, requestedUnits);
     },
   },
 ];

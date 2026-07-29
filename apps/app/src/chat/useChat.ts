@@ -43,7 +43,11 @@ export function useChat({ spaceId }: { spaceId: string }) {
   const createConversation = useMutation(trpc.chat.createConversation.mutationOptions());
   const persistMessage = useMutation(trpc.chat.sendMessage.mutationOptions());
 
-  const messages = conversationQuery.data?.messages ?? [];
+  // Tool-result rows (role 'tool') and empty intermediate assistant turns are
+  // plumbing for the model, not conversation — never render them.
+  const messages = (conversationQuery.data?.messages ?? []).filter(
+    (m) => (m.role === 'user' || m.role === 'assistant') && m.content.trim().length > 0,
+  );
   const allMessages =
     isStreaming && streamingContent
       ? [

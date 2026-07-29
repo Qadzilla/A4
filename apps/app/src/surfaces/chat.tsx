@@ -1,3 +1,4 @@
+import { BasisMark } from '@/brand-mark';
 import { useChat } from '@/chat/useChat';
 import { useSpaceId } from '@/surfaces/layout';
 import { ArrowUp, Loader2, Plus } from 'lucide-react';
@@ -5,10 +6,14 @@ import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+/** The persona's name — server-side twin lives in ai-context.ts (AI_NAME). */
+const AI_NAME = 'Bip';
+
 const SUGGESTIONS = [
-  'What do I actually own right now?',
+  'What happens tax-wise if I sell my biggest position?',
   'How much would I owe in taxes if the year ended today?',
-  "What's the 10-year picture if I invest $200/month instead?",
+  'Am I actually beating the S&P 500?',
+  'How much long-term gain could I realize at 0% tax this year?',
 ];
 
 export function ChatSurface() {
@@ -40,7 +45,9 @@ export function ChatSurface() {
   return (
     <div className="flex h-dvh flex-col md:h-screen">
       <header className="flex items-center justify-between border-b border-hairline bg-surface px-5 py-3">
-        <p className="eyebrow">Chat</p>
+        <p className="eyebrow flex items-center gap-1.5">
+          <BasisMark size={13} /> Chat with {AI_NAME}
+        </p>
         <button
           type="button"
           onClick={startNewConversation}
@@ -63,11 +70,12 @@ export function ChatSurface() {
           {!isLoadingConversation && messages.length === 0 && (
             <div className="rise mt-8">
               <h1 className="mb-2 text-2xl font-bold tracking-tight">
-                Ask about your actual money.
+                Ask {AI_NAME} about your actual money.
               </h1>
               <p className="mb-6 max-w-md text-sm text-muted">
-                Grounded in your real holdings, transactions, and documents — with receipts for
-                every number. Never advice; always the full picture.
+                {AI_NAME} is named after the basis point — the small, precise numbers that compound.
+                Grounded in your real holdings, trades, and documents; taxes before trades; never
+                advice, always the full picture.
               </p>
               <div className="grid gap-2">
                 {SUGGESTIONS.map((s) => (

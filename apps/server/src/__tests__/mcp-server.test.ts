@@ -54,7 +54,7 @@ describe('buildMcpToolDefinitions', () => {
     const names = defs.map((d) => d.name);
     expect(names).toContain('search_entities');
     expect(names).toContain('calculate_tax');
-    expect(defs).toHaveLength(10); // full curated registry — nothing excluded
+    expect(defs).toHaveLength(14); // full curated registry — nothing excluded
   });
 
   it('injects a required workspaceId parameter on workspace-scoped tools', () => {

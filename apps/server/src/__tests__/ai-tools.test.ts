@@ -346,11 +346,11 @@ function ctx(db: TestDb, overrides: Partial<ToolContext> = {}): ToolContext {
 }
 
 describe('tool registry', () => {
-  it('getToolDefinitions returns 17 tools with unique names', () => {
+  it('getToolDefinitions returns 14 tools with unique names', () => {
     const defs = getToolDefinitions();
-    expect(defs).toHaveLength(10);
+    expect(defs).toHaveLength(14);
     const names = defs.map((d) => d.name);
-    expect(new Set(names).size).toBe(10);
+    expect(new Set(names).size).toBe(14);
   });
 
   it('executeTool throws for unknown tool name', async () => {

@@ -20,6 +20,11 @@ export function setPolygonService(polygon: PolygonService): void {
   _polygon = polygon;
 }
 
+/** Nullable accessor for non-tRPC callers (AI tools) — degrade, don't throw. */
+export function getPolygonService(): PolygonService | null {
+  return _polygon;
+}
+
 export async function createContext({ req }: CreateExpressContextOptions): Promise<Context> {
   if (!_polygon) {
     throw new Error('PolygonService not initialized');
