@@ -1,7 +1,7 @@
 import { useTRPC } from '@/lib/trpc';
 import { useSpaceId } from '@/surfaces/layout';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpRight, Link2, RefreshCw, Upload } from 'lucide-react';
+import { ArrowUpRight, Link2, Receipt, RefreshCw, Upload } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
@@ -419,8 +419,9 @@ function EmptyPortfolio({
     <div className="mt-6">
       <h1 className="mb-2 text-2xl font-bold tracking-tight">What do you actually own?</h1>
       <p className="mb-8 max-w-md text-sm text-muted">
-        Bring in your real positions and Basis shows you the honest picture — allocation,
-        concentration, and what it all means in April.
+        Bring in your real positions and Basis shows you the honest picture — allocation, your
+        performance versus the S&amp;P 500, and what it all means in April. Import first; the rest
+        follows.
       </p>
       <div className="grid max-w-md gap-3">
         <Link
@@ -467,6 +468,21 @@ function EmptyPortfolio({
             <span className="eyebrow">Soon</span>
           </div>
         )}
+        <Link
+          to="/taxes"
+          className="flex items-center justify-between rounded-card border border-hairline bg-surface p-4 transition-colors hover:border-accent"
+        >
+          <div className="flex items-center gap-3">
+            <Receipt size={18} strokeWidth={1.75} className="text-accent" />
+            <div>
+              <p className="text-sm font-semibold">Start your tax meter</p>
+              <p className="text-xs text-muted">
+                Two minutes of inputs — see what you'd owe if the year ended today
+              </p>
+            </div>
+          </div>
+          <ArrowUpRight size={16} className="text-faint" />
+        </Link>
       </div>
     </div>
   );

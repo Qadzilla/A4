@@ -1,6 +1,7 @@
 import { AuthGuard } from '@/auth/AuthGuard';
 import { ChatSurface } from '@/surfaces/chat';
 import { DocumentsSurface } from '@/surfaces/documents';
+import { LandingSurface } from '@/surfaces/landing';
 import { Shell } from '@/surfaces/layout';
 import { PortfolioSurface } from '@/surfaces/portfolio';
 import { TaxesSurface } from '@/surfaces/taxes';
@@ -25,6 +26,11 @@ function ErrorPage() {
 }
 
 export const router = createBrowserRouter([
+  {
+    path: '/welcome',
+    element: <LandingSurface />,
+    errorElement: <ErrorPage />,
+  },
   {
     errorElement: <ErrorPage />,
     element: (

@@ -1,10 +1,12 @@
 import { DEV_AUTH_BYPASS } from '@/lib/clerk';
-import { RedirectToSignIn, SignedIn, SignedOut } from '@clerk/clerk-react';
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import type { ReactNode } from 'react';
+import { Navigate } from 'react-router';
 
 /**
  * Dev bypass matches the server's: no Clerk key in dev → mock user, no
- * redirect. Production requires a signed-in Clerk session.
+ * redirect. Production sends signed-out visitors to the landing page at
+ * /welcome, where the sign-in flow lives.
  */
 export function AuthGuard({ children }: { children: ReactNode }) {
   if (DEV_AUTH_BYPASS) return <>{children}</>;
@@ -13,7 +15,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     <>
       <SignedIn>{children}</SignedIn>
       <SignedOut>
-        <RedirectToSignIn />
+        <Navigate to="/welcome" replace />
       </SignedOut>
     </>
   );
