@@ -69,6 +69,11 @@ function createTestDb() {
       user_id TEXT NOT NULL, page INTEGER NOT NULL, embedding BLOB NOT NULL,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE tax_1099s (
+      id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
+      file_id TEXT NOT NULL UNIQUE, tax_year INTEGER NOT NULL, broker TEXT,
+      payload TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );
     CREATE TABLE document_chunks (
       id TEXT PRIMARY KEY,
       file_id TEXT NOT NULL,

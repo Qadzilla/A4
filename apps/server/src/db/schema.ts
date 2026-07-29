@@ -186,6 +186,24 @@ export const trades = sqliteTable('trades', {
     .$defaultFn(() => new Date()),
 });
 
+// Extracted 1099-B forms — one row per uploaded form, payload holds the
+// per-security rows as JSON (Extracted1099 shape from lib/calc/reconcile).
+export const tax1099s = sqliteTable('tax_1099s', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  fileId: text('file_id').notNull().unique(),
+  taxYear: integer('tax_year').notNull(),
+  broker: text('broker'),
+  payload: text('payload').notNull(), // JSON: Extracted1099
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // Year-round tax profile — the inputs to the tax meter, one row per
 // user+workspace. Field names mirror TaxEstimatorData in lib/calc.
 export const taxProfiles = sqliteTable('tax_profiles', {

@@ -274,6 +274,7 @@ if (env.NODE_ENV !== 'test') {
   import('./services/entity-linking').then((m) => m.registerEntityLinkingHandler());
   import('./services/page-embedding').then((m) => m.registerPageEmbeddingHandler());
   import('./services/statement-import').then((m) => m.registerStatementImportHandler());
+  import('./services/reconcile-1099').then((m) => m.registerReconcile1099Handler());
   startJobWorker();
 }
 

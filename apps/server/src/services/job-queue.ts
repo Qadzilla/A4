@@ -11,6 +11,7 @@ export const JOB_TYPES = {
   linkStructured: 'link-structured',
   embedPages: 'embed-pages',
   importStatement: 'import-statement',
+  reconcile1099: 'reconcile-1099',
 } as const;
 
 export type ProcessOutcome = 'idle' | 'done' | 'retried' | 'failed';

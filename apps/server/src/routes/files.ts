@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { Router, type Router as RouterType } from 'express';
 import multer from 'multer';
 import { db } from '../db';
-import { documentChunks, files, pageEmbeddings } from '../db/schema';
+import { documentChunks, files, pageEmbeddings, tax1099s } from '../db/schema';
 import { DEV_AUTH_BYPASS, USE_R2 } from '../env';
 import { storage } from '../services/storage';
 // Lazy import to avoid loading OpenAI SDK at server startup
@@ -147,6 +147,14 @@ filesRouter.post('/upload', (req, res, next) => {
         );
       }
 
+      // Optional 1099 reconciliation — extract broker-reported gains for the tax check
+      if (req.body.reconcile1099 === '1') {
+        const { enqueueJob, JOB_TYPES } = await import('../services/job-queue');
+        await enqueueJob(JOB_TYPES.reconcile1099, { fileId }, { db, maxAttempts: 2 }).catch((err) =>
+          console.error(`[1099] Failed to enqueue for ${fileId}:`, err),
+        );
+      }
+
       // Fire-and-forget background embedding for text-extractable files
       if (EMBEDDABLE_MIME_TYPES.has(file.mimetype)) {
         lazyEmbedFile()
@@ -209,6 +217,7 @@ filesRouter.delete('/:fileId', async (req, res) => {
 
   await db.delete(documentChunks).where(eq(documentChunks.fileId, req.params.fileId));
   await db.delete(pageEmbeddings).where(eq(pageEmbeddings.fileId, req.params.fileId));
+  await db.delete(tax1099s).where(eq(tax1099s.fileId, req.params.fileId));
   await db.delete(files).where(eq(files.id, req.params.fileId));
 
   if (chunkRows.length > 0) {

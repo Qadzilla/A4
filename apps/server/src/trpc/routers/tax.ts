@@ -1,14 +1,16 @@
-import { and, eq } from 'drizzle-orm';
+import { TRPCError } from '@trpc/server';
+import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { DB } from '../../db';
-import { holdings, taxProfiles, trades } from '../../db/schema';
+import { files, holdings, tax1099s, taxProfiles, trades } from '../../db/schema';
 import {
   computeQuarterlyPlan,
   computeRealizedGains,
   computeTaxEstimate,
   createDefaultTaxEstimatorData,
+  reconcile1099,
 } from '../../lib/calc';
-import type { TaxEstimatorData } from '../../lib/calc';
+import type { Extracted1099, TaxEstimatorData } from '../../lib/calc';
 import { protectedProcedure, router } from '../trpc';
 
 /**
@@ -147,6 +149,71 @@ export const taxRouter = router({
         input.taxYear,
       );
       return { ...summary, tradeCount: rows.length };
+    }),
+
+  /** Extracted 1099s for the workspace, newest first. */
+  list1099s: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db
+        .select({
+          id: tax1099s.id,
+          fileId: tax1099s.fileId,
+          taxYear: tax1099s.taxYear,
+          broker: tax1099s.broker,
+          createdAt: tax1099s.createdAt,
+          fileName: files.fileName,
+        })
+        .from(tax1099s)
+        .leftJoin(files, eq(files.id, tax1099s.fileId))
+        .where(and(eq(tax1099s.workspaceId, input.workspaceId), eq(tax1099s.userId, ctx.userId)))
+        .orderBy(desc(tax1099s.createdAt));
+      return rows;
+    }),
+
+  /**
+   * Broker-reported vs computed: reconcile one extracted 1099 against the
+   * lot engine's ledger for that form's tax year.
+   */
+  reconciliation: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid(), fileId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [row] = await ctx.db
+        .select()
+        .from(tax1099s)
+        .where(
+          and(
+            eq(tax1099s.fileId, input.fileId),
+            eq(tax1099s.workspaceId, input.workspaceId),
+            eq(tax1099s.userId, ctx.userId),
+          ),
+        );
+      if (!row) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: '1099 not found' });
+      }
+      const extracted = JSON.parse(row.payload) as Extracted1099;
+      const tradeRows = await ctx.db
+        .select()
+        .from(trades)
+        .where(and(eq(trades.workspaceId, input.workspaceId), eq(trades.userId, ctx.userId)));
+      const ledger = computeRealizedGains(
+        tradeRows.map((t) => ({
+          id: t.id,
+          symbol: t.symbol,
+          side: t.side as 'buy' | 'sell',
+          tradeDate: t.tradeDate,
+          units: t.units,
+          price: t.price,
+          fees: t.fees,
+        })),
+        row.taxYear,
+      );
+      return {
+        taxYear: row.taxYear,
+        broker: row.broker,
+        reportedRowCount: extracted.rows.length,
+        ...reconcile1099(extracted, ledger.sales),
+      };
     }),
 
   /**

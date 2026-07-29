@@ -1,6 +1,8 @@
+import { useAuthToken } from '@/auth/useAuthToken';
 import { useTRPC } from '@/lib/trpc';
 import { useSpaceId } from '@/surfaces/layout';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Upload } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 const usd = (n: number) =>
@@ -445,6 +447,9 @@ export function TaxesSurface() {
         </section>
       )}
 
+      {/* ── 1099 check ── */}
+      <Check1099Section />
+
       {/* ── Inputs ── */}
       <section className="mb-8">
         <h2 className="eyebrow mb-3">Your year</h2>
@@ -629,6 +634,174 @@ export function TaxesSurface() {
         Educational estimates from {form.taxYear} federal and state brackets — not tax advice, not a
         filing. Numbers assume full-year amounts and the common cases; edge cases (AMT, credits
         phase-outs, multi-state) aren't modeled.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Upload a 1099-B and compare what the broker reported against the computed
+ * ledger. Rendered as its own component so its polling doesn't re-render the
+ * whole form.
+ */
+function Check1099Section() {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const getToken = useAuthToken();
+  const fileInput = useRef<HTMLInputElement | null>(null);
+  const [pendingFileId, setPendingFileId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: forms = [] } = useQuery({
+    ...trpc.tax.list1099s.queryOptions({ workspaceId: spaceId }),
+    // Poll while an uploaded form is still being extracted
+    refetchInterval: (query) =>
+      pendingFileId && !query.state.data?.some((f) => f.fileId === pendingFileId) ? 4000 : false,
+  });
+  const extracted = forms.some((f) => f.fileId === pendingFileId);
+  const extracting = pendingFileId !== null && !extracted;
+
+  const upload = async (file: File) => {
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('workspaceId', spaceId);
+      form.append('reconcile1099', '1');
+      const token = await getToken();
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: form,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? 'Upload failed');
+      }
+      const data = (await res.json()) as { fileId: string };
+      setPendingFileId(data.fileId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    }
+  };
+
+  return (
+    <section className="mb-10">
+      <h2 className="eyebrow mb-3">1099 check</h2>
+      <div className="rounded-card border border-hairline bg-surface p-5">
+        <p className="mb-3 text-sm text-muted">
+          At filing time, upload your broker's 1099-B and Basis cross-checks it against your
+          computed gains — mismatched cost basis is the most common filing mistake.
+        </p>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".pdf,.csv"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void upload(file);
+            e.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInput.current?.click()}
+          disabled={extracting}
+          className="flex items-center gap-2 rounded-card border border-hairline bg-paper px-4 py-2 text-sm font-medium transition-colors hover:border-accent disabled:opacity-60"
+        >
+          {extracting ? (
+            <>
+              <Loader2 size={15} className="animate-spin" /> Reading the form…
+            </>
+          ) : (
+            <>
+              <Upload size={15} strokeWidth={1.75} /> Upload a 1099-B
+            </>
+          )}
+        </button>
+        {error && <p className="mt-2 text-xs text-bad">{error}</p>}
+      </div>
+
+      {forms.map((f) => (
+        <Reconciliation1099 key={f.id} fileId={f.fileId} broker={f.broker} taxYear={f.taxYear} />
+      ))}
+    </section>
+  );
+}
+
+function Reconciliation1099({
+  fileId,
+  broker,
+  taxYear,
+}: {
+  fileId: string;
+  broker: string | null;
+  taxYear: number;
+}) {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const { data: recon } = useQuery(
+    trpc.tax.reconciliation.queryOptions({ workspaceId: spaceId, fileId }),
+  );
+  if (!recon) return null;
+
+  const allGood = recon.mismatches === 0 && recon.missingHistory === 0 && recon.notOn1099 === 0;
+  return (
+    <div className="mt-3 overflow-hidden rounded-card border border-hairline bg-surface">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-hairline px-4 py-3">
+        <span className="text-sm font-semibold">
+          {broker ?? 'Broker'} · {taxYear}
+        </span>
+        <span className={`text-sm ${allGood ? 'text-good' : 'text-muted'}`}>
+          {recon.matches} of {recon.reportedRowCount} reported rows match
+          {recon.mismatches > 0 && (
+            <span className="text-bad"> · {recon.mismatches} mismatched</span>
+          )}
+          {recon.missingHistory > 0 && (
+            <span className="text-warn"> · {recon.missingHistory} without trade history</span>
+          )}
+          {recon.notOn1099 > 0 && (
+            <span className="text-warn"> · {recon.notOn1099} missing from the form</span>
+          )}
+        </span>
+      </div>
+      {recon.rows.map((r) => (
+        <div
+          key={`${r.symbol}|${r.term}`}
+          className="flex items-center justify-between border-b border-hairline px-4 py-2.5 last:border-b-0"
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                r.status === 'match' ? 'bg-good' : r.status === 'mismatch' ? 'bg-bad' : 'bg-warn'
+              }`}
+            />
+            <span className="font-mono text-sm font-semibold">{r.symbol}</span>
+            <span className="eyebrow rounded-full border border-hairline px-1.5 py-0.5">
+              {r.term}
+            </span>
+          </div>
+          <span className="tnum text-right font-mono text-xs">
+            {r.status === 'match' && <span className="text-good">matches</span>}
+            {r.status === 'mismatch' && (
+              <span className="text-bad">
+                {r.deltas.basis !== null && Math.abs(r.deltas.basis) > 1
+                  ? `basis off by ${usd(r.deltas.basis)}`
+                  : `proceeds off by ${usd(r.deltas.proceeds ?? 0)}`}
+              </span>
+            )}
+            {r.status === 'missing-history' && (
+              <span className="text-warn">no trade history to compare</span>
+            )}
+            {r.status === 'not-on-1099' && <span className="text-warn">not on the form</span>}
+          </span>
+        </div>
+      ))}
+      <p className="px-4 py-2 text-xs text-faint">
+        Reported = your broker's form · computed = FIFO lots from your trade history. Differences
+        can be legitimate (specific-lot elections, transfers) — check before assuming either side is
+        wrong.
       </p>
     </div>
   );

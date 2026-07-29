@@ -1,6 +1,14 @@
 export { computeTaxEstimate, createDefaultTaxEstimatorData } from './tax-estimator';
 export type { TaxEstimatorData, TaxEstimateResult } from './tax-estimator';
 
+export { reconcile1099 } from './reconcile';
+export type {
+  Extracted1099,
+  Extracted1099Row,
+  ReconciliationResult,
+  ReconciliationRow,
+} from './reconcile';
+
 export { computeRealizedGains } from './lots';
 export type { LotTrade, RealizedSale, RealizedSummary, OpenLot } from './lots';
 
