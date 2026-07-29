@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { Snaptrade, SnaptradeAuth } from 'snaptrade-typescript-sdk';
 import type { DB } from '../db';
-import { accounts, holdings, snaptradeUsers } from '../db/schema';
+import { accounts, holdings, snaptradeUsers, trades } from '../db/schema';
 import { env } from '../env';
 
 /**
@@ -130,6 +130,15 @@ interface StPosition {
   price?: number | null;
   average_purchase_price?: number | null;
 }
+interface StActivity {
+  id?: string;
+  type?: string;
+  symbol?: { symbol?: string } | null;
+  trade_date?: string | null;
+  units?: number | null;
+  price?: number | null;
+  fee?: number | null;
+}
 
 export async function listConnections(db: DB, userId: string): Promise<BrokerageConnection[]> {
   const [row] = await db.select().from(snaptradeUsers).where(eq(snaptradeUsers.userId, userId));
@@ -179,6 +188,7 @@ export interface SyncSummary {
   positionsCreated: number;
   positionsUpdated: number;
   cashAccountsUpserted: number;
+  tradesImported: number;
 }
 
 /**
@@ -198,6 +208,7 @@ export async function applyBrokerageSync(
     positionsCreated: 0,
     positionsUpdated: 0,
     cashAccountsUpserted: 0,
+    tradesImported: 0,
   };
 
   for (const account of data) {
@@ -289,7 +300,59 @@ export async function applyBrokerageSync(
   return summary;
 }
 
-/** Pull live positions from every connected brokerage account into the workspace. */
+/** Normalized buy/sell activity — SDK-independent for testability. */
+export interface NormalizedTrade {
+  externalId: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  tradeDate: string; // YYYY-MM-DD
+  units: number;
+  price: number;
+  fees: number;
+}
+
+/** Insert new trades, skipping externalIds we've already imported. */
+export async function importTrades(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+  incoming: NormalizedTrade[],
+): Promise<number> {
+  if (incoming.length === 0) return 0;
+  const existing = await db
+    .select({ externalId: trades.externalId })
+    .from(trades)
+    .where(and(eq(trades.workspaceId, workspaceId), eq(trades.userId, userId)));
+  const seen = new Set(existing.map((r) => r.externalId).filter(Boolean));
+  const now = new Date();
+  let imported = 0;
+  for (const t of incoming) {
+    if (seen.has(t.externalId)) continue;
+    await db.insert(trades).values({
+      id: crypto.randomUUID(),
+      workspaceId,
+      userId,
+      symbol: t.symbol.toUpperCase(),
+      side: t.side,
+      tradeDate: t.tradeDate,
+      units: t.units,
+      price: t.price,
+      fees: t.fees,
+      source: 'snaptrade',
+      externalId: t.externalId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    seen.add(t.externalId);
+    imported += 1;
+  }
+  return imported;
+}
+
+const ACTIVITY_PAGE_LIMIT = 1000;
+const ACTIVITY_MAX_PAGES = 10;
+
+/** Pull live positions + buy/sell history from every connected brokerage account. */
 export async function syncBrokerageHoldings(
   db: DB,
   userId: string,
@@ -297,16 +360,57 @@ export async function syncBrokerageHoldings(
 ): Promise<SyncSummary> {
   const [row] = await db.select().from(snaptradeUsers).where(eq(snaptradeUsers.userId, userId));
   if (!row) {
-    return { accountsSynced: 0, positionsCreated: 0, positionsUpdated: 0, cashAccountsUpserted: 0 };
+    return {
+      accountsSynced: 0,
+      positionsCreated: 0,
+      positionsUpdated: 0,
+      cashAccountsUpserted: 0,
+      tradesImported: 0,
+    };
   }
   const client = getClient();
   const identity = { userId: row.stUserId, userSecret: row.userSecret };
 
   const accountList = await client.accountInformation.listUserAccounts(identity);
   const normalized: NormalizedBrokerageAccount[] = [];
+  const normalizedTrades: NormalizedTrade[] = [];
 
   for (const account of accountList.data ?? []) {
     if (!account.id) continue;
+
+    // Buy/sell history → the realized-gains ledger (paginated, capped)
+    for (let page = 0; page < ACTIVITY_MAX_PAGES; page++) {
+      const activities = await client.accountInformation.getAccountActivities({
+        ...identity,
+        accountId: account.id,
+        type: 'BUY,SELL',
+        offset: page * ACTIVITY_PAGE_LIMIT,
+        limit: ACTIVITY_PAGE_LIMIT,
+      });
+      const batch = ((activities.data.data ?? []) as StActivity[])
+        .map((a): NormalizedTrade | null => {
+          const symbol = a.symbol?.symbol;
+          const type = a.type?.toUpperCase();
+          const tradeDate = a.trade_date?.slice(0, 10);
+          if (!a.id || !symbol || !tradeDate || (type !== 'BUY' && type !== 'SELL')) return null;
+          const units = Math.abs(a.units ?? 0);
+          const price = a.price ?? 0;
+          if (units <= 0 || price <= 0) return null;
+          return {
+            externalId: a.id,
+            symbol,
+            side: type === 'BUY' ? 'buy' : 'sell',
+            tradeDate,
+            units,
+            price,
+            fees: Math.abs(a.fee ?? 0),
+          };
+        })
+        .filter((t): t is NormalizedTrade => t !== null);
+      normalizedTrades.push(...batch);
+      if ((activities.data.data ?? []).length < ACTIVITY_PAGE_LIMIT) break;
+    }
+
     const res = await client.accountInformation.getUserHoldings({
       ...identity,
       accountId: account.id,
@@ -329,5 +433,7 @@ export async function syncBrokerageHoldings(
     });
   }
 
-  return applyBrokerageSync(db, userId, workspaceId, normalized);
+  const summary = await applyBrokerageSync(db, userId, workspaceId, normalized);
+  summary.tradesImported = await importTrades(db, userId, workspaceId, normalizedTrades);
+  return summary;
 }

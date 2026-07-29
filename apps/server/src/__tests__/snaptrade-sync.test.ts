@@ -59,6 +59,7 @@ describe('applyBrokerageSync', () => {
       positionsCreated: 2,
       positionsUpdated: 0,
       cashAccountsUpserted: 1,
+      tradesImported: 0,
     });
 
     const rows = await db.select().from(holdings);

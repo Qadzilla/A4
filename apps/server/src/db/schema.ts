@@ -163,6 +163,29 @@ export const holdings = sqliteTable('holdings', {
     .$defaultFn(() => new Date()),
 });
 
+// Security trades (buys/sells) — the raw material for the realized-gains
+// ledger. Sourced from SnapTrade activities sync (externalId dedups) or
+// manual entry; the lot engine in lib/calc/lots.ts does the matching.
+export const trades = sqliteTable('trades', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  symbol: text('symbol').notNull(),
+  side: text('side').notNull(), // 'buy' | 'sell'
+  tradeDate: text('trade_date').notNull(), // YYYY-MM-DD
+  units: real('units').notNull(),
+  price: real('price').notNull(), // per-unit
+  fees: real('fees').notNull().default(0),
+  source: text('source').notNull().default('manual'), // 'snaptrade' | 'manual'
+  externalId: text('external_id').unique(), // brokerage activity id, for dedup
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // Year-round tax profile — the inputs to the tax meter, one row per
 // user+workspace. Field names mirror TaxEstimatorData in lib/calc.
 export const taxProfiles = sqliteTable('tax_profiles', {

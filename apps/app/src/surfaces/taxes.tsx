@@ -121,6 +121,13 @@ export function TaxesSurface() {
   );
 
   const [form, setForm] = useState<FormState | null>(null);
+  const { data: ledger } = useQuery({
+    ...trpc.tax.realizedGains.queryOptions({
+      workspaceId: spaceId,
+      taxYear: form?.taxYear ?? 2026,
+    }),
+    enabled: form !== null,
+  });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Hydrate the form once from the stored profile (or defaults)
@@ -352,6 +359,88 @@ export function TaxesSurface() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Realized-gains ledger (only when trade history exists) ── */}
+      {ledger && ledger.sales.length > 0 && (
+        <section className="mb-10">
+          <h2 className="eyebrow mb-3">Realized gains · {form.taxYear}</h2>
+          <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-hairline px-4 py-3">
+              <span className="text-sm">
+                <span className="text-muted">Short-term </span>
+                <span
+                  className={`tnum font-mono font-semibold ${ledger.shortTermGain < 0 ? 'text-bad' : ''}`}
+                >
+                  {usd(ledger.shortTermGain)}
+                </span>
+              </span>
+              <span className="text-sm">
+                <span className="text-muted">Long-term </span>
+                <span
+                  className={`tnum font-mono font-semibold ${ledger.longTermGain < 0 ? 'text-bad' : ''}`}
+                >
+                  {usd(ledger.longTermGain)}
+                </span>
+              </span>
+              {ledger.washDisallowed > 0 && (
+                <span className="text-sm text-warn">
+                  {usd(ledger.washDisallowed)} wash-sale losses disallowed
+                </span>
+              )}
+            </div>
+            {ledger.sales.map((s) => (
+              <div
+                key={s.tradeId}
+                className="flex items-center justify-between border-b border-hairline px-4 py-2.5 last:border-b-0"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-semibold">{s.symbol}</span>
+                  <span className="tnum text-xs text-muted">
+                    {s.units % 1 === 0 ? s.units : s.units.toFixed(4)} sold {s.saleDate}
+                  </span>
+                  <span className="eyebrow rounded-full border border-hairline px-1.5 py-0.5">
+                    {s.term}
+                  </span>
+                  {s.washDisallowed > 0 && (
+                    <span className="eyebrow rounded-full border border-warn/40 px-1.5 py-0.5 text-warn">
+                      wash
+                    </span>
+                  )}
+                  {s.uncoveredUnits > 0 && (
+                    <span
+                      className="eyebrow rounded-full border border-hairline px-1.5 py-0.5 text-faint"
+                      title={`${s.uncoveredUnits} units have no purchase history — excluded from the gain`}
+                    >
+                      partial
+                    </span>
+                  )}
+                </div>
+                <span className={`tnum font-mono text-sm ${s.gain < 0 ? 'text-bad' : 'text-good'}`}>
+                  {s.gain >= 0 ? '+' : ''}
+                  {usd(s.gain)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <p className="text-xs text-muted">
+              FIFO lots over {ledger.tradeCount} imported trades
+              {ledger.uncoveredUnits > 0 &&
+                ` · ${ledger.uncoveredUnits} sold units lack purchase history and are excluded`}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                updateNumber('capitalGainsShort', String(Math.round(ledger.shortTermGain)));
+                updateNumber('capitalGainsLong', String(Math.round(ledger.longTermGain)));
+              }}
+              className="text-xs font-medium text-accent"
+            >
+              Use these in the meter
+            </button>
           </div>
         </section>
       )}

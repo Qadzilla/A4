@@ -1,9 +1,10 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { DB } from '../../db';
-import { holdings, taxProfiles } from '../../db/schema';
+import { holdings, taxProfiles, trades } from '../../db/schema';
 import {
   computeQuarterlyPlan,
+  computeRealizedGains,
   computeTaxEstimate,
   createDefaultTaxEstimatorData,
 } from '../../lib/calc';
@@ -118,6 +119,34 @@ export const taxRouter = router({
         updatedAt: now,
       });
       return { id };
+    }),
+
+  /**
+   * The realized-gains ledger: FIFO lot matching with wash-sale detection
+   * over the imported trade history, reported for one tax year. Null when
+   * there are no trades at all — the surface hides the section entirely.
+   */
+  realizedGains: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid(), taxYear: z.number().int() }))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db
+        .select()
+        .from(trades)
+        .where(and(eq(trades.workspaceId, input.workspaceId), eq(trades.userId, ctx.userId)));
+      if (rows.length === 0) return null;
+      const summary = computeRealizedGains(
+        rows.map((t) => ({
+          id: t.id,
+          symbol: t.symbol,
+          side: t.side as 'buy' | 'sell',
+          tradeDate: t.tradeDate,
+          units: t.units,
+          price: t.price,
+          fees: t.fees,
+        })),
+        input.taxYear,
+      );
+      return { ...summary, tradeCount: rows.length };
     }),
 
   /**
