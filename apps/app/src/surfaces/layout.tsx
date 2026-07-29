@@ -1,4 +1,5 @@
 import { BRAND } from '@/brand';
+import { BasisWordmark } from '@/brand-mark';
 import { useSpace } from '@/space/useSpace';
 import { FileText, MessageSquare, PieChart, Receipt } from 'lucide-react';
 import { createContext, useContext } from 'react';
@@ -51,10 +52,7 @@ export function Shell() {
   if (isError) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
-        <span className="font-mono text-[15px] font-bold tracking-tight">
-          {BRAND.name.toLowerCase()}
-          <span className="text-accent">.</span>
-        </span>
+        <BasisWordmark />
         <p className="max-w-xs text-sm text-muted">
           Can't reach the server right now. Check your connection and try again.
         </p>
@@ -72,9 +70,8 @@ export function Shell() {
   if (isLoading || !spaceId) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
-        <span className="animate-pulse font-mono text-[15px] font-bold tracking-tight">
-          {BRAND.name.toLowerCase()}
-          <span className="text-accent">.</span>
+        <span className="animate-pulse">
+          <BasisWordmark />
         </span>
       </div>
     );
@@ -86,10 +83,7 @@ export function Shell() {
         {/* Desktop rail */}
         <aside className="hidden w-52 shrink-0 flex-col border-r border-hairline bg-surface px-3 py-5 md:flex">
           <div className="mb-8 px-3">
-            <span className="font-mono text-[15px] font-bold tracking-tight">
-              {BRAND.name.toLowerCase()}
-            </span>
-            <span className="text-accent font-mono text-[15px] font-bold">.</span>
+            <BasisWordmark />
           </div>
           <nav className="flex flex-col gap-1">
             <NavItems variant="rail" />

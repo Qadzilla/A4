@@ -163,6 +163,22 @@ export const holdings = sqliteTable('holdings', {
     .$defaultFn(() => new Date()),
 });
 
+// SnapTrade brokerage-connection identity: one row per A4 user who has
+// registered with SnapTrade. The userSecret is required for every SnapTrade
+// API call on that user's behalf — treat it like a credential.
+export const snaptradeUsers = sqliteTable('snaptrade_users', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().unique(),
+  stUserId: text('st_user_id').notNull(), // the id we registered with SnapTrade
+  userSecret: text('user_secret').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // Categorization rules for auto-assigning categories during import
 export const categorizationRules = sqliteTable('categorization_rules', {
   id: text('id').primaryKey(),

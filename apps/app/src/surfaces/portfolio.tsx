@@ -1,8 +1,9 @@
 import { useTRPC } from '@/lib/trpc';
 import { useSpaceId } from '@/surfaces/layout';
-import { useQueries, useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Upload } from 'lucide-react';
-import { Link } from 'react-router';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowUpRight, Link2, RefreshCw, Upload } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router';
 
 const usd = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -23,22 +24,26 @@ export function PortfolioSurface() {
     trpc.account.list.queryOptions({ workspaceId: spaceId }),
   );
 
-  // Live quotes: one snapshot per symbol, refreshed every minute. Failures
-  // (crypto tickers, closed markets, missing key) degrade to stored values.
-  const snapshotResults = useQueries({
+  // Quotes: one per symbol, refreshed every minute. Live snapshot when the
+  // data plan allows it, latest daily close (labeled EOD) otherwise; failures
+  // (crypto tickers, missing key) degrade to stored values.
+  const quoteResults = useQueries({
     queries: holdings.map((h) => ({
-      ...trpc.marketData.getSnapshot.queryOptions({ symbol: h.symbol }),
+      ...trpc.marketData.getQuote.queryOptions({ symbol: h.symbol }),
       refetchInterval: LIVE_REFRESH_MS,
       staleTime: LIVE_REFRESH_MS / 2,
       retry: 0,
     })),
   });
-  const livePrice = new Map<string, { price: number; changePct: number }>();
+  const livePrice = new Map<string, { price: number; changePct: number; live: boolean }>();
   holdings.forEach((h, i) => {
-    const snap = snapshotResults[i]?.data;
-    const price = snap?.lastTrade?.price ?? snap?.day?.close ?? snap?.prevDay?.close;
-    if (price && price > 0) {
-      livePrice.set(h.symbol, { price, changePct: snap?.todaysChangePerc ?? 0 });
+    const quote = quoteResults[i]?.data;
+    if (quote && quote.price > 0) {
+      livePrice.set(h.symbol, {
+        price: quote.price,
+        changePct: quote.changePct,
+        live: quote.live,
+      });
     }
   });
   /** Live value when we know the share count; stored value otherwise. */
@@ -63,7 +68,35 @@ export function PortfolioSurface() {
   const holdingsTotal = holdings.reduce((s, h) => s + liveValue(h), 0);
   const cashTotal = cashAccounts.reduce((s, a) => s + a.balance, 0);
   const total = holdingsTotal + cashTotal;
-  const isLive = livePrice.size > 0;
+  const isLive = [...livePrice.values()].some((q) => q.live);
+  const isEod = !isLive && livePrice.size > 0;
+
+  // Brokerage connections (SnapTrade) — absent entirely when not configured
+  const queryClient = useQueryClient();
+  const { data: brokerage } = useQuery(trpc.brokerage.status.queryOptions());
+  const connectUrl = useMutation(trpc.brokerage.connectUrl.mutationOptions());
+  const sync = useMutation(
+    trpc.brokerage.sync.mutationOptions({
+      onSuccess: () => void queryClient.invalidateQueries(),
+    }),
+  );
+  const connect = () => {
+    connectUrl.mutate(
+      { redirect: `${window.location.origin}/portfolio?snaptrade=done` },
+      { onSuccess: ({ url }) => window.location.assign(url) },
+    );
+  };
+  // Returning from the connection portal → sync once, then clean the URL
+  const [searchParams, setSearchParams] = useSearchParams();
+  const syncedOnReturn = useRef(false);
+  const returnedFromPortal = searchParams.get('snaptrade') === 'done';
+  useEffect(() => {
+    if (returnedFromPortal && !syncedOnReturn.current) {
+      syncedOnReturn.current = true;
+      sync.mutate({ workspaceId: spaceId });
+      setSearchParams({}, { replace: true });
+    }
+  }, [returnedFromPortal, sync, spaceId, setSearchParams]);
   // Unrealized P/L only over positions whose cost basis is actually known —
   // mixing basis-known and basis-unknown positions would fabricate a gain
   const basisKnown = holdings.filter((h) => h.costBasis !== null && h.costBasis !== undefined);
@@ -103,7 +136,11 @@ export function PortfolioSurface() {
       <p className="eyebrow mb-1.5">Portfolio</p>
 
       {isEmpty ? (
-        <EmptyPortfolio />
+        <EmptyPortfolio
+          brokerageEnabled={brokerage?.enabled ?? false}
+          onConnect={connect}
+          connecting={connectUrl.isPending}
+        />
       ) : (
         <>
           <h1 className="tnum mb-1 flex items-center gap-3 font-mono text-4xl font-bold tracking-tight">
@@ -112,6 +149,15 @@ export function PortfolioSurface() {
               <span className="flex items-center gap-1.5 rounded-full border border-hairline px-2 py-0.5">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-good" />
                 <span className="eyebrow">Live</span>
+              </span>
+            )}
+            {isEod && (
+              <span
+                className="flex items-center gap-1.5 rounded-full border border-hairline px-2 py-0.5"
+                title="Latest end-of-day closing prices"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-faint" />
+                <span className="eyebrow">EOD</span>
               </span>
             )}
           </h1>
@@ -190,7 +236,7 @@ export function PortfolioSurface() {
                               <span className={quote.changePct > 0 ? 'text-good' : 'text-bad'}>
                                 {' '}
                                 {quote.changePct > 0 ? '+' : ''}
-                                {quote.changePct.toFixed(2)}% today
+                                {quote.changePct.toFixed(2)}%{quote.live ? ' today' : ''}
                               </span>
                             )}
                           </div>
@@ -237,6 +283,72 @@ export function PortfolioSurface() {
                   </div>
                 ))}
               </div>
+            </section>
+          )}
+
+          {brokerage?.enabled && (
+            <section className="mt-10">
+              <h2 className="eyebrow mb-3">Brokerages</h2>
+              <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+                {brokerage.connections.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between border-b border-hairline px-4 py-3"
+                  >
+                    <div>
+                      <span className="text-sm font-medium">{c.brokerage}</span>
+                      {c.disabled && (
+                        <span className="ml-2 text-xs text-warn">connection needs attention</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => sync.mutate({ workspaceId: spaceId })}
+                      disabled={sync.isPending}
+                      className="flex items-center gap-1.5 text-xs font-medium text-accent disabled:opacity-50"
+                    >
+                      <RefreshCw
+                        size={13}
+                        strokeWidth={1.75}
+                        className={sync.isPending ? 'animate-spin' : ''}
+                      />
+                      {sync.isPending ? 'Syncing…' : 'Sync now'}
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={connect}
+                  disabled={connectUrl.isPending}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent-soft disabled:opacity-50"
+                >
+                  <Link2 size={16} strokeWidth={1.75} className="text-accent" />
+                  <div>
+                    <p className="text-sm font-medium">
+                      {connectUrl.isPending
+                        ? 'Opening secure connection…'
+                        : brokerage.connections.length > 0
+                          ? 'Connect another brokerage'
+                          : 'Connect a brokerage'}
+                    </p>
+                    <p className="text-xs text-muted">
+                      Robinhood, Coinbase, Fidelity &amp; more — read-only, via SnapTrade
+                    </p>
+                  </div>
+                </button>
+              </div>
+              {sync.isSuccess && (
+                <p className="mt-2 text-xs text-muted">
+                  Synced {sync.data.accountsSynced} account
+                  {sync.data.accountsSynced === 1 ? '' : 's'} ·{' '}
+                  {sync.data.positionsCreated + sync.data.positionsUpdated} positions
+                </p>
+              )}
+              {sync.isError && (
+                <p className="mt-2 text-xs text-bad">
+                  Sync failed — try again, or reconnect the brokerage.
+                </p>
+              )}
             </section>
           )}
 
@@ -294,7 +406,15 @@ function PortfolioSkeleton() {
   );
 }
 
-function EmptyPortfolio() {
+function EmptyPortfolio({
+  brokerageEnabled,
+  onConnect,
+  connecting,
+}: {
+  brokerageEnabled: boolean;
+  onConnect: () => void;
+  connecting: boolean;
+}) {
   return (
     <div className="mt-6">
       <h1 className="mb-2 text-2xl font-bold tracking-tight">What do you actually own?</h1>
@@ -316,15 +436,37 @@ function EmptyPortfolio() {
           </div>
           <ArrowUpRight size={16} className="text-faint" />
         </Link>
-        <div className="flex items-center justify-between rounded-card border border-dashed border-hairline p-4 opacity-70">
-          <div>
-            <p className="text-sm font-semibold">Connect a brokerage</p>
-            <p className="text-xs text-muted">
-              Robinhood, Coinbase, Fidelity &amp; more — coming in P3
-            </p>
+        {brokerageEnabled ? (
+          <button
+            type="button"
+            onClick={onConnect}
+            disabled={connecting}
+            className="flex items-center justify-between rounded-card border border-hairline bg-surface p-4 text-left transition-colors hover:border-accent disabled:opacity-60"
+          >
+            <div className="flex items-center gap-3">
+              <Link2 size={18} strokeWidth={1.75} className="text-accent" />
+              <div>
+                <p className="text-sm font-semibold">
+                  {connecting ? 'Opening secure connection…' : 'Connect a brokerage'}
+                </p>
+                <p className="text-xs text-muted">
+                  Robinhood, Coinbase, Fidelity &amp; more — read-only, via SnapTrade
+                </p>
+              </div>
+            </div>
+            <ArrowUpRight size={16} className="text-faint" />
+          </button>
+        ) : (
+          <div className="flex items-center justify-between rounded-card border border-dashed border-hairline p-4 opacity-70">
+            <div>
+              <p className="text-sm font-semibold">Connect a brokerage</p>
+              <p className="text-xs text-muted">
+                Robinhood, Coinbase, Fidelity &amp; more — coming soon
+              </p>
+            </div>
+            <span className="eyebrow">Soon</span>
           </div>
-          <span className="eyebrow">Soon</span>
-        </div>
+        )}
       </div>
     </div>
   );

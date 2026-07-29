@@ -39,6 +39,7 @@
     "openai": "^6.29.0",
     "papaparse": "^5.5.3",
     "pdf-parse": "^2.4.5",
+    "snaptrade-typescript-sdk": "^11.0.3",
     "superjson": "^2.2.2",
     "tesseract.js": "^7.0.0",
     "ws": "^8.19.0",

@@ -1,7 +1,7 @@
 # The Pivot — Option 3 Deep Dive: Fresh Shell, Transplanted Organs
 
 > **Created:** 2026-07-27
-> **Status:** EXECUTING — P1 complete; P2 (The Shell) first slice SHIPPED 2026-07-27: `apps/app` scaffold live with Basis design tokens (light-first), 4-surface navigation, implicit space, and working AI chat. Remaining P2: PWA polish, error/loading states, design-system depth.
+> **Status:** EXECUTING — P1 ✅, P2 ✅ (shell + PWA + loading/error states). P3 CODE-COMPLETE 2026-07-28: statement import ✅, dedup ✅, unrealized P/L ✅, live/EOD prices ✅, benchmark-vs-SPY counterfactual ✅, SnapTrade connector ✅ (register→portal→sync verified to the portal with test creds; first real brokerage link is a user step). Logo adopted: "One Basis Point" mark (BASIS DESIGN folder) in app shell + icons. Next: P4 (tax pillar).
 > **Decision context:** Full rebrand and refocus of A4 onto two pillars — **investing** and **taxes** — for people **25 and under**, replacing the horizontal "financial workspace" with a vertical, opinionated product. Option 3 = rebuild everything the user sees; keep everything the user doesn't.
 > **Scope stance (locked):** V1 ships **both pillars at full depth**.
 

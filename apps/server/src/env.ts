@@ -22,6 +22,9 @@ const envSchema = z.object({
   VOYAGE_API_KEY: z.string().optional(),
   POLYGON_API_KEY: z.string().default(''),
   POLYGON_WS_URL: z.string().default('wss://socket.polygon.io'),
+  // SnapTrade brokerage connections; feature is disabled when either is unset
+  SNAPTRADE_CLIENT_ID: z.string().optional(),
+  SNAPTRADE_CONSUMER_KEY: z.string().optional(),
   // Cloudflare R2 (S3-compatible) — optional, falls back to local disk
   R2_ACCOUNT_ID: z.string().optional(),
   R2_ACCESS_KEY_ID: z.string().optional(),

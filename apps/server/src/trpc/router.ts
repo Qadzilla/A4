@@ -1,5 +1,6 @@
 import { accountRouter } from './routers/account';
 import { billingRouter } from './routers/billing';
+import { brokerageRouter } from './routers/brokerage';
 import { categorizationRuleRouter } from './routers/categorization-rule';
 import { categoryRouter } from './routers/category';
 import { chatRouter } from './routers/chat';
@@ -16,6 +17,7 @@ import { router } from './trpc';
 
 export const appRouter = router({
   account: accountRouter,
+  brokerage: brokerageRouter,
   categorizationRule: categorizationRuleRouter,
   category: categoryRouter,
   chat: chatRouter,
