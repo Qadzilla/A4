@@ -15,7 +15,12 @@ export interface TaxEstimatorData {
   // Income
   w2Wages: number;
   selfEmploymentIncome: number;
+  /** Interest + ordinary (non-qualified) dividends — taxed as ordinary income */
   investmentIncome: number;
+  /** Net short-term capital gains — taxed as ordinary income */
+  capitalGainsShort: number;
+  /** Net long-term capital gains + qualified dividends — preferential 0/15/20 brackets */
+  capitalGainsLong: number;
   otherIncome: number;
 
   // Adjustments (above-the-line)
@@ -51,6 +56,12 @@ export interface TaxEstimateResult {
   deduction: number;
   taxableIncome: number;
   federalTax: number;
+  /** Tax on long-term gains at the preferential 0/15/20 rates */
+  ltcgTax: number;
+  /** Net investment income tax (3.8% over the MAGI threshold) */
+  niit: number;
+  /** How much MORE long-term gain could be realized this year at the 0% federal rate */
+  ltcgZeroBracketRoom: number;
   socialSecurityTax: number;
   medicareTax: number;
   additionalMedicareTax: number;
@@ -76,6 +87,8 @@ export function createDefaultTaxEstimatorData(): TaxEstimatorData {
     w2Wages: 0,
     selfEmploymentIncome: 0,
     investmentIncome: 0,
+    capitalGainsShort: 0,
+    capitalGainsLong: 0,
     otherIncome: 0,
     retirement401k: 0,
     traditionalIRA: 0,
@@ -110,14 +123,37 @@ function applyBrackets(
   return { tax, marginalRate };
 }
 
+/**
+ * Tax on `amount` stacked ON TOP of `floor` income within `brackets` — the
+ * LTCG method: long-term gains fill the preferential brackets starting where
+ * ordinary taxable income ends.
+ */
+function applyBracketsAbove(floor: number, amount: number, brackets: TaxBracket[]): number {
+  if (amount <= 0) return 0;
+  const top = floor + amount;
+  let tax = 0;
+  for (const b of brackets) {
+    if (top <= b.min) break;
+    const lo = Math.max(b.min, floor);
+    const hi = Math.min(b.max, top);
+    if (hi > lo) tax += (hi - lo) * b.rate;
+  }
+  return tax;
+}
+
 // ─── Computation ───────────────────────────────────────────────────
 
 export function computeTaxEstimate(data: TaxEstimatorData): TaxEstimateResult {
   const fed = FEDERAL_TAX_DATA[data.taxYear] ?? FEDERAL_TAX_DATA[2025]!;
 
-  // 1. Gross Income
+  // 1. Gross Income (short-term gains are ordinary; long-term get their own brackets below)
   const grossIncome =
-    data.w2Wages + data.selfEmploymentIncome + data.investmentIncome + data.otherIncome;
+    data.w2Wages +
+    data.selfEmploymentIncome +
+    data.investmentIncome +
+    data.capitalGainsShort +
+    data.capitalGainsLong +
+    data.otherIncome;
 
   // 2. Self-Employment Tax (compute early — half is an adjustment)
   const seBase = data.selfEmploymentIncome * fed.seMultiplier;
@@ -145,12 +181,30 @@ export function computeTaxEstimate(data: TaxEstimatorData): TaxEstimateResult {
   }
   const taxableIncome = Math.max(0, agi - deduction);
 
-  // 5. Federal Income Tax
+  // 5. Federal Income Tax — long-term gains are carved out of ordinary income
+  // and taxed at the preferential 0/15/20 brackets, stacked on top of the
+  // ordinary taxable income (the Schedule D worksheet method, simplified).
+  const ltcgPortion = Math.min(data.capitalGainsLong, taxableIncome);
+  const ordinaryTaxableIncome = taxableIncome - ltcgPortion;
   const fedBrackets = fed.brackets[data.filingStatus];
   const { tax: federalTax, marginalRate: marginalFederalRate } = applyBrackets(
-    taxableIncome,
+    ordinaryTaxableIncome,
     fedBrackets,
   );
+  const ltcgBrackets = fed.ltcgBrackets[data.filingStatus];
+  const ltcgTax = applyBracketsAbove(ordinaryTaxableIncome, ltcgPortion, ltcgBrackets);
+  // Room left in the 0% long-term bracket — gains realizable this year at 0% federal
+  const zeroBracketTop = ltcgBrackets[0]?.rate === 0 ? (ltcgBrackets[0]?.max ?? 0) : 0;
+  const ltcgZeroBracketRoom = Math.max(0, zeroBracketTop - ordinaryTaxableIncome - ltcgPortion);
+
+  // 5b. Net investment income tax (3.8% on investment income over the MAGI threshold)
+  const netInvestmentIncome = data.investmentIncome + data.capitalGainsShort + ltcgPortion;
+  const niit =
+    fed.niitRate *
+    Math.min(
+      Math.max(0, netInvestmentIncome),
+      Math.max(0, agi - fed.niitThreshold[data.filingStatus]),
+    );
 
   // 6. FICA (W-2 employee portion)
   const socialSecurityTax = Math.min(data.w2Wages, fed.ssWageBase) * fed.ssRate;
@@ -169,13 +223,18 @@ export function computeTaxEstimate(data: TaxEstimatorData): TaxEstimateResult {
   }
 
   // 8. Credits
-  const childTaxCredit = Math.min(data.numDependentChildren * fed.childTaxCredit, federalTax);
+  const childTaxCredit = Math.min(
+    data.numDependentChildren * fed.childTaxCredit,
+    federalTax + ltcgTax,
+  );
   const otherCredits = data.otherCredits;
 
   // 9. Total Tax
   const totalTax = Math.max(
     0,
     federalTax +
+      ltcgTax +
+      niit +
       socialSecurityTax +
       medicareTax +
       additionalMedicareTax +
@@ -200,6 +259,9 @@ export function computeTaxEstimate(data: TaxEstimatorData): TaxEstimateResult {
     deduction,
     taxableIncome,
     federalTax,
+    ltcgTax,
+    niit,
+    ltcgZeroBracketRoom,
     socialSecurityTax,
     medicareTax,
     additionalMedicareTax,

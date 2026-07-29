@@ -163,6 +163,45 @@ export const holdings = sqliteTable('holdings', {
     .$defaultFn(() => new Date()),
 });
 
+// Year-round tax profile — the inputs to the tax meter, one row per
+// user+workspace. Field names mirror TaxEstimatorData in lib/calc.
+export const taxProfiles = sqliteTable('tax_profiles', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  taxYear: integer('tax_year').notNull().default(2026),
+  filingStatus: text('filing_status').notNull().default('single'),
+  stateCode: text('state_code').notNull().default(''),
+  w2Wages: real('w2_wages').notNull().default(0),
+  selfEmploymentIncome: real('self_employment_income').notNull().default(0),
+  investmentIncome: real('investment_income').notNull().default(0),
+  capitalGainsShort: real('capital_gains_short').notNull().default(0),
+  capitalGainsLong: real('capital_gains_long').notNull().default(0),
+  otherIncome: real('other_income').notNull().default(0),
+  retirement401k: real('retirement_401k').notNull().default(0),
+  traditionalIRA: real('traditional_ira').notNull().default(0),
+  hsaContribution: real('hsa_contribution').notNull().default(0),
+  studentLoanInterest: real('student_loan_interest').notNull().default(0),
+  deductionType: text('deduction_type').notNull().default('standard'),
+  saltDeduction: real('salt_deduction').notNull().default(0),
+  mortgageInterest: real('mortgage_interest').notNull().default(0),
+  charitableGiving: real('charitable_giving').notNull().default(0),
+  otherItemized: real('other_itemized').notNull().default(0),
+  numDependentChildren: integer('num_dependent_children').notNull().default(0),
+  otherCredits: real('other_credits').notNull().default(0),
+  federalWithheld: real('federal_withheld').notNull().default(0),
+  stateWithheld: real('state_withheld').notNull().default(0),
+  estimatedPayments: real('estimated_payments').notNull().default(0),
+  priorYearTax: real('prior_year_tax'),
+  priorYearAgi: real('prior_year_agi'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // SnapTrade brokerage-connection identity: one row per A4 user who has
 // registered with SnapTrade. The userSecret is required for every SnapTrade
 // API call on that user's behalf — treat it like a credential.

@@ -24,6 +24,11 @@ export interface FederalYearData {
   seMultiplier: number; // 0.9235 (92.35% of SE income subject to SE tax)
   childTaxCredit: number; // per child
   saltCap: number; // TCJA $10,000 cap
+  // Preferential long-term capital gains / qualified dividends brackets (0/15/20)
+  ltcgBrackets: Record<TaxFilingStatus, TaxBracket[]>;
+  // Net investment income tax (3.8% over MAGI threshold)
+  niitRate: number;
+  niitThreshold: Record<TaxFilingStatus, number>;
 }
 
 export interface StateTaxConfig {
@@ -115,6 +120,30 @@ export const FEDERAL_TAX_DATA: Record<number, FederalYearData> = {
     seMultiplier: 0.9235,
     childTaxCredit: 2000,
     saltCap: 10000,
+    ltcgBrackets: {
+      single: [
+        { min: 0, max: 48350, rate: 0 },
+        { min: 48350, max: 533400, rate: 0.15 },
+        { min: 533400, max: Number.POSITIVE_INFINITY, rate: 0.2 },
+      ],
+      mfj: [
+        { min: 0, max: 96700, rate: 0 },
+        { min: 96700, max: 600050, rate: 0.15 },
+        { min: 600050, max: Number.POSITIVE_INFINITY, rate: 0.2 },
+      ],
+      mfs: [
+        { min: 0, max: 48350, rate: 0 },
+        { min: 48350, max: 300000, rate: 0.15 },
+        { min: 300000, max: Number.POSITIVE_INFINITY, rate: 0.2 },
+      ],
+      hoh: [
+        { min: 0, max: 64750, rate: 0 },
+        { min: 64750, max: 566700, rate: 0.15 },
+        { min: 566700, max: Number.POSITIVE_INFINITY, rate: 0.2 },
+      ],
+    },
+    niitRate: 0.038,
+    niitThreshold: { single: 200000, mfj: 250000, mfs: 125000, hoh: 200000 },
   },
   2026: {
     brackets: {
@@ -167,6 +196,30 @@ export const FEDERAL_TAX_DATA: Record<number, FederalYearData> = {
     seMultiplier: 0.9235,
     childTaxCredit: 2000,
     saltCap: 10000,
+    ltcgBrackets: {
+      single: [
+        { min: 0, max: 49450, rate: 0 },
+        { min: 49450, max: 545500, rate: 0.15 },
+        { min: 545500, max: Number.POSITIVE_INFINITY, rate: 0.2 },
+      ],
+      mfj: [
+        { min: 0, max: 98900, rate: 0 },
+        { min: 98900, max: 613700, rate: 0.15 },
+        { min: 613700, max: Number.POSITIVE_INFINITY, rate: 0.2 },
+      ],
+      mfs: [
+        { min: 0, max: 49450, rate: 0 },
+        { min: 49450, max: 306850, rate: 0.15 },
+        { min: 306850, max: Number.POSITIVE_INFINITY, rate: 0.2 },
+      ],
+      hoh: [
+        { min: 0, max: 66200, rate: 0 },
+        { min: 66200, max: 579600, rate: 0.15 },
+        { min: 579600, max: Number.POSITIVE_INFINITY, rate: 0.2 },
+      ],
+    },
+    niitRate: 0.038,
+    niitThreshold: { single: 200000, mfj: 250000, mfs: 125000, hoh: 200000 },
   },
 };
 

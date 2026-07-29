@@ -218,7 +218,18 @@ const TOOLS: ToolRegistration[] = [
           },
           w2Wages: { type: 'number', description: 'W-2 wages' },
           selfEmploymentIncome: { type: 'number', description: 'Self-employment income' },
-          investmentIncome: { type: 'number', description: 'Investment income' },
+          investmentIncome: {
+            type: 'number',
+            description: 'Interest + ordinary dividends (taxed as ordinary income)',
+          },
+          capitalGainsShort: {
+            type: 'number',
+            description: 'Net short-term capital gains (held ≤1 year, ordinary rates)',
+          },
+          capitalGainsLong: {
+            type: 'number',
+            description: 'Net long-term capital gains (held >1 year, 0/15/20% brackets)',
+          },
           otherIncome: { type: 'number', description: 'Other income' },
           retirement401k: { type: 'number', description: '401(k) contributions' },
           traditionalIRA: { type: 'number', description: 'Traditional IRA contributions' },
