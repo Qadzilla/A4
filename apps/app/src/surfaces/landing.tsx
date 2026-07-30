@@ -48,7 +48,7 @@ export function LandingSurface() {
       <PaperCollage />
 
       <main className="rise relative w-full max-w-xl">
-        <div className="rounded-card border border-ink/15 bg-surface p-8 shadow-[0_18px_50px_-12px_rgba(60,46,28,0.45)] md:p-12">
+        <div className="px-2 py-4">
           <h1 className="mb-5 text-center text-4xl font-bold tracking-tight md:text-6xl">
             Know your basis<span className="text-accent">.</span>
           </h1>
@@ -66,12 +66,10 @@ export function LandingSurface() {
             </p>
           </div>
 
-          <div className="mt-9 border-t border-hairline pt-4">
-            <p className="text-center text-[11px] leading-relaxed text-faint">
-              {BRAND.name} provides educational estimates computed from your data — not investment
-              advice, tax advice, or a tax filing. Brokerage connections are read-only.
-            </p>
-          </div>
+          <p className="mx-auto mt-12 max-w-md text-center text-[11px] leading-relaxed text-ink/55">
+            {BRAND.name} provides educational estimates computed from your data — not investment
+            advice, tax advice, or a tax filing. Brokerage connections are read-only.
+          </p>
         </div>
       </main>
     </div>
