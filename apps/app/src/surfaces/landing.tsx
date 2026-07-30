@@ -54,8 +54,7 @@ export function LandingSurface() {
           </h1>
 
           <p className="mx-auto mb-9 max-w-sm text-center text-[15px] leading-relaxed text-muted">
-            What you actually paid, how your positions compare to the market, and what you'd owe
-            if the year ended today.
+            What you paid, what it's worth, and what you'll owe.
           </p>
 
           <div className="flex flex-col items-center gap-4">
