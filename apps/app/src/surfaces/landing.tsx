@@ -1,5 +1,4 @@
 import { BRAND } from '@/brand';
-import { BasisWordmark } from '@/brand-mark';
 import { DEV_AUTH_BYPASS } from '@/lib/clerk';
 import { PaperCollage } from '@/surfaces/paper-collage';
 import { SignInButton, SignedIn, SignedOut } from '@clerk/clerk-react';
@@ -50,13 +49,6 @@ export function LandingSurface() {
 
       <main className="rise relative w-full max-w-xl">
         <div className="rounded-card border border-ink/15 bg-surface p-8 shadow-[0_18px_50px_-12px_rgba(60,46,28,0.45)] md:p-12">
-          <div className="mb-8 flex justify-center">
-            <BasisWordmark
-              markSize={22}
-              textClassName="font-mono text-[19px] font-bold tracking-tight"
-            />
-          </div>
-
           <h1 className="mb-5 text-center text-4xl font-bold tracking-tight md:text-6xl">
             Know your basis<span className="text-accent">.</span>
           </h1>
