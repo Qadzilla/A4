@@ -73,3 +73,20 @@ body {
     }
   }
 }
+
+/* The paper pile breathes — barely. Stillness is the brand; this is just
+   enough motion to keep the ground from looking like a flat image. */
+@media (prefers-reduced-motion: no-preference) {
+  .paper-scrap {
+    animation-name: paper-drift;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+    will-change: transform;
+  }
+  @keyframes paper-drift {
+    to {
+      translate: 3px -4px;
+    }
+  }
+}

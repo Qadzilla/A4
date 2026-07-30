@@ -1,34 +1,22 @@
 import { BRAND } from '@/brand';
 import { BasisWordmark } from '@/brand-mark';
 import { DEV_AUTH_BYPASS } from '@/lib/clerk';
+import { PaperCollage } from '@/surfaces/paper-collage';
 import { SignInButton, SignedIn, SignedOut } from '@clerk/clerk-react';
 import { ArrowRight } from 'lucide-react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 
 /**
- * The public face at /welcome — deliberately spare: the wordmark, the
- * headline, one line, one CTA, on a graph-paper ground. Sections get added
- * back as they earn their place.
+ * The public face at /welcome: a pile of financial paper about cost basis,
+ * and one clean object standing on it. The hero is a solid plaque rather
+ * than floating type — it has to hold its composure over a moving ground.
  */
-
-/** Graph-paper texture: fine 24px grid + stronger 120px majors, fading out below. */
-const paperGrid: CSSProperties = {
-  backgroundImage: [
-    'linear-gradient(to right, rgba(23,27,35,0.05) 1px, transparent 1px)',
-    'linear-gradient(to bottom, rgba(23,27,35,0.05) 1px, transparent 1px)',
-    'linear-gradient(to right, rgba(23,27,35,0.07) 1px, transparent 1px)',
-    'linear-gradient(to bottom, rgba(23,27,35,0.07) 1px, transparent 1px)',
-  ].join(', '),
-  backgroundSize: '24px 24px, 24px 24px, 120px 120px, 120px 120px',
-  maskImage: 'linear-gradient(to bottom, black 0%, black 55%, transparent 95%)',
-  WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 55%, transparent 95%)',
-};
 
 function Cta({ children, primary = false }: { children: ReactNode; primary?: boolean }) {
   const className = primary
     ? 'inline-flex items-center gap-2 rounded-card bg-accent px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90'
-    : 'inline-flex items-center gap-2 rounded-card border border-hairline bg-surface px-5 py-2.5 text-sm font-semibold transition-colors hover:border-accent';
+    : 'text-sm font-semibold text-accent underline-offset-4 hover:underline';
 
   if (DEV_AUTH_BYPASS) {
     return (
@@ -57,34 +45,40 @@ function Cta({ children, primary = false }: { children: ReactNode; primary?: boo
 
 export function LandingSurface() {
   return (
-    <div className="relative flex min-h-dvh flex-col">
-      <div className="pointer-events-none absolute inset-0" style={paperGrid} aria-hidden="true" />
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-5 py-16">
+      <PaperCollage />
 
-      <header className="relative mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-6">
-        <BasisWordmark />
-        <Cta>Sign in</Cta>
-      </header>
+      <main className="rise relative w-full max-w-xl">
+        <div className="rounded-card border border-ink/15 bg-surface p-8 shadow-[0_18px_50px_-12px_rgba(60,46,28,0.45)] md:p-12">
+          <div className="mb-8 flex justify-center">
+            <BasisWordmark />
+          </div>
 
-      <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-6 pb-24">
-        <h1 className="mb-6 text-5xl font-bold tracking-tight md:text-7xl">
-          Know your basis<span className="text-accent">.</span>
-        </h1>
-        <p className="mb-10 max-w-md text-base leading-relaxed text-muted">
-          The investing and tax numbers your brokerage won't show you — measured, not vibed.
-        </p>
-        <div>
-          <Cta primary>
-            Get started <ArrowRight size={16} />
-          </Cta>
+          <h1 className="mb-5 text-center text-4xl font-bold tracking-tight md:text-6xl">
+            Know your basis<span className="text-accent">.</span>
+          </h1>
+
+          <p className="mx-auto mb-9 max-w-sm text-center text-[15px] leading-relaxed text-muted">
+            The investing and tax numbers your brokerage won't show you — measured, not vibed.
+          </p>
+
+          <div className="flex flex-col items-center gap-4">
+            <Cta primary>
+              Get started <ArrowRight size={16} />
+            </Cta>
+            <p className="text-xs text-muted">
+              Already have an account? <Cta>Sign in</Cta>
+            </p>
+          </div>
+
+          <div className="mt-9 border-t border-hairline pt-4">
+            <p className="text-center text-[11px] leading-relaxed text-faint">
+              {BRAND.name} provides educational estimates computed from your data — not investment
+              advice, tax advice, or a tax filing. Brokerage connections are read-only.
+            </p>
+          </div>
         </div>
       </main>
-
-      <footer className="relative mx-auto w-full max-w-4xl px-6 py-8">
-        <p className="max-w-lg text-xs leading-relaxed text-faint">
-          {BRAND.name} provides educational estimates computed from your data — not investment
-          advice, tax advice, or a tax filing. Brokerage connections are read-only.
-        </p>
-      </footer>
     </div>
   );
 }
