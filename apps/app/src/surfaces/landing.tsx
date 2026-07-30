@@ -54,7 +54,8 @@ export function LandingSurface() {
           </h1>
 
           <p className="mx-auto mb-9 max-w-sm text-center text-[15px] leading-relaxed text-muted">
-            The investing and tax numbers your brokerage won't show you — measured, not vibed.
+            What you actually paid, how your positions compare to the market, and what you'd owe
+            if the year ended today.
           </p>
 
           <div className="flex flex-col items-center gap-4">
