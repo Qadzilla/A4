@@ -7,14 +7,17 @@
  * an explicit toggle, not an OS default — the product leads light.
  */
 @theme {
-  --color-paper: #f5f6f9;
-  --color-surface: #ffffff;
-  --color-ink: #171b23;
-  --color-muted: #5c6472;
-  --color-faint: #9aa2b1;
-  --color-hairline: #dfe3ea;
+  /* The ground is the paper the landing collage is printed on — a warm
+     cream, carried through the whole product. The neutrals are warmed to
+     match; a cool grey ramp on this ground reads blue and broken. */
+  --color-paper: #ece6d7;
+  --color-surface: #f7f3ea;
+  --color-ink: #1b1a16;
+  --color-muted: #655d4e;
+  --color-faint: #9a9181;
+  --color-hairline: #dbd2be;
   --color-accent: #2b59ff;
-  --color-accent-soft: #e9edff;
+  --color-accent-soft: #e4e8fb;
   --color-good: #157a54;
   --color-good-soft: #e2f2ea;
   --color-warn: #a26a12;
