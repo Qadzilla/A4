@@ -217,7 +217,7 @@ export function TaxesSurface() {
         <div className="animate-pulse">
           <div className="mb-2 h-10 w-56 rounded-card bg-hairline/60" />
           <div className="mb-10 h-4 w-72 rounded-card bg-hairline/40" />
-          <div className="h-40 rounded-card border border-hairline bg-surface" />
+          <div className="h-40 rounded-card bg-surface shadow-card" />
         </div>
       </div>
     );
@@ -303,7 +303,7 @@ export function TaxesSurface() {
       {hasAnyIncome && (
         <section className="mb-10">
           <h2 className="eyebrow mb-3">Where it goes</h2>
-          <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
             <BreakdownRow label="Federal income tax" value={result.federalTax} first />
             {result.ltcgTax > 0 && (
               <BreakdownRow label="Long-term gains tax (0/15/20%)" value={result.ltcgTax} />
@@ -335,7 +335,7 @@ export function TaxesSurface() {
       {hasAnyIncome && quarterly.estimatesNeeded && (
         <section className="mb-10">
           <h2 className="eyebrow mb-3">Quarterly estimated payments</h2>
-          <div className="rounded-card border border-hairline bg-surface p-5">
+          <div className="rounded-card bg-surface shadow-card p-5">
             <p className="mb-4 text-sm text-muted">
               Withholding won't cover the safe harbor
               {quarterly.safeHarborBasis === 'prior-year'
@@ -369,7 +369,7 @@ export function TaxesSurface() {
       {ledger && ledger.sales.length > 0 && (
         <section className="mb-10">
           <h2 className="eyebrow mb-3">Realized gains · {form.taxYear}</h2>
-          <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-hairline px-4 py-3">
               <span className="text-sm">
                 <span className="text-muted">Short-term </span>
@@ -453,7 +453,7 @@ export function TaxesSurface() {
       {/* ── Inputs ── */}
       <section className="mb-8">
         <h2 className="eyebrow mb-3">Your year</h2>
-        <div className="grid gap-3 rounded-card border border-hairline bg-surface p-5">
+        <div className="grid gap-3 rounded-card bg-surface shadow-card p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <SelectField
               label="Tax year"
@@ -688,7 +688,7 @@ function Check1099Section() {
   return (
     <section className="mb-10">
       <h2 className="eyebrow mb-3">1099 check</h2>
-      <div className="rounded-card border border-hairline bg-surface p-5">
+      <div className="rounded-card bg-surface shadow-card p-5">
         <p className="mb-3 text-sm text-muted">
           At filing time, upload your broker's 1099-B and Basis cross-checks it against your
           computed gains — mismatched cost basis is the most common filing mistake.
@@ -748,7 +748,7 @@ function Reconciliation1099({
 
   const allGood = recon.mismatches === 0 && recon.missingHistory === 0 && recon.notOn1099 === 0;
   return (
-    <div className="mt-3 overflow-hidden rounded-card border border-hairline bg-surface">
+    <div className="mt-3 overflow-hidden rounded-card bg-surface shadow-card">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-hairline px-4 py-3">
         <span className="text-sm font-semibold">
           {broker ?? 'Broker'} · {taxYear}

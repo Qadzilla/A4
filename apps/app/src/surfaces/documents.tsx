@@ -145,11 +145,11 @@ export function DocumentsSurface() {
       <section className="mt-10 max-w-xl">
         <h2 className="eyebrow mb-3">Uploaded</h2>
         {isLoading ? (
-          <div className="h-24 animate-pulse rounded-card border border-hairline bg-surface" />
+          <div className="h-24 animate-pulse rounded-card bg-surface shadow-card" />
         ) : documents.length === 0 ? (
           <p className="text-sm text-muted">Nothing yet — your uploads land here.</p>
         ) : (
-          <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
             {documents.map((d, i) => (
               <div
                 key={d.id}

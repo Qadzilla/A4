@@ -175,7 +175,7 @@ export function PortfolioSurface() {
           {benchmark && (
             <section className="mb-10">
               <h2 className="eyebrow mb-3">vs S&amp;P 500</h2>
-              <div className="rounded-card border border-hairline bg-surface p-5">
+              <div className="rounded-card bg-surface shadow-card p-5">
                 <div className="mb-3 grid grid-cols-2 gap-4">
                   <div>
                     <p className="eyebrow mb-1">Your picks</p>
@@ -213,7 +213,7 @@ export function PortfolioSurface() {
           {holdings.length > 0 && (
             <section className="mb-10">
               <h2 className="eyebrow mb-3">Holdings</h2>
-              <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+              <div className="overflow-hidden rounded-card bg-surface shadow-card">
                 {holdings.map((h, i) => {
                   const value = liveValue(h);
                   const pct = holdingsTotal > 0 ? (value / holdingsTotal) * 100 : 0;
@@ -265,7 +265,7 @@ export function PortfolioSurface() {
           {cashAccounts.length > 0 && (
             <section>
               <h2 className="eyebrow mb-3">Cash &amp; accounts</h2>
-              <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+              <div className="overflow-hidden rounded-card bg-surface shadow-card">
                 {cashAccounts.map((a, i) => (
                   <div
                     key={a.id}
@@ -289,7 +289,7 @@ export function PortfolioSurface() {
           {brokerage?.enabled && (
             <section className="mt-10">
               <h2 className="eyebrow mb-3">Brokerages</h2>
-              <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+              <div className="overflow-hidden rounded-card bg-surface shadow-card">
                 {brokerage.connections.map((c) => (
                   <div
                     key={c.id}
@@ -359,7 +359,7 @@ export function PortfolioSurface() {
                 These hold the positions listed above — excluded from totals so nothing counts
                 twice.
               </p>
-              <div className="overflow-hidden rounded-card border border-hairline bg-surface opacity-80">
+              <div className="overflow-hidden rounded-card bg-surface shadow-card opacity-80">
                 {containerAccounts.map((a, i) => (
                   <div
                     key={a.id}
@@ -391,7 +391,7 @@ function PortfolioSkeleton() {
       <div className="mb-2 h-10 w-56 rounded-card bg-hairline/60" />
       <div className="mb-10 h-4 w-72 rounded-card bg-hairline/40" />
       <div className="mb-3 h-3 w-20 rounded-card bg-hairline/40" />
-      <div className="overflow-hidden rounded-card border border-hairline bg-surface">
+      <div className="overflow-hidden rounded-card bg-surface shadow-card">
         {[0, 1, 2].map((i) => (
           <div
             key={i}

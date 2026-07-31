@@ -12,14 +12,17 @@
      page are one stock. Only the ground moves; surface, ink and the rest of
      the ramp stay as they are. */
   --color-paper: #e2d8c3;
-  --color-surface: #ffffff;
-  --color-ink: #171b23;
+  /* Sheets are paper, not lightboxes: warm enough to belong on the ground,
+     light enough to still read as a sheet lying on it. */
+  --color-surface: #faf7f0;
+  /* A warm near-black. Blue-black reads cold against cream. */
+  --color-ink: #1c1813;
   --color-muted: #5c6472;
   --color-faint: #9aa2b1;
-  --color-hairline: #dfe3ea;
+  --color-hairline: #d9d0bd;
   --color-accent: #2b59ff;
-  --color-accent-soft: #e9edff;
-  --color-good: #157a54;
+  --color-accent-soft: #e9e6f0;
+  --color-good: #166b4d;
   --color-good-soft: #e2f2ea;
   --color-warn: #a26a12;
   --color-warn-soft: #f6ecd8;
@@ -29,7 +32,12 @@
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
-  --radius-card: 6px;
+  /* A cut edge, not a rounded screen element. Not zero — fully square goes
+     brittle at small sizes and starts reading as a scanned form. */
+  --radius-card: 2px;
+
+  /* Sheets sit ON the ground: an edge that catches light, not an outline. */
+  --shadow-card: 0 1px 2px rgba(70, 52, 28, 0.07), 0 10px 24px -14px rgba(70, 52, 28, 0.22);
 }
 
 html {

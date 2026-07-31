@@ -30,11 +30,15 @@ function NavItems({ variant }: { variant: 'rail' | 'tabs' }) {
           to={to}
           className={({ isActive }) =>
             variant === 'rail'
-              ? `flex items-center gap-3 rounded-card px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-accent-soft text-accent' : 'text-muted hover:text-ink'
+              ? // A cobalt rule marks the active surface — a tinted pill reads
+                // as a stray patch of screen colour on the paper ground.
+                `flex items-center gap-3 border-l-2 py-2 pl-3 pr-3 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'border-accent text-accent'
+                    : 'border-transparent text-muted hover:text-ink'
                 }`
-              : `flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${
-                  isActive ? 'text-accent' : 'text-muted'
+              : `flex flex-1 flex-col items-center gap-0.5 border-t-2 py-2 text-[11px] font-medium ${
+                  isActive ? 'border-accent text-accent' : 'border-transparent text-muted'
                 }`
           }
         >
