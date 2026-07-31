@@ -1,7 +1,7 @@
 import type { Panel } from '@/workspace/panel';
 import { PanelCard } from '@/workspace/panels';
 import { type Box, type Guide, snap } from '@/workspace/snapping';
-import { Maximize2, Minus, Plus, Rows3 } from 'lucide-react';
+import { LayoutGrid, Maximize2, Minus, Plus, Rows3 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
@@ -30,6 +30,15 @@ const ORIGIN = 32;
 
 /** How long a panel's height has to hold still before it counts as settled. */
 const SETTLE_MS = 180;
+
+/** Breathing room left around a panel when a tab brings it forward. */
+const FOCUS_PAD = 28;
+/**
+ * How far a tab is allowed to magnify. Fitting a narrow panel to a wide
+ * viewport would blow the type up to poster size; this keeps "zoomed in" at a
+ * size you'd actually read at.
+ */
+const FOCUS_MAX_ZOOM = 1.25;
 
 export interface Placement {
   x: number;
@@ -119,6 +128,8 @@ export function Canvas({
   const [dragging, setDragging] = useState<DragState | null>(null);
   /** Alignment lines for the drag in progress, cleared when it ends. */
   const [guides, setGuides] = useState<Guide[]>([]);
+  /** Which panel a tab last brought forward — raised, and marked in the bar. */
+  const [focused, setFocused] = useState<string | null>(null);
 
   const heightsRef = useRef<Record<string, number>>({});
   const [measuredAt, setMeasuredAt] = useState(0);
@@ -337,6 +348,33 @@ export function Canvas({
     setPan({ x: 0, y: 0 });
   };
 
+  /**
+   * Bring one panel forward: scale it to the width of the viewport and put it
+   * at the top, rather than centring it.
+   *
+   * Fitting the whole panel on screen would be the obvious move and is the
+   * wrong one — an answer can run to two thousand pixels, and shrinking that
+   * until it fits makes it unreadable, which is the opposite of looking at
+   * something. Width decides the zoom; a long panel simply continues below the
+   * fold, where it can be scrolled to like anything else.
+   */
+  const focusPanel = (id: string) => {
+    const box = viewportRef.current?.getBoundingClientRect();
+    const place = places[id];
+    if (!box || !place) return;
+    const next = clamp(
+      (box.width - FOCUS_PAD * 2) / place.w,
+      MIN_ZOOM,
+      Math.min(MAX_ZOOM, FOCUS_MAX_ZOOM),
+    );
+    setZoom(next);
+    setPan({
+      x: (box.width - place.w * next) / 2 - place.x * next,
+      y: FOCUS_PAD - place.y * next,
+    });
+    setFocused(id);
+  };
+
   /** Zoom out far enough to see everything, then centre it. */
   const fit = () => {
     const box = viewportRef.current?.getBoundingClientRect();
@@ -347,106 +385,167 @@ export function Canvas({
     const next = clamp(Math.min((box.width - 48) / right, (box.height - 48) / bottom), MIN_ZOOM, 1);
     setZoom(next);
     setPan({ x: 24, y: 24 });
+    setFocused(null);
   };
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-hidden">
-      <div
-        ref={viewportRef}
-        onPointerDown={startPan}
-        className={`absolute inset-0 touch-none ${dragging?.kind === 'pan' ? 'cursor-grabbing' : 'cursor-grab'}`}
-        style={{
-          // A faint rule grid, so panning reads as movement across a surface
-          // rather than content sliding for no reason.
-          backgroundImage:
-            'radial-gradient(circle at 1px 1px, var(--color-hairline) 1px, transparent 0)',
-          backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
-          backgroundPosition: `${pan.x}px ${pan.y}px`,
-        }}
-      >
-        <div
-          className="absolute top-0 left-0 origin-top-left"
-          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
-        >
-          {guides.map((g) => (
-            <div
-              key={`${g.axis}-${g.at}-${g.from}`}
-              aria-hidden
-              className="pointer-events-none absolute z-20 bg-accent"
-              style={
-                g.axis === 'x'
-                  ? { left: g.at, top: g.from, width: 1, height: g.to - g.from }
-                  : { top: g.at, left: g.from, height: 1, width: g.to - g.from }
-              }
-            />
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* One tab per thing on the desk. Selecting one doesn't open a separate
+          view of it — it moves the desk so that panel is what you're looking
+          at. The desk stays the only place anything lives. */}
+      {panels.length > 1 && (
+        <div className="flex shrink-0 items-stretch gap-px overflow-x-auto border-hairline border-b bg-paper">
+          <PanelTab active={focused === null} onSelect={fit} title="See the whole desk">
+            <LayoutGrid size={12} /> Desk
+          </PanelTab>
+          {panels.map((panel) => (
+            <PanelTab
+              key={panel.id}
+              active={focused === panel.id}
+              onSelect={() => focusPanel(panel.id)}
+              title={panel.subtitle ? `${panel.title} · ${panel.subtitle}` : panel.title}
+            >
+              <span className="max-w-[11rem] truncate">{panel.title}</span>
+              {/* Three pre-trade checks are only told apart by their subject,
+                  so the subject has to be on the tab, not just in the tooltip. */}
+              {panel.subtitle && (
+                <span className="max-w-[7rem] truncate font-normal text-faint">
+                  {panel.subtitle}
+                </span>
+              )}
+            </PanelTab>
           ))}
-          {panels.map((panel) => {
-            const place = places[panel.id];
-            return (
-              <CanvasPanel
-                key={panel.id}
-                panel={panel}
-                taxYear={taxYear}
-                place={place}
-                active={dragging?.kind !== 'pan' && dragging?.id === panel.id}
-                onMeasure={measure}
-                onDismiss={onDismiss}
-                onGrab={(e) =>
-                  place &&
-                  setDragging({
-                    kind: 'move',
-                    id: panel.id,
-                    startX: e.clientX,
-                    startY: e.clientY,
-                    x: place.x,
-                    y: place.y,
-                  })
-                }
-                onGrabEdge={(e) =>
-                  place &&
-                  setDragging({ kind: 'resize', id: panel.id, startX: e.clientX, w: place.w })
+        </div>
+      )}
+
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={viewportRef}
+          onPointerDown={startPan}
+          className={`absolute inset-0 touch-none ${dragging?.kind === 'pan' ? 'cursor-grabbing' : 'cursor-grab'}`}
+          style={{
+            // A faint rule grid, so panning reads as movement across a surface
+            // rather than content sliding for no reason.
+            backgroundImage:
+              'radial-gradient(circle at 1px 1px, var(--color-hairline) 1px, transparent 0)',
+            backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
+            backgroundPosition: `${pan.x}px ${pan.y}px`,
+          }}
+        >
+          <div
+            className="absolute top-0 left-0 origin-top-left"
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          >
+            {guides.map((g) => (
+              <div
+                key={`${g.axis}-${g.at}-${g.from}`}
+                aria-hidden
+                className="pointer-events-none absolute z-20 bg-accent"
+                style={
+                  g.axis === 'x'
+                    ? { left: g.at, top: g.from, width: 1, height: g.to - g.from }
+                    : { top: g.at, left: g.from, height: 1, width: g.to - g.from }
                 }
               />
-            );
-          })}
+            ))}
+            {panels.map((panel) => {
+              const place = places[panel.id];
+              return (
+                <CanvasPanel
+                  key={panel.id}
+                  panel={panel}
+                  taxYear={taxYear}
+                  place={place}
+                  active={
+                    (dragging?.kind !== 'pan' && dragging?.id === panel.id) || focused === panel.id
+                  }
+                  onMeasure={measure}
+                  onDismiss={onDismiss}
+                  onGrab={(e) =>
+                    place &&
+                    setDragging({
+                      kind: 'move',
+                      id: panel.id,
+                      startX: e.clientX,
+                      startY: e.clientY,
+                      x: place.x,
+                      y: place.y,
+                    })
+                  }
+                  onGrabEdge={(e) =>
+                    place &&
+                    setDragging({ kind: 'resize', id: panel.id, startX: e.clientX, w: place.w })
+                  }
+                />
+              );
+            })}
+          </div>
         </div>
+
+        {panels.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-start justify-center px-8 pt-16">
+            <div className="pointer-events-auto max-w-sm">{emptyMessage}</div>
+          </div>
+        )}
+
+        {/* Controls sit over the surface rather than in it, so they don't pan away. */}
+        {panels.length > 0 && (
+          <div className="absolute right-4 bottom-4 flex items-center gap-1 rounded-full border border-hairline bg-surface px-1.5 py-1 shadow-card">
+            <CanvasButton onClick={tidy} label="Tidy the desk">
+              <Rows3 size={14} />
+            </CanvasButton>
+            <CanvasButton onClick={fit} label="Fit everything on screen">
+              <Maximize2 size={14} />
+            </CanvasButton>
+            <span className="mx-1 h-4 w-px bg-hairline" />
+            <CanvasButton onClick={() => zoomBy(1 / 1.15)} label="Zoom out">
+              <Minus size={14} />
+            </CanvasButton>
+            <button
+              type="button"
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 0, y: 0 });
+              }}
+              className="tnum min-w-[3rem] font-mono text-xs text-muted transition-colors hover:text-ink"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <CanvasButton onClick={() => zoomBy(1.15)} label="Zoom in">
+              <Plus size={14} />
+            </CanvasButton>
+          </div>
+        )}
       </div>
-
-      {panels.length === 0 && (
-        <div className="pointer-events-none absolute inset-0 flex items-start justify-center px-8 pt-16">
-          <div className="pointer-events-auto max-w-sm">{emptyMessage}</div>
-        </div>
-      )}
-
-      {/* Controls sit over the surface rather than in it, so they don't pan away. */}
-      {panels.length > 0 && (
-        <div className="absolute right-4 bottom-4 flex items-center gap-1 rounded-full border border-hairline bg-surface px-1.5 py-1 shadow-card">
-          <CanvasButton onClick={tidy} label="Tidy the desk">
-            <Rows3 size={14} />
-          </CanvasButton>
-          <CanvasButton onClick={fit} label="Fit everything on screen">
-            <Maximize2 size={14} />
-          </CanvasButton>
-          <span className="mx-1 h-4 w-px bg-hairline" />
-          <CanvasButton onClick={() => zoomBy(1 / 1.15)} label="Zoom out">
-            <Minus size={14} />
-          </CanvasButton>
-          <button
-            type="button"
-            onClick={() => {
-              setZoom(1);
-              setPan({ x: 0, y: 0 });
-            }}
-            className="tnum min-w-[3rem] font-mono text-xs text-muted transition-colors hover:text-ink"
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <CanvasButton onClick={() => zoomBy(1.15)} label="Zoom in">
-            <Plus size={14} />
-          </CanvasButton>
-        </div>
-      )}
     </div>
+  );
+}
+
+function PanelTab({
+  active,
+  onSelect,
+  title,
+  children,
+}: {
+  active: boolean;
+  onSelect: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      title={title}
+      aria-pressed={active}
+      className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 font-medium text-xs transition-colors ${
+        active
+          ? 'border-b-accent bg-surface text-ink'
+          : 'border-b-transparent text-muted hover:bg-surface/60 hover:text-ink'
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
