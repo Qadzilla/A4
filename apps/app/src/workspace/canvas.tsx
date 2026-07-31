@@ -31,14 +31,8 @@ const ORIGIN = 32;
 /** How long a panel's height has to hold still before it counts as settled. */
 const SETTLE_MS = 180;
 
-/** Breathing room left around a panel when a tab brings it forward. */
-const FOCUS_PAD = 28;
-/**
- * How far a tab is allowed to magnify. Fitting a narrow panel to a wide
- * viewport would blow the type up to poster size; this keeps "zoomed in" at a
- * size you'd actually read at.
- */
-const FOCUS_MAX_ZOOM = 1.25;
+/** How wide a panel gets when a tab opens it. Past this, lines get hard to track. */
+const TAB_MAX_WIDTH = 920;
 
 export interface Placement {
   x: number;
@@ -128,7 +122,13 @@ export function Canvas({
   const [dragging, setDragging] = useState<DragState | null>(null);
   /** Alignment lines for the drag in progress, cleared when it ends. */
   const [guides, setGuides] = useState<Guide[]>([]);
-  /** Which panel a tab last brought forward — raised, and marked in the bar. */
+  /**
+   * The panel a tab has opened, or null for the desk.
+   *
+   * An open panel replaces the desk rather than being magnified on it. The
+   * canvas is for seeing how things sit together; a tab is for reading one
+   * thing, at whatever width it needs, without the rest in the way.
+   */
   const [focused, setFocused] = useState<string | null>(null);
 
   const heightsRef = useRef<Record<string, number>>({});
@@ -166,6 +166,13 @@ export function Canvas({
       return next;
     });
   }, [panels]);
+
+  const openPanel = panels.find((p) => p.id === focused) ?? null;
+
+  // A panel removed while open leaves its tab pointing at nothing.
+  useEffect(() => {
+    if (focused && !panels.some((p) => p.id === focused)) setFocused(null);
+  }, [focused, panels]);
 
   /** Columns that fit the viewport at the current zoom, at least one. */
   const columnCount = useCallback(() => {
@@ -348,33 +355,6 @@ export function Canvas({
     setPan({ x: 0, y: 0 });
   };
 
-  /**
-   * Bring one panel forward: scale it to the width of the viewport and put it
-   * at the top, rather than centring it.
-   *
-   * Fitting the whole panel on screen would be the obvious move and is the
-   * wrong one — an answer can run to two thousand pixels, and shrinking that
-   * until it fits makes it unreadable, which is the opposite of looking at
-   * something. Width decides the zoom; a long panel simply continues below the
-   * fold, where it can be scrolled to like anything else.
-   */
-  const focusPanel = (id: string) => {
-    const box = viewportRef.current?.getBoundingClientRect();
-    const place = places[id];
-    if (!box || !place) return;
-    const next = clamp(
-      (box.width - FOCUS_PAD * 2) / place.w,
-      MIN_ZOOM,
-      Math.min(MAX_ZOOM, FOCUS_MAX_ZOOM),
-    );
-    setZoom(next);
-    setPan({
-      x: (box.width - place.w * next) / 2 - place.x * next,
-      y: FOCUS_PAD - place.y * next,
-    });
-    setFocused(id);
-  };
-
   /** Zoom out far enough to see everything, then centre it. */
   const fit = () => {
     const box = viewportRef.current?.getBoundingClientRect();
@@ -385,7 +365,6 @@ export function Canvas({
     const next = clamp(Math.min((box.width - 48) / right, (box.height - 48) / bottom), MIN_ZOOM, 1);
     setZoom(next);
     setPan({ x: 24, y: 24 });
-    setFocused(null);
   };
 
   return (
@@ -395,14 +374,18 @@ export function Canvas({
           at. The desk stays the only place anything lives. */}
       {panels.length > 1 && (
         <div className="flex shrink-0 items-stretch gap-px overflow-x-auto border-hairline border-b bg-paper">
-          <PanelTab active={focused === null} onSelect={fit} title="See the whole desk">
+          <PanelTab
+            active={focused === null}
+            onSelect={() => setFocused(null)}
+            title="Back to the desk"
+          >
             <LayoutGrid size={12} /> Desk
           </PanelTab>
           {panels.map((panel) => (
             <PanelTab
               key={panel.id}
               active={focused === panel.id}
-              onSelect={() => focusPanel(panel.id)}
+              onSelect={() => setFocused(panel.id)}
               title={panel.subtitle ? `${panel.title} · ${panel.subtitle}` : panel.title}
             >
               <span className="max-w-[11rem] truncate">{panel.title}</span>
@@ -418,7 +401,26 @@ export function Canvas({
         </div>
       )}
 
-      <div className="relative min-h-0 flex-1">
+      {/* A tab replaces the desk with the one thing it names, at the width
+          that thing wants — a generated answer gets the better part of a
+          thousand pixels instead of four hundred.
+
+          The surface stays mounted underneath so the desk keeps its pan, zoom
+          and arrangement. Only the panels come out of it: a panel rendered in
+          two places at once is a panel whose iframe is fighting itself for a
+          name, and it's wasted work besides. */}
+      {openPanel && (
+        <div className="min-h-0 flex-1 overflow-y-auto bg-paper">
+          <div className="mx-auto px-6 py-6" style={{ maxWidth: TAB_MAX_WIDTH }}>
+            <PanelCard panel={openPanel} taxYear={taxYear} onDismiss={onDismiss} />
+          </div>
+        </div>
+      )}
+
+      <div
+        className={`relative min-h-0 flex-1 ${openPanel ? 'hidden' : ''}`}
+        aria-hidden={!!openPanel}
+      >
         <div
           ref={viewportRef}
           onPointerDown={startPan}
@@ -448,7 +450,7 @@ export function Canvas({
                 }
               />
             ))}
-            {panels.map((panel) => {
+            {(openPanel ? [] : panels).map((panel) => {
               const place = places[panel.id];
               return (
                 <CanvasPanel

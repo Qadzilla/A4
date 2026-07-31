@@ -29,10 +29,12 @@ import FRAME_STYLES from './panel.css?raw';
  */
 const MEASURE_SCRIPT = `
   const root = document.querySelector('.panel-root');
-  // Both of these are driven by content. documentElement.scrollHeight is not:
-  // it can never be less than the frame's own viewport, so reporting it feeds
-  // the parent's height straight back into the next measurement.
-  const measure = () => Math.ceil(Math.max(root.scrollHeight, document.body.scrollHeight));
+  // Measure the content wrapper and nothing else. Both document.body and
+  // documentElement report at least the frame's own viewport, so reporting
+  // either feeds the parent's height back in: the frame grows, the next
+  // reading comes back larger, and the panel ratchets to the ceiling. A plain
+  // div in normal flow is the only box here whose height is purely its content.
+  const measure = () => Math.ceil(root.scrollHeight);
   let last = -1;
   const send = () => {
     const height = measure();
@@ -45,11 +47,17 @@ const MEASURE_SCRIPT = `
   };
   new ResizeObserver(send).observe(root);
   window.addEventListener('load', send);
-  // Fonts and the first layout pass can both land after the observer is set
-  // up, and neither reliably resizes the element it is watching.
+  // Keep asking until the content measures as something. A frame that mounts
+  // into a tab the browser isn't painting yet can lay out late, and giving up
+  // after a fixed handful of tries leaves the panel stuck at its opening
+  // height for good. Stops as soon as there's a real answer.
+  let tries = 0;
+  const poll = () => {
+    send();
+    if (last <= 0 && tries++ < 40) setTimeout(poll, 120);
+  };
   requestAnimationFrame(send);
-  for (const delay of [0, 60, 250, 800]) setTimeout(send, delay);
-  send();
+  poll();
 `;
 
 export function GeneratedPanel({ id, html }: { id: string; html: string }) {
