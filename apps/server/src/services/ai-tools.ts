@@ -807,7 +807,48 @@ const TOOLS: ToolRegistration[] = [
 
 Gather the real figures with the other tools FIRST, then pass a self-contained HTML fragment that lays them out. You are composing the presentation, never the data: every number in the fragment must be one a tool actually returned or the user actually gave you. If you don't have a figure, leave it out or mark it unknown — never fill a gap to make the layout tidy.
 
-Write plain HTML and inline CSS. Style variables are available and should be used instead of hard-coded colours: var(--ink), var(--muted), var(--faint), var(--paper), var(--surface), var(--hairline), var(--accent), var(--good), var(--bad), var(--warn). Numbers should carry class="n" for aligned tabular figures. Keep it to the width of a column, roughly 640px. No scripts, no images, no external anything. SVG is fine and is the way to draw a chart.`,
+DO NOT write a <style> block or a class of your own — the fragment is rejected if you do. A stylesheet is already loaded with the classes below; your job is only to choose which of them the answer needs and fill them with real figures. Compose them freely — most answers are two or three stacked in a <div class="stack">. The only CSS you ever write inline is a width on a bar, a background on a swatch, and left on a range pin.
+
+A whole answer looks like this:
+
+  <div class="stack">
+    <div class="card">
+      <div class="label">If the year ended today</div>
+      <div class="lead-row"><div class="lead num">$3,246</div><div class="chip h">still to pay</div></div>
+      <p class="sub">$7,046 total tax, of which $3,800 has already come out of your pay.</p>
+    </div>
+    <div class="card">
+      <div class="label">Federal income tax · single · 2026</div>
+      <div class="band"><div class="r">22%</div><div class="t"></div><div class="g num">$49,825 - $106,250</div></div>
+      <div class="band on"><div class="r">12%</div><div class="t"><i style="width:79%"></i></div><div class="g num">$12,250 - $49,825</div></div>
+      <div class="band"><div class="r">10%</div><div class="t"><i style="width:100%"></i></div><div class="g num">$0 - $12,250</div></div>
+    </div>
+  </div>
+
+The classes:
+
+  card         a white panel. Wrap most things in one. <div class="label"> for its heading.
+  lead         one big number the answer turns on. Inside <div class="lead-row"> with a chip beside it.
+  figs         a row of 2-4 related figures. <div class="figs"><div><div class="label">..</div><div class="v">..</div></div>..</div>
+  band         one rung of a rate ladder: <div class="band on"><div class="r">12%</div><div class="t"><i style="width:79%"></i></div><div class="g">$12,250 - $49,825</div></div>. Add "on" to the rung they're in.
+  meter        <div class="meter"><i style="width:54%"></i></div>, how much of something is used.
+  opt          one option: <div class="opt"><div><h4>..</h4><p>..</p></div><div class="w">..</div></div>. Several make the options list.
+  ba           before and after: <div class="ba"><div class="s now">..</div><div class="mid">-></div><div class="s next">..</div></div>, each with .label and .v.
+  ev           one point on a timeline: <div class="ev now"><div class="d">15 Sep</div><div class="m"></div><div class="b">Title<em>detail</em></div></div>. Add "done" or "now".
+  cd           a countdown: <div class="cd"><b>96</b><span>days</span></div>.
+  split        a total divided up: <div class="split"><i style="width:42%;background:var(--accent)"></i>..</div>, then <div class="legend"> rows of <b> swatch, name, .pct, .amt.
+  table        thead/tbody. class="r" on right-aligned cells, .tick on symbols, .none for a missing value.
+  callout      one fact pulled out, with a .v number inside.
+  step         a numbered instruction: <div class="step"><div class="i">1</div><div><h4>..</h4><p>..</p></div></div>.
+  quote        a company header: <div class="quote"><div><div class="t">NVDA</div><div class="sub">..</div></div><div><div class="p">$198.32</div>..</div></div>.
+  range        where a value sits in a span, with .cap and .pin positioned by left:%, and an .ends row beneath.
+  stats        a grid of standing figures, each <div><div class="k">..</div><div class="v">..</div></div>.
+  def          a term explained in plain words, with the jargon in a <span class="term"> underneath.
+  caveat       a condition attached to a number: <div class="caveat"><div class="i">!</div><div>..</div></div>.
+  row          one line of a status list: <div class="row"><i style="background:var(--pos)"></i><span>..</span><span class="v">..</span></div>.
+  chip         a small tag. Add "p" green, "h" amber, "a" blue.
+
+Put class="num" on every element containing figures so they align. Colour meaning with class pos / neg / hold / muted / faint, never a hard-coded hex. If you need a colour, use var(--accent), var(--pos), var(--neg), var(--hold), var(--ink-3), var(--line). Keep it to about 640px wide. No scripts, no images, no external anything. SVG is fine and is the way to draw a chart — a line chart is an area path at 0.18 opacity under a 2px stroke in var(--accent).`,
       input_schema: {
         type: 'object' as const,
         properties: {
@@ -832,6 +873,16 @@ Write plain HTML and inline CSS. Style variables are available and should be use
       const html = typeof input.html === 'string' ? input.html : '';
       if (html.length === 0) {
         return { available: false, reason: 'No markup supplied.' };
+      }
+      // The catalogue only holds if it's enforced. Left as advice, the model
+      // reliably reinvents its own classes, and every answer comes out looking
+      // like a different product.
+      if (/<style[\s>]/i.test(html)) {
+        return {
+          available: false,
+          reason:
+            'That fragment declares its own styles. Rebuild it from the classes in the catalogue — card, lead, figs, band, meter, opt, ba, ev, cd, split, table, callout, step, quote, range, stats, def, caveat, row, chip — with no <style> block.',
+        };
       }
       if (html.length > MAX_PANEL_HTML) {
         return {
