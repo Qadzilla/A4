@@ -1,6 +1,7 @@
 import { BasisMark } from '@/brand-mark';
 import { useChat } from '@/chat/useChat';
 import { useSpaceId } from '@/surfaces/layout';
+import { DeskChecklist } from '@/workspace/checklist';
 import { isSummonKind } from '@/workspace/panel';
 import { PanelCard } from '@/workspace/panels';
 import { ArrowUp, Loader2, MessageSquare, Plus, Table2 } from 'lucide-react';
@@ -239,13 +240,17 @@ export function ChatSurface() {
             </label>
           </div>
 
+          {/* Standing state first: the desk knows where the year is before
+              anyone asks it anything. */}
+          <div className="mb-4">
+            <DeskChecklist spaceId={spaceId} taxYear={taxYear} />
+          </div>
+
           {panels.length === 0 ? (
-            <div className="flex min-h-[55vh] flex-col items-center justify-center text-center">
-              <p className="max-w-xs text-sm text-muted">
-                Nothing on the {taxYear} desk yet. Ask about a position, your taxes or a document,
-                and what {AI_NAME} reads to answer lands here.
-              </p>
-            </div>
+            <p className="px-1 text-xs leading-relaxed text-muted">
+              Ask {AI_NAME} about any of these, or about a position or a document, and what it reads
+              to answer lands here.
+            </p>
           ) : (
             <div className="space-y-4">
               {panels.map((p) => (

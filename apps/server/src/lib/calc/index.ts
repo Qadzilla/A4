@@ -9,6 +9,9 @@ export type {
   ReconciliationRow,
 } from './reconcile';
 
+export { computeDeskStatus } from './desk-status';
+export type { DeskStatus, DeskLine, DeskStatusInput, LineStatus } from './desk-status';
+
 export { computeRealizedGains } from './lots';
 export type { LotTrade, RealizedSale, RealizedSummary, OpenLot } from './lots';
 
