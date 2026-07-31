@@ -175,7 +175,7 @@ export function DocumentsSurface() {
                   {d.importError && <p className="mt-0.5 text-xs text-bad">{d.importError}</p>}
                 </div>
                 <Link
-                  to={`/chat?doc=${d.id}`}
+                  to={`/workspace?doc=${d.id}`}
                   className="shrink-0 text-xs font-medium text-accent opacity-0 transition-opacity hover:underline group-hover:opacity-100"
                 >
                   Open in workspace

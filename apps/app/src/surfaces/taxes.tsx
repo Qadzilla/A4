@@ -239,7 +239,10 @@ export function TaxesSurface() {
     <div className="rise mx-auto max-w-3xl px-5 py-8 md:py-12">
       <div className="mb-1.5 flex items-baseline justify-between gap-3">
         <p className="eyebrow">Taxes</p>
-        <Link to="/chat?panel=taxes" className="text-xs font-medium text-accent hover:underline">
+        <Link
+          to="/workspace?panel=taxes"
+          className="text-xs font-medium text-accent hover:underline"
+        >
           Open in workspace
         </Link>
       </div>

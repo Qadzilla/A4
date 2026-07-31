@@ -42,7 +42,10 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/portfolio" replace /> },
       { path: 'portfolio', element: <PortfolioSurface /> },
       { path: 'taxes', element: <TaxesSurface /> },
-      { path: 'chat', element: <ChatSurface /> },
+      { path: 'workspace', element: <ChatSurface /> },
+      // The surface was called Chat until it grew a workspace beside the
+      // conversation; keep the old path working for anything already linked.
+      { path: 'chat', element: <Navigate to="/workspace" replace /> },
       { path: 'documents', element: <DocumentsSurface /> },
       { path: '*', element: <Navigate to="/portfolio" replace /> },
     ],

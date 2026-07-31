@@ -1,7 +1,7 @@
 import { BRAND } from '@/brand';
 import { BasisWordmark } from '@/brand-mark';
 import { useSpace } from '@/space/useSpace';
-import { FileText, MessageSquare, PieChart, Receipt } from 'lucide-react';
+import { FileText, PanelsTopLeft, PieChart, Receipt } from 'lucide-react';
 import { createContext, useContext } from 'react';
 import { NavLink, Outlet } from 'react-router';
 
@@ -15,7 +15,7 @@ export function useSpaceId(): string {
 }
 
 const SURFACES = [
-  { to: '/chat', label: 'Chat', icon: MessageSquare },
+  { to: '/workspace', label: 'Workspace', icon: PanelsTopLeft },
   { to: '/portfolio', label: 'Portfolio', icon: PieChart },
   { to: '/taxes', label: 'Taxes', icon: Receipt },
   { to: '/documents', label: 'Documents', icon: FileText },
