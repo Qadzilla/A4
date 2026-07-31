@@ -37,6 +37,12 @@ const panelInput = z.object({
   subtitle: z.string().nullable(),
   payload: z.unknown(),
   payloadVersion: z.number().int().min(1).default(1),
+  // Where it sits, when the caller knows. Omitted on the write that first
+  // records a panel, and supplied on the write that places or moves one — so
+  // a rerun of a tool never drags the panel back to where it started.
+  x: z.number().min(-20000).max(20000).optional(),
+  y: z.number().min(-20000).max(20000).optional(),
+  w: z.number().min(240).max(1600).optional(),
 });
 
 export const panelRouter = router({
@@ -95,6 +101,9 @@ export const panelRouter = router({
           subtitle: input.subtitle,
           payload: JSON.stringify(input.payload ?? {}),
           payloadVersion: input.payloadVersion,
+          ...(input.x !== undefined ? { x: input.x } : {}),
+          ...(input.y !== undefined ? { y: input.y } : {}),
+          ...(input.w !== undefined ? { w: input.w } : {}),
           updatedAt: now,
         })
         .where(eq(workspacePanels.id, input.id));
@@ -126,6 +135,9 @@ export const panelRouter = router({
       subtitle: input.subtitle,
       payload: JSON.stringify(input.payload ?? {}),
       payloadVersion: input.payloadVersion,
+      x: input.x ?? null,
+      y: input.y ?? null,
+      w: input.w ?? null,
       position,
       pinned: false,
       createdAt: now,
@@ -158,27 +170,24 @@ export const panelRouter = router({
       return { success: true };
     }),
 
-  /**
-   * Where a panel sits on the desk. Written on drop rather than during the
-   * drag — a pointer move is sixty writes a second, and the only position
-   * that matters is the one it was let go at.
-   */
-  setLayout: protectedProcedure
+  /** Sweep the desk for one year. The panels are rebuildable; the arrangement isn't. */
+  clear: protectedProcedure
     .input(
       z.object({
-        id: z.string().min(1),
-        // The plane is large but not infinite; a coordinate outside this is a
-        // bug somewhere upstream, not a panel someone dragged there.
-        x: z.number().min(-20000).max(20000),
-        y: z.number().min(-20000).max(20000),
-        w: z.number().min(240).max(1600),
+        workspaceId: z.string().uuid(),
+        taxYear: z.number().int().min(2000).max(2100),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       await ctx.db
-        .update(workspacePanels)
-        .set({ x: input.x, y: input.y, w: input.w, updatedAt: new Date() })
-        .where(and(eq(workspacePanels.id, input.id), eq(workspacePanels.userId, ctx.userId)));
+        .delete(workspacePanels)
+        .where(
+          and(
+            eq(workspacePanels.workspaceId, input.workspaceId),
+            eq(workspacePanels.taxYear, input.taxYear),
+            eq(workspacePanels.userId, ctx.userId),
+          ),
+        );
       return { success: true };
     }),
 

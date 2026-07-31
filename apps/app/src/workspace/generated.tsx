@@ -18,14 +18,37 @@ import { useEffect, useRef, useState } from 'react';
 // cannot fetch a stylesheet of its own.
 import FRAME_STYLES from './panel.css?raw';
 
-/** Reports height to the parent so the panel can size itself to the content. */
+/**
+ * Reports height to the parent so the panel can size itself to the content.
+ *
+ * Measures the content wrapper, not documentElement. `documentElement`'s
+ * scrollHeight can never be less than the frame's own viewport, so reporting
+ * it feeds the parent's height back into the measurement: every cycle the
+ * frame grew, the next report came back larger, and a panel ratcheted its way
+ * up to the ceiling regardless of what was in it.
+ */
 const MEASURE_SCRIPT = `
-  const send = () => parent.postMessage(
-    { source: 'basis-panel', id: window.name, height: document.documentElement.scrollHeight },
-    '*'
-  );
-  new ResizeObserver(send).observe(document.documentElement);
+  const root = document.querySelector('.panel-root');
+  // Both of these are driven by content. documentElement.scrollHeight is not:
+  // it can never be less than the frame's own viewport, so reporting it feeds
+  // the parent's height straight back into the next measurement.
+  const measure = () => Math.ceil(Math.max(root.scrollHeight, document.body.scrollHeight));
+  let last = -1;
+  const send = () => {
+    const height = measure();
+    // The first call can land before layout, and a frame that reports zero is
+    // a frame the parent has to ignore — so keep looking until there's
+    // something real to report.
+    if (height <= 0 || height === last) return;
+    last = height;
+    parent.postMessage({ source: 'basis-panel', id: window.name, height }, '*');
+  };
+  new ResizeObserver(send).observe(root);
   window.addEventListener('load', send);
+  // Fonts and the first layout pass can both land after the observer is set
+  // up, and neither reliably resizes the element it is watching.
+  requestAnimationFrame(send);
+  for (const delay of [0, 60, 250, 800]) setTimeout(send, delay);
   send();
 `;
 
@@ -38,8 +61,9 @@ export function GeneratedPanel({ id, html }: { id: string; html: string }) {
       const data = e.data as { source?: string; id?: string; height?: number } | null;
       if (!data || data.source !== 'basis-panel' || data.id !== id) return;
       if (typeof data.height === 'number' && data.height > 0) {
-        // A little slack so a scrollbar never appears for a rounding error
-        setHeight(Math.min(data.height + 8, 4000));
+        // No slack added here: the reported height is the content's own, so
+        // padding it would just be another way to grow without cause.
+        setHeight(Math.min(data.height, 4000));
       }
     };
     window.addEventListener('message', onMessage);

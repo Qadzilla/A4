@@ -93,3 +93,68 @@ describe('canvas columns', () => {
     expect(columnsOf(sqlite, 'workspace_panels').has('x')).toBe(true);
   });
 });
+
+/**
+ * Placement used to go through a narrow UPDATE, which raced the write that
+ * creates the panel: the canvas places a panel a frame or two after it
+ * arrives, and an update that got there first matched no rows and vanished.
+ * The panel then sat in the right place on screen and nowhere in the
+ * database — the failure looked like success until a reload.
+ *
+ * These assert the property that makes that impossible: writing a placement
+ * has to work whether or not the row is already there, and must never be the
+ * thing that moves a panel the user positioned.
+ */
+describe('placing a panel', () => {
+  let sqlite: Database.Database;
+
+  beforeEach(() => {
+    sqlite = makeDb();
+    createPrePivotPanels(sqlite);
+    ensureLaunchSchema(sqlite);
+  });
+
+  /** The shape of the upsert the router runs, reduced to the layout columns. */
+  function upsert(id: string, place?: { x: number; y: number; w: number }) {
+    const existing = sqlite.prepare('SELECT id FROM workspace_panels WHERE id = ?').get(id);
+    if (existing) {
+      if (!place) return;
+      sqlite
+        .prepare('UPDATE workspace_panels SET x = ?, y = ?, w = ? WHERE id = ?')
+        .run(place.x, place.y, place.w, id);
+      return;
+    }
+    sqlite
+      .prepare(
+        `INSERT INTO workspace_panels
+         (id, tax_year, workspace_id, user_id, kind, title, payload, x, y, w, created_at, updated_at)
+         VALUES (?, 2026, 'w1', 'u1', 'generated', 'Answer', '{}', ?, ?, ?, 0, 0)`,
+      )
+      .run(id, place?.x ?? null, place?.y ?? null, place?.w ?? null);
+  }
+
+  const layoutOf = (id: string) =>
+    sqlite.prepare('SELECT x, y, w FROM workspace_panels WHERE id = ?').get(id) as {
+      x: number | null;
+      y: number | null;
+      w: number | null;
+    };
+
+  it('records a placement that arrives before the panel itself', () => {
+    upsert('p1', { x: 32, y: 32, w: 440 });
+    expect(layoutOf('p1')).toEqual({ x: 32, y: 32, w: 440 });
+  });
+
+  it('records a placement that arrives after the panel', () => {
+    upsert('p1');
+    upsert('p1', { x: 500, y: 60, w: 760 });
+    expect(layoutOf('p1')).toEqual({ x: 500, y: 60, w: 760 });
+  });
+
+  it('leaves a placed panel where it is when a tool reruns', () => {
+    upsert('p1', { x: 500, y: 60, w: 760 });
+    // A rerun carries no coordinates, so it must not disturb them.
+    upsert('p1');
+    expect(layoutOf('p1')).toEqual({ x: 500, y: 60, w: 760 });
+  });
+});

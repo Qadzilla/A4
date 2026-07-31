@@ -1,7 +1,7 @@
 import type { Panel } from '@/workspace/panel';
 import { PanelCard } from '@/workspace/panels';
 import { Maximize2, Minus, Plus, Rows3 } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * The desk as a surface rather than a list.
@@ -26,6 +26,9 @@ const MAX_ZOOM = 1.4;
 /** Breathing room between packed panels, and the margin they start at. */
 const GAP = 28;
 const ORIGIN = 32;
+
+/** How long a panel's height has to hold still before it counts as settled. */
+const SETTLE_MS = 180;
 
 export interface Placement {
   x: number;
@@ -116,6 +119,16 @@ export function Canvas({
 
   const heightsRef = useRef<Record<string, number>>({});
   const [measuredAt, setMeasuredAt] = useState(0);
+  /**
+   * Panels this session placed on its own, and that nobody has moved since.
+   *
+   * They stay eligible for re-packing, because a panel's height can arrive
+   * well after the panel does — a generated answer renders in an iframe that
+   * reports its real height a few hundred milliseconds in, long after the
+   * card around it has settled. Anything the user has dragged, and anything
+   * that came back from the server already placed, is left exactly alone.
+   */
+  const autoPlacedRef = useRef<Set<string>>(new Set());
 
   // Panels arrive carrying their stored place; anything without one is left
   // out of `places` so the packing pass below can claim it.
@@ -146,27 +159,42 @@ export function Canvas({
     return Math.max(1, Math.floor((width - ORIGIN) / (DEFAULT_PANEL_WIDTH + GAP)));
   }, [zoom]);
 
-  // Place anything unplaced, once it has been measured. Runs after layout so
-  // the heights are real; the result is persisted so it only happens once.
-  useLayoutEffect(() => {
-    const unplaced = panels.filter((p) => !places[p.id]);
-    if (unplaced.length === 0) return;
-    // Wait until every unplaced panel has reported a height, so the pack is
+  // Lay out everything this session is responsible for, and do it again
+  // whenever a height changes — heights arrive late and out of order.
+  useEffect(() => {
+    const loose = panels.filter((p) => !places[p.id] || autoPlacedRef.current.has(p.id));
+    if (loose.length === 0) return;
+    // Wait until every one of them has reported a height, so the pack is
     // computed from what is actually on screen rather than a guess.
-    if (!unplaced.every((p) => heightsRef.current[p.id] !== undefined)) return;
+    if (!loose.every((p) => heightsRef.current[p.id] !== undefined)) return;
 
-    const columns = columnCount();
-    const packed = packPanels(
-      unplaced.map((p) => p.id),
-      heightsRef.current,
-      columns,
-      DEFAULT_PANEL_WIDTH,
-      // Fill the space beneath what is already on the desk, column by column,
-      // rather than starting below all of it.
-      columnTops(places, heightsRef.current, columns),
-    );
-    for (const [id, place] of Object.entries(packed)) onLayout(id, place);
-    setPlaces((prev) => ({ ...prev, ...packed }));
+    const timer = setTimeout(() => {
+      const columns = columnCount();
+      // Panels the user placed hold their ground; the rest fill in around them.
+      const fixed = Object.fromEntries(
+        Object.entries(places).filter(([id]) => !autoPlacedRef.current.has(id)),
+      );
+      const packed = packPanels(
+        loose.map((p) => p.id),
+        heightsRef.current,
+        columns,
+        DEFAULT_PANEL_WIDTH,
+        columnTops(fixed, heightsRef.current, columns),
+      );
+      // Only write what actually moved. Without this the effect re-runs on its
+      // own output and the desk writes to the server forever.
+      const moved = Object.entries(packed).filter(([id, place]) => {
+        const current = places[id];
+        return !current || current.x !== place.x || current.y !== place.y;
+      });
+      if (moved.length === 0) return;
+      for (const [id, place] of moved) {
+        autoPlacedRef.current.add(id);
+        onLayout(id, place);
+      }
+      setPlaces((prev) => ({ ...prev, ...Object.fromEntries(moved) }));
+    }, SETTLE_MS);
+    return () => clearTimeout(timer);
     // biome-ignore lint/correctness/useExhaustiveDependencies: measuredAt is
     // the point — heights live in a ref so they don't re-render on every
     // pixel, and this is the signal that a new one has landed and the pack is
@@ -213,6 +241,8 @@ export function Canvas({
     const onUp = () => {
       if (dragging.kind !== 'pan') {
         const place = places[dragging.id];
+        // Moved by hand, so it is no longer the canvas's to rearrange.
+        autoPlacedRef.current.delete(dragging.id);
         if (place) onLayout(dragging.id, place);
       }
       setDragging(null);
@@ -275,6 +305,9 @@ export function Canvas({
       columnCount(),
     );
     setPlaces(packed);
+    // Tidying is an explicit request to arrange the whole desk, so everything
+    // goes back to being the canvas's to place.
+    autoPlacedRef.current = new Set(Object.keys(packed));
     for (const [id, place] of Object.entries(packed)) onLayout(id, place);
     setPan({ x: 0, y: 0 });
   };
@@ -428,10 +461,19 @@ function CanvasPanel({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const observer = new ResizeObserver(() => onMeasure(panel.id, el.offsetHeight));
+    const report = () => onMeasure(panel.id, el.offsetHeight);
+    const observer = new ResizeObserver(report);
     observer.observe(el);
-    onMeasure(panel.id, el.offsetHeight);
-    return () => observer.disconnect();
+    report();
+    // A backstop for the same late arrivals. The observer is the right signal
+    // and usually the first one, but it is delivered on the rendering
+    // lifecycle — a backgrounded or throttled tab can hold the callback back
+    // long past the moment the panel needs placing.
+    const timers = [60, 250, 700, 1500].map((delay) => setTimeout(report, delay));
+    return () => {
+      observer.disconnect();
+      for (const timer of timers) clearTimeout(timer);
+    };
   }, [panel.id, onMeasure]);
 
   return (

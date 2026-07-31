@@ -4,7 +4,16 @@ import { useSpaceId } from '@/surfaces/layout';
 import { Canvas } from '@/workspace/canvas';
 import { DeskChecklist, useDeskQuestions } from '@/workspace/checklist';
 import { isSummonKind } from '@/workspace/panel';
-import { ArrowUp, Loader2, MessageSquare, Plus, Table2 } from 'lucide-react';
+import {
+  ArrowUp,
+  Eraser,
+  Loader2,
+  MessageSquare,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
+  Table2,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import { useSearchParams } from 'react-router';
@@ -47,6 +56,7 @@ export function ChatSurface() {
     summon,
     dismissPanel,
     setLayout,
+    clearDesk,
     startNewConversation,
   } = useChat({ spaceId, taxYear });
   const deskQuestions = useDeskQuestions(spaceId, taxYear);
@@ -54,6 +64,11 @@ export function ChatSurface() {
   const [draft, setDraft] = useState('');
   /** Below md only one pane fits; this is which one you're looking at. */
   const [mobilePane, setMobilePane] = useState<'chat' | 'workspace'>('chat');
+  /**
+   * The conversation costs the canvas 420px. Worth it while you're asking, in
+   * the way when you're arranging what came back.
+   */
+  const [chatOpen, setChatOpen] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,21 +114,32 @@ export function ChatSurface() {
     <div className="flex h-dvh flex-col md:h-screen md:flex-row-reverse">
       {/* Conversation */}
       <section
-        className={`flex min-h-0 flex-1 flex-col border-hairline md:max-w-[420px] md:border-l ${
+        className={`min-h-0 flex-1 flex-col border-hairline md:max-w-[420px] md:border-l ${
           mobilePane === 'chat' ? 'flex' : 'hidden md:flex'
-        }`}
+        } ${chatOpen ? '' : 'md:hidden'}`}
       >
         <header className="flex items-center justify-between border-b border-hairline px-5 py-3">
           <p className="eyebrow flex items-center gap-1.5">
             <BasisMark size={13} /> {AI_NAME}
           </p>
-          <button
-            type="button"
-            onClick={startNewConversation}
-            className="flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-ink"
-          >
-            <Plus size={14} /> New
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={startNewConversation}
+              className="flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-ink"
+            >
+              <Plus size={14} /> New
+            </button>
+            <button
+              type="button"
+              onClick={() => setChatOpen(false)}
+              aria-label="Hide the conversation"
+              title="Hide the conversation"
+              className="hidden text-muted transition-colors hover:text-ink md:block"
+            >
+              <PanelRightClose size={15} />
+            </button>
+          </div>
         </header>
 
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
@@ -236,20 +262,43 @@ export function ChatSurface() {
                 Compare positions
               </button>
             </div>
-            <label className="flex items-center gap-2">
-              <span className="eyebrow">Tax year</span>
-              <select
-                value={taxYear}
-                onChange={(e) => setTaxYear(Number(e.target.value))}
-                className="tnum rounded-card border border-hairline bg-surface px-2 py-1 font-mono text-xs outline-none transition-colors focus:border-accent"
-              >
-                {DESK_YEARS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="flex items-center gap-3">
+              {panels.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearDesk}
+                  className="flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-ink"
+                  title="Remove every panel from this year's desk"
+                >
+                  <Eraser size={13} /> Clear
+                </button>
+              )}
+              <label className="flex items-center gap-2">
+                <span className="eyebrow">Tax year</span>
+                <select
+                  value={taxYear}
+                  onChange={(e) => setTaxYear(Number(e.target.value))}
+                  className="tnum rounded-card border border-hairline bg-surface px-2 py-1 font-mono text-xs outline-none transition-colors focus:border-accent"
+                >
+                  {DESK_YEARS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {!chatOpen && (
+                <button
+                  type="button"
+                  onClick={() => setChatOpen(true)}
+                  aria-label="Show the conversation"
+                  title="Show the conversation"
+                  className="hidden text-muted transition-colors hover:text-ink md:block"
+                >
+                  <PanelRightOpen size={15} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Standing state first: the desk knows where the year is before

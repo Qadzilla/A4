@@ -82,7 +82,7 @@ export function useChat({ spaceId, taxYear }: { spaceId: string; taxYear: number
   const upsertPanel = useMutation(trpc.panel.upsert.mutationOptions());
   const removePanel = useMutation(trpc.panel.remove.mutationOptions());
   const setPinnedPanel = useMutation(trpc.panel.setPinned.mutationOptions());
-  const setPanelLayout = useMutation(trpc.panel.setLayout.mutationOptions());
+  const clearPanels = useMutation(trpc.panel.clear.mutationOptions());
 
   // Switching years switches desks, so the old year's panels have to go
   // immediately. Without this the merge below — which exists to protect a
@@ -364,12 +364,34 @@ export function useChat({ spaceId, taxYear }: { spaceId: string; taxYear: number
       removePanel.mutate({ id });
     },
     /**
-     * Where a panel was let go. Kept in local state too, so the desk doesn't
-     * jump back to the old spot if the write is slow or fails.
+     * Where a panel was let go, or where the canvas first placed it.
+     *
+     * Written through `upsert` rather than a narrow update: the first
+     * placement happens a frame or two after the panel arrives, which is a
+     * race against the write that creates the row. An update that lands first
+     * matches nothing and is lost silently — the panel sits in the right place
+     * on screen and nowhere at all in the database. Insert-or-update can't
+     * lose that race.
      */
     setLayout: (id: string, place: { x: number; y: number; w: number }) => {
       setPanels((prev) => prev.map((p) => (p.id === id ? { ...p, ...place } : p)));
-      setPanelLayout.mutate({ id, ...place });
+      const panel = panels.find((p) => p.id === id);
+      if (!panel) return;
+      upsertPanel.mutate({
+        id: panel.id,
+        workspaceId: spaceId,
+        taxYear,
+        kind: panel.kind,
+        title: panel.title,
+        subtitle: panel.subtitle,
+        payload: panel.data,
+        ...place,
+      });
+    },
+    /** Sweep the desk. The panels can all be rebuilt by asking again. */
+    clearDesk: () => {
+      setPanels([]);
+      clearPanels.mutate({ workspaceId: spaceId, taxYear });
     },
     togglePinned: (id: string) => {
       // Read the next value from current state, not from inside the updater:
