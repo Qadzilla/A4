@@ -1,0 +1,331 @@
+/**
+ * The bank of elements Bip composes answers from.
+ *
+ * Single source: `generated.tsx` inlines this into the sandboxed frame, and
+ * `/elements.html` links it to lay the whole set out side by side. Change it
+ * here and check it there.
+ *
+ * Data surfaces are light and cool rather than the warm paper of the landing
+ * page: cream on cream has too little contrast to read a column of figures
+ * against. Numbers use tabular figures in the sans — not a monospace face,
+ * which lines up just as well but reads like a terminal.
+ *
+ * Direction is never carried by colour alone. Every gain and loss also has a
+ * sign or an arrow, because red and green are indistinguishable to a tenth of
+ * the men this product is for.
+ */
+
+:root {
+  --surface: #ffffff;
+  --surface-2: #fafbfc;
+  --ink: #0d1117;
+  --ink-2: #384250;
+  --ink-3: #6b7480;
+  --ink-4: #98a1ae;
+  --line: #eceef2;
+  --line-2: #e1e4ea;
+  --accent: #2b59ff;
+  --accent-2: #8ba3ff;
+  --accent-3: #c9d5ff;
+  --accent-tint: #eef2ff;
+  --pos: #0e8f5d;  --pos-tint: #e8f6ef;
+  --neg: #d8453c;  --neg-tint: #fdeceb;
+  --hold: #b7791f; --hold-tint: #fdf5e6;
+  --r-sm: 6px; --r: 10px; --r-lg: 14px;
+  --shadow: 0 1px 2px rgba(13,17,23,.04), 0 4px 14px -6px rgba(13,17,23,.10);
+
+  /* Panels generated before this palette wrote their own CSS against the old
+     names. They're stored, so they still have to render. */
+  --paper: var(--surface-2);
+  --hairline: var(--line);
+  --muted: var(--ink-3);
+  --faint: var(--ink-4);
+  --good: var(--pos);
+  --bad: var(--neg);
+  --warn: var(--hold);
+}
+
+* { box-sizing: border-box; }
+
+body.panel-frame {
+  margin: 0; padding: 0; background: transparent;
+}
+
+.panel-root {
+  color: var(--ink);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px; line-height: 1.6; letter-spacing: -0.006em;
+  -webkit-font-smoothing: antialiased;
+}
+
+.num { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1; }
+.panel-root h1, .panel-root h2, .panel-root h3 { margin: 0 0 8px; font-weight: 600; letter-spacing: -0.02em; }
+.panel-root h1 { font-size: 20px; } .panel-root h2 { font-size: 16px; } .panel-root h3 { font-size: 14px; }
+.panel-root p { margin: 0 0 10px; }
+.panel-root svg { max-width: 100%; height: auto; }
+.stack > * + * { margin-top: 20px; }
+
+.card { background: var(--surface); border: 1px solid var(--line);
+        border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 24px; }
+.label { font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.sub { font-size: 13px; color: var(--ink-3); }
+.pos { color: var(--pos); } .neg { color: var(--neg); } .hold { color: var(--hold); }
+.muted { color: var(--ink-3); } .faint { color: var(--ink-4); } .accent { color: var(--accent); }
+
+/* Direction gets a glyph as well as a colour — never colour alone. */
+.up::before { content: "\2191"; margin-right: 3px; }
+.down::before { content: "\2193"; margin-right: 3px; }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500;
+        padding: 3px 9px; border-radius: 99px; background: var(--surface-2);
+        color: var(--ink-3); border: 1px solid var(--line); }
+.chip.p { background: var(--pos-tint); color: var(--pos); border-color: transparent; }
+.chip.h { background: var(--hold-tint); color: var(--hold); border-color: transparent; }
+.chip.n { background: var(--neg-tint); color: var(--neg); border-color: transparent; }
+.chip.a { background: var(--accent-tint); color: var(--accent); border-color: transparent; }
+
+/* An estimate should never look like a fact. */
+.est { display: inline-block; font-size: 11px; font-weight: 500; color: var(--ink-4);
+       border: 1px dashed var(--line-2); border-radius: 4px; padding: 0 5px; margin-left: 6px;
+       vertical-align: 2px; }
+
+/* ── Headline ─────────────────────────────────────────── */
+.lead { font-size: 44px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.05; }
+.lead-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+
+/* ── Figures, with a trend and a sparkline ────────────── */
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px;
+        background: var(--line); border-radius: var(--r); overflow: hidden; }
+.figs > div { background: var(--surface); padding: 16px 18px; }
+.figs .v { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-top: 4px; }
+.figs .d { font-size: 12px; font-weight: 500; margin-top: 2px; }
+.spark { display: block; height: 26px; width: 100%; margin-top: 8px; overflow: visible; }
+.spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.75;
+                  stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.spark.p polyline { stroke: var(--pos); }
+.spark.n polyline { stroke: var(--neg); }
+td .spark { height: 20px; width: 74px; margin: 0; }
+
+/* ── Bracket ladder ───────────────────────────────────── */
+.band { display: grid; grid-template-columns: 44px 1fr 128px; align-items: center; gap: 14px; padding: 7px 0; }
+.band .r { font-size: 13px; font-weight: 600; color: var(--ink-3); text-align: right; }
+.band .t { height: 30px; border-radius: var(--r-sm); background: var(--surface-2);
+           border: 1px solid var(--line); position: relative; overflow: hidden; }
+.band .t i { position: absolute; inset: 0 auto 0 0; background: var(--accent); opacity: .10; }
+.band.on .r { color: var(--accent); }
+.band.on .t { border-color: transparent; background: var(--accent-tint); }
+.band.on .t i { opacity: .22; }
+.band .g { font-size: 12px; color: var(--ink-4); }
+.band.on .g { color: var(--accent); font-weight: 500; }
+
+/* ── Marimekko brackets: bar height is how big the band is,
+      and each splits into what you keep and what is taxed. ── */
+.mek { display: flex; flex-direction: column; gap: 3px; }
+.mek .m { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: center; }
+.mek .m .r { font-size: 13px; font-weight: 600; color: var(--ink-3); text-align: right; }
+.mek .m .bar { display: flex; border-radius: var(--r-sm); overflow: hidden;
+               background: var(--surface-2); border: 1px solid var(--line); }
+.mek .m .bar > i { display: block; }
+.mek .m .bar .keep { background: var(--accent-3); }
+.mek .m .bar .tax { background: var(--accent); }
+.mek .m .bar .empty { flex: 1; }
+.mek .m .bar span { font-size: 11px; font-weight: 500; color: #fff; padding: 0 6px;
+                    align-self: center; white-space: nowrap; }
+.mek .cap { display: flex; gap: 16px; font-size: 12px; color: var(--ink-3); margin-top: 10px;
+            padding-left: 58px; }
+.mek .cap b { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+
+/* ── Waterfall: how one number becomes another ─────────── */
+.fall { display: flex; align-items: flex-end; gap: 12px; }
+.fall .s { flex: 1; min-width: 0; }
+.fall .t { position: relative; height: 118px; }
+/* Slim bars, tinted rather than saturated. A column of solid red and green
+   blocks reads as an alarm; this is arithmetic, not an alert. */
+.fall .t b { position: absolute; left: 14%; right: 14%; border-radius: 3px;
+             background: var(--accent-tint); border-top: 2px solid var(--accent); }
+.fall .s.sub .t b { background: var(--neg-tint); border-top-color: var(--neg); }
+.fall .s.add .t b { background: var(--pos-tint); border-top-color: var(--pos); }
+.fall .s.total .t b { background: var(--surface-2); border-top-color: var(--ink-3); }
+.fall .k { font-size: 11.5px; color: var(--ink-3); margin-top: 10px; line-height: 1.35; }
+.fall .k em { font-style: normal; display: block; font-weight: 600; font-size: 13px;
+              color: var(--ink); margin-top: 2px; }
+
+/* ── Meter ────────────────────────────────────────────── */
+.meter { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+
+/* ── Options ──────────────────────────────────────────── */
+.opt { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
+       padding: 16px 0; border-top: 1px solid var(--line); }
+.opt:first-of-type { border-top: 0; padding-top: 4px; }
+.opt h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.opt p { margin: 0; font-size: 13px; color: var(--ink-3); }
+.opt .w { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
+
+/* ── Before and after ─────────────────────────────────── */
+.ba { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; }
+.ba .s { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; }
+.ba .s.next { background: var(--accent-tint); border-color: transparent; }
+.ba .s .v { font-size: 26px; font-weight: 600; letter-spacing: -0.025em; margin-top: 4px; }
+.ba .s.now .v { color: var(--ink-3); }
+.ba .s.next .label, .ba .s.next .v { color: var(--accent); }
+.ba .mid { display: flex; align-items: center; color: var(--ink-4); font-size: 18px; }
+
+/* ── Scenarios: three or more ways it could go ─────────── */
+.scen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.scen .s { border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px;
+           background: var(--surface-2); }
+.scen .s.on { background: var(--accent-tint); border-color: transparent; }
+.scen .s .v { font-size: 24px; font-weight: 600; letter-spacing: -0.025em; margin: 4px 0 10px; }
+.scen .s.on .v { color: var(--accent); }
+.scen .s .l { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px;
+              padding: 5px 0; border-top: 1px solid var(--line); color: var(--ink-3); }
+.scen .s .l span:last-child { color: var(--ink); font-weight: 500; }
+
+/* ── Bars: figures sit above the bar, not on an axis ───── */
+.bars { display: flex; align-items: flex-end; gap: 18px; height: 170px; }
+.bars .b { flex: 1; display: flex; flex-direction: column; justify-content: flex-end;
+           align-items: center; height: 100%; }
+.bars .b em { font-style: normal; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.bars .b i { display: block; width: 100%; max-width: 92px; border-radius: 4px 4px 0 0;
+             background: var(--accent); }
+.bars .b.alt i { background: var(--line-2); }
+.bars .b span { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+
+/* ── Allocation ───────────────────────────────────────── */
+.alloc { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.donut { position: relative; width: 132px; height: 132px; border-radius: 50%; flex: none; }
+.donut::after { content: ""; position: absolute; inset: 26px; border-radius: 50%;
+                background: var(--surface); }
+.donut .c { position: absolute; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 1; }
+.donut .c b { font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.donut .c span { font-size: 11px; color: var(--ink-3); }
+
+/* ── Timeline ─────────────────────────────────────────── */
+.ev { display: grid; grid-template-columns: 96px 20px 1fr; align-items: start; padding: 0 0 22px; }
+.ev:last-child { padding-bottom: 0; }
+.ev .d { font-size: 12px; color: var(--ink-4); padding: 1px 14px 0 0; text-align: right; }
+.ev .m { position: relative; display: flex; justify-content: center; }
+.ev .m::before { content: ""; width: 9px; height: 9px; border-radius: 50%;
+                 background: var(--line-2); margin-top: 6px; z-index: 1; }
+.ev:not(:last-child) .m::after { content: ""; position: absolute; top: 16px; bottom: -22px;
+                                 width: 1px; background: var(--line); }
+.ev.done .m::before { background: var(--pos); }
+.ev.now .m::before { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+.ev .b { padding-left: 14px; font-size: 13.5px; }
+.ev.now .b { font-weight: 600; }
+.ev .b em { font-style: normal; display: block; font-size: 12.5px; color: var(--ink-3); font-weight: 400; }
+
+/* ── Countdown ────────────────────────────────────────── */
+.cd { display: flex; align-items: baseline; gap: 8px; }
+.cd b { font-size: 48px; font-weight: 600; letter-spacing: -0.04em; line-height: 1; }
+.cd span { font-size: 15px; color: var(--ink-3); }
+
+/* ── Breakdown ────────────────────────────────────────── */
+.split { display: flex; gap: 3px; height: 36px; }
+.split i { border-radius: var(--r-sm); }
+.legend { display: grid; gap: 10px; margin-top: 16px; }
+.legend div { display: grid; grid-template-columns: 10px 1fr auto auto; gap: 10px;
+              align-items: center; font-size: 13px; }
+.legend b { width: 8px; height: 8px; border-radius: 2px; }
+.legend .pct { color: var(--ink-4); font-size: 12px; min-width: 34px; text-align: right; }
+.legend .amt { font-weight: 500; min-width: 66px; text-align: right; }
+
+/* ── Table ────────────────────────────────────────────── */
+/* Anything wider than the panel scrolls rather than compressing into
+   illegibility — a six-step waterfall in a narrow column overlaps its own
+   labels. Scoped to the cards holding these so it can't clip the elements
+   that draw outside their own box. */
+.card:has(table), .card:has(.fall), .card:has(.recon), .card:has(.bars) { overflow-x: auto; }
+.fall { min-width: 420px; }
+.recon { min-width: 380px; }
+.bars { min-width: 240px; }
+.panel-root table { width: 100%; border-collapse: collapse; }
+.panel-root thead th { font-size: 12px; font-weight: 500; color: var(--ink-4); text-align: left; padding: 0 0 10px; }
+.panel-root thead th.r, .panel-root td.r { text-align: right; }
+.panel-root tbody td { padding: 13px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.tick { font-weight: 600; letter-spacing: -0.01em; }
+.none { color: var(--ink-4); }
+
+/* ── Reconciliation: their number against yours ────────── */
+.recon { display: grid; grid-template-columns: 1fr 96px 96px 88px; gap: 12px; align-items: center;
+         padding: 12px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.recon:first-of-type { border-top: 0; }
+.recon.head { border-top: 0; padding-bottom: 6px; font-size: 12px; color: var(--ink-4); }
+.recon > :not(:first-child) { text-align: right; }
+.recon .d { font-weight: 600; }
+
+/* ── Callout ──────────────────────────────────────────── */
+.callout { background: linear-gradient(180deg, var(--accent-tint), #fff);
+           border: 1px solid #dbe3ff; border-radius: var(--r-lg); padding: 22px 24px; }
+.callout .label { color: var(--accent); }
+.callout .v { font-size: 32px; font-weight: 600; letter-spacing: -0.03em; color: var(--accent); margin: 6px 0; }
+
+/* ── Steps ────────────────────────────────────────────── */
+.step { display: grid; grid-template-columns: 26px 1fr; gap: 14px; padding: 0 0 20px; }
+.step:last-child { padding-bottom: 0; }
+.step .i { width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2);
+           border: 1px solid var(--line); font-size: 12px; font-weight: 600; color: var(--ink-3);
+           display: flex; align-items: center; justify-content: center; }
+.step h4 { margin: 2px 0 3px; font-size: 13.5px; font-weight: 600; }
+.step p { margin: 0; font-size: 13px; color: var(--ink-3); }
+
+/* ── Quote ────────────────────────────────────────────── */
+.quote { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.quote .t { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.quote .p { font-size: 30px; font-weight: 600; letter-spacing: -0.03em; }
+
+/* ── Price line, with the things that happened on it ───── */
+.plot { position: relative; margin-top: 18px; }
+.plot .mark { position: absolute; transform: translate(-50%, -50%); width: 9px; height: 9px;
+              border-radius: 50%; background: var(--surface); border: 2px solid var(--ink); }
+.plot .mark.buy { border-color: var(--pos); }
+.plot .mark.sell { border-color: var(--neg); }
+.plot .tag { position: absolute; transform: translateX(-50%); font-size: 11px; font-weight: 500;
+             background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
+             padding: 1px 6px; white-space: nowrap; }
+.axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-4); margin-top: 6px; }
+
+/* ── Range ────────────────────────────────────────────── */
+.range { position: relative; height: 6px; border-radius: 99px; margin: 26px 0 8px;
+         background: linear-gradient(90deg, var(--line-2), var(--accent) 140%); }
+.range .pin { position: absolute; top: -6px; width: 3px; height: 18px; border-radius: 99px; background: var(--ink); }
+.range .cap { position: absolute; top: -26px; transform: translateX(-50%);
+              font-size: 12px; font-weight: 600; white-space: nowrap; }
+.ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-4); }
+
+/* ── Stats ────────────────────────────────────────────── */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px,1fr)); gap: 18px 20px; }
+.stats .k { font-size: 12px; color: var(--ink-4); }
+.stats .v { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin-top: 2px; }
+
+/* ── Plain meaning ────────────────────────────────────── */
+.def { background: var(--surface-2); border-radius: var(--r); padding: 16px 18px; }
+.def h4 { margin: 0 0 4px; font-size: 13.5px; font-weight: 600; }
+.def p { margin: 0; font-size: 13px; color: var(--ink-3); }
+.def .term { display: inline-block; margin-top: 8px; font-size: 11.5px; color: var(--ink-4);
+             background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+
+/* ── Caveat ───────────────────────────────────────────── */
+.caveat { display: grid; grid-template-columns: 18px 1fr; gap: 12px; padding: 14px 16px;
+          background: var(--hold-tint); border-radius: var(--r); font-size: 13px; color: #7c5310; }
+.caveat .i { width: 16px; height: 16px; border-radius: 50%; background: var(--hold); color: #fff;
+             font-size: 11px; font-weight: 700; display: flex; align-items: center;
+             justify-content: center; margin-top: 2px; }
+
+/* ── Not known ────────────────────────────────────────── */
+/* The difference between "no gain" and "we don't know" is the whole product,
+   so not knowing gets a shape of its own rather than a zero. */
+.unknown { border: 1px dashed var(--line-2); border-radius: var(--r); padding: 18px 20px;
+           background: var(--surface-2); }
+.unknown h4 { margin: 0 0 4px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.unknown p { margin: 0; font-size: 13px; color: var(--ink-3); }
+.unknown .fix { display: block; margin-top: 10px; font-size: 12.5px; color: var(--accent); font-weight: 500; }
+
+/* ── Status ───────────────────────────────────────────── */
+.row { display: grid; grid-template-columns: 8px 1fr auto; gap: 12px; align-items: center;
+       padding: 13px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.row:first-child { border-top: 0; }
+.row i { width: 7px; height: 7px; border-radius: 50%; }
+.row .v { font-size: 13px; color: var(--ink-3); }

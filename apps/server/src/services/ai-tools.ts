@@ -836,7 +836,7 @@ The classes:
   ba           before and after: <div class="ba"><div class="s now">..</div><div class="mid">-></div><div class="s next">..</div></div>, each with .label and .v.
   ev           one point on a timeline: <div class="ev now"><div class="d">15 Sep</div><div class="m"></div><div class="b">Title<em>detail</em></div></div>. Add "done" or "now".
   cd           a countdown: <div class="cd"><b>96</b><span>days</span></div>.
-  split        a total divided up: <div class="split"><i style="width:42%;background:var(--accent)"></i>..</div>, then <div class="legend"> rows of <b> swatch, name, .pct, .amt.
+  split        a total divided up: <div class="split"><i style="width:42%;background:var(--accent)"></i>..</div>, then <div class="legend"> rows of <b> swatch, name, .pct, .amt. Slices of one total are shades of the same blue in this order — var(--accent), var(--accent-2), var(--accent-3), var(--ink-4) — never green/red/amber, which mean good and bad rather than first and second.
   table        thead/tbody. class="r" on right-aligned cells, .tick on symbols, .none for a missing value.
   callout      one fact pulled out, with a .v number inside.
   step         a numbered instruction: <div class="step"><div class="i">1</div><div><h4>..</h4><p>..</p></div></div>.
@@ -846,9 +846,18 @@ The classes:
   def          a term explained in plain words, with the jargon in a <span class="term"> underneath.
   caveat       a condition attached to a number: <div class="caveat"><div class="i">!</div><div>..</div></div>.
   row          one line of a status list: <div class="row"><i style="background:var(--pos)"></i><span>..</span><span class="v">..</span></div>.
-  chip         a small tag. Add "p" green, "h" amber, "a" blue.
+  chip         a small tag. Add "p" green, "h" amber, "n" red, "a" blue.
+  mek          brackets drawn to scale, when the point is how BIG each band is. Each rung is <div class="m"><div class="r">12%</div><div class="bar" style="height:36px"><i class="keep" style="width:88%"></i><i class="tax" style="width:12%"></i></div></div> inside a <div class="mek">, where the bar's height is proportional to the band's width in dollars. The deduction is the top rung at 0%, all keep. Close with a <div class="cap"> legend inside the same .mek.
+  fall         a waterfall, when one number becomes another through additions and subtractions. Each step is <div class="s sub"><div class="t"><b style="top:37%;height:7%"></b></div><div class="k">Federal tax<em>-$2,947</em></div></div> inside <div class="fall">. top and height are percentages of the first bar; "sub" subtracts, "add" adds, "total" is a subtotal, no class is the opening figure.
+  scen         three or more ways it could go: <div class="scen"><div class="s on"><div class="label">In 96 days</div><div class="v">$0</div><div class="l"><span>Term</span><span>Long</span></div>..</div>..</div>. Use "on" only for the one the user asked about, never to recommend one.
+  bars         two or three things measured the same way, figure above each bar: <div class="bars"><div class="b"><em>+$848</em><i style="height:62%"></i><span>You</span></div><div class="b alt"><em>+$734</em><i style="height:54%"></i><span>S&P 500</span></div></div>.
+  alloc        what a total is spread across: <div class="alloc"><div class="donut" style="background:conic-gradient(var(--accent) 0 49%, var(--accent-2) 49% 69%, var(--accent-3) 69% 84%, var(--ink-4) 84% 100%)"><div class="c"><b>9</b><span>positions</span></div></div><div class="legend">..</div></div>. Segments must run in that colour order and the percentages must be cumulative.
+  spark        a tiny trend, inside a figure or a table cell: <svg class="spark p" viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="0,20 50,12 100,4"/></svg>. y runs 0 at the top to 26 at the bottom. Add "p" for a rising line, "n" for a falling one.
+  plot         a price line with the things that happened on it. Put the <svg> and then <div class="mark buy" style="left:22%;top:64%"></div> and <div class="tag" style="left:22%;top:74%">You bought</div> inside <div class="plot">, and an <div class="axis"> underneath.
+  recon        their figure against yours: a <div class="recon head"> row of labels, then <div class="recon"><span class="tick">NVDA</span><span>$317.92</span><span>$353.96</span><span class="d neg">-$36.04</span></div> per line.
+  unknown      when the honest answer is that we can't say: <div class="unknown"><h4>..</h4><p>..</p><span class="fix">what would fix it →</span></div>. Reach for this instead of writing 0 or leaving a figure out silently.
 
-Put class="num" on every element containing figures so they align. Colour meaning with class pos / neg / hold / muted / faint, never a hard-coded hex. If you need a colour, use var(--accent), var(--pos), var(--neg), var(--hold), var(--ink-3), var(--line). Keep it to about 640px wide. No scripts, no images, no external anything. SVG is fine and is the way to draw a chart — a line chart is an area path at 0.18 opacity under a 2px stroke in var(--accent).`,
+Put class="num" on every element containing figures so they align. Colour meaning with class pos / neg / hold / muted / faint, never a hard-coded hex. Colour is never the only signal a number is up or down: add class "up" or "down" for an arrow, or write the sign. Mark a figure you calculated rather than read with <span class="est">estimate</span>. If you need a colour, use var(--accent), var(--pos), var(--neg), var(--hold), var(--ink-3), var(--line). Keep it to about 640px wide. No scripts, no images, no external anything. SVG is fine and is the way to draw a chart — a line chart is an area path at 0.18 opacity under a 2px stroke in var(--accent).`,
       input_schema: {
         type: 'object' as const,
         properties: {
@@ -881,7 +890,7 @@ Put class="num" on every element containing figures so they align. Colour meanin
         return {
           available: false,
           reason:
-            'That fragment declares its own styles. Rebuild it from the classes in the catalogue — card, lead, figs, band, meter, opt, ba, ev, cd, split, table, callout, step, quote, range, stats, def, caveat, row, chip — with no <style> block.',
+            'That fragment declares its own styles. Rebuild it from the classes in the catalogue — card, lead, figs, band, mek, fall, meter, opt, ba, scen, bars, alloc, spark, ev, cd, split, table, recon, callout, step, quote, plot, range, stats, def, caveat, unknown, row, chip — with no <style> block.',
         };
       }
       if (html.length > MAX_PANEL_HTML) {

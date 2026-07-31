@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Basis — visual elements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- The one stylesheet. `generated.tsx` inlines this same file. -->
+<link rel="stylesheet" href="/src/workspace/panel.css">
+<style>
+  /* Page furniture only — never part of the bank. */
+  body.reference { margin: 0; padding: 56px 24px 140px; background: #f6f7f9; color: var(--ink); }
+  .page { max-width: 700px; margin: 0 auto; }
+  .spec h2, .lede h1 { color: var(--ink); }
+  .lede h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.03em; margin: 0 0 8px; }
+  .lede p { color: var(--ink-3); margin: 0 0 56px; max-width: 36em; font-size: 15px; }
+  .spec { margin: 52px 0 16px; display: flex; align-items: baseline; gap: 10px; }
+  .spec h2 { font-size: 14px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .spec span { font-size: 13px; color: var(--ink-4); }
+</style>
+</head>
+<body class="reference">
+<div class="page panel-root">
+
+  <div class="lede">
+    <h1>Visual elements</h1>
+    <p>The pieces Bip builds answers from. Every example uses one person's figures:
+       24, first salaried job at $42,000, a brokerage account, one 1099-B, filing
+       single in California.</p>
+  </div>
+
+  <div class="spec"><h2>Headline</h2><span>the number an answer turns on</span></div>
+  <div class="card">
+    <div class="label">If the year ended today</div>
+    <div class="lead-row" style="margin-top:6px">
+      <div class="lead num">$3,246</div>
+      <div class="chip h">still to pay</div>
+    </div>
+    <div class="sub" style="margin-top:10px">
+      <span class="num">$7,046</span> total tax, of which <span class="num">$3,800</span>
+      has already come out of your pay.
+    </div>
+  </div>
+
+  <div class="spec"><h2>Figures</h2><span>numbers that belong together, with their direction</span></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="figs">
+      <div><div class="label">Invested</div><div class="v num">$192,199</div>
+        <div class="d num pos up">2.1% this month</div>
+        <svg class="spark p" viewBox="0 0 100 26" preserveAspectRatio="none">
+          <polyline points="0,20 14,21 28,16 42,18 56,11 70,13 84,7 100,4"/></svg></div>
+      <div><div class="label">Cash</div><div class="v num">$85,472</div>
+        <div class="d num muted">unchanged</div>
+        <svg class="spark" viewBox="0 0 100 26" preserveAspectRatio="none">
+          <polyline points="0,14 20,14 40,13 60,14 80,14 100,13"/></svg></div>
+      <div><div class="label">Gain so far</div><div class="v num pos">+$848</div>
+        <div class="d num neg down">$40 this week</div>
+        <svg class="spark n" viewBox="0 0 100 26" preserveAspectRatio="none">
+          <polyline points="0,6 20,4 40,9 60,7 80,14 100,18"/></svg></div>
+    </div>
+  </div>
+
+  <div class="spec"><h2>Bracket ladder</h2><span>where your income actually lands</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:14px">Federal income tax · single · 2026</div>
+    <div class="band"><div class="r">24%</div><div class="t"></div><div class="g num">$106,250 – $202,850</div></div>
+    <div class="band"><div class="r">22%</div><div class="t"></div><div class="g num">$49,825 – $106,250</div></div>
+    <div class="band on"><div class="r">12%</div><div class="t"><i style="width:79%"></i></div><div class="g num">$12,250 – $49,825</div></div>
+    <div class="band"><div class="r">10%</div><div class="t"><i style="width:100%"></i></div><div class="g num">$0 – $12,250</div></div>
+    <p class="sub" style="margin:16px 0 0">
+      Only the money inside a band is taxed at that band's rate — moving up a
+      bracket never costs you money overall. Your next dollar is taxed at 12%.
+      Across everything you earned, it works out to <span class="num">6.9%</span>.
+    </p>
+  </div>
+
+  <div class="spec"><h2>Brackets, to scale</h2><span>how big each band is, and what it takes</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:14px">Every dollar you earned, and what happened to it</div>
+    <div class="mek">
+      <div class="m"><div class="r faint">0%</div>
+        <div class="bar" style="height:40px">
+          <i class="keep" style="width:100%"></i></div></div>
+      <div class="m"><div class="r">10%</div>
+        <div class="bar" style="height:31px">
+          <i class="keep" style="width:90%"></i><i class="tax" style="width:10%"></i></div></div>
+      <div class="m"><div class="r accent">12%</div>
+        <div class="bar" style="height:36px">
+          <i class="keep" style="width:88%"></i><i class="tax" style="width:12%"></i></div></div>
+      <div class="cap">
+        <span><b style="background:var(--accent-3)"></b>You keep</span>
+        <span><b style="background:var(--accent)"></b>Tax</span>
+      </div>
+    </div>
+    <p class="sub" style="margin:14px 0 0">
+      The first band is your standard deduction — <span class="num">$15,750</span>
+      that's taxed at nothing at all. Each bar is as tall as its band is wide, so
+      you can see the deduction band is the biggest one you have.
+    </p>
+  </div>
+
+  <div class="spec"><h2>Waterfall</h2><span>how one number becomes another</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:18px">From what you were paid to what you're taxed on</div>
+    <div class="fall">
+      <div class="s"><div class="t"><b style="top:0;height:100%"></b></div>
+        <div class="k">Gross pay<em class="num">$42,425</em></div></div>
+      <div class="s sub"><div class="t"><b style="top:0;height:37%"></b></div>
+        <div class="k">Standard deduction<em class="num">−$15,750</em></div></div>
+      <div class="s total"><div class="t"><b style="top:37%;height:63%"></b></div>
+        <div class="k">Taxed on<em class="num">$26,675</em></div></div>
+      <div class="s sub"><div class="t"><b style="top:37%;height:7%"></b></div>
+        <div class="k">Federal tax<em class="num">−$2,947</em></div></div>
+      <div class="s add"><div class="t"><b style="top:44%;height:56%"></b></div>
+        <div class="k">Yours<em class="num">$23,728</em></div></div>
+    </div>
+  </div>
+
+  <div class="spec"><h2>Meter</h2><span>how much of something is used up</span></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+      <div class="label">Tax paid in so far</div>
+      <div class="sub"><span class="num" style="color:var(--ink);font-weight:600">54%</span></div>
+    </div>
+    <div class="meter"><i style="width:54%"></i></div>
+    <div style="display:flex;justify-content:space-between;margin-top:10px" class="sub">
+      <span class="num">$3,800 withheld</span><span class="num">$7,046 projected</span>
+    </div>
+  </div>
+
+  <div class="spec"><h2>Options</h2><span>what's available, and what each is worth</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:14px">Ordered by tax saved</div>
+    <div class="opt">
+      <div><h4>Put $7,000 into a traditional IRA</h4>
+        <p>Lowers the income you're taxed on. The money stays yours.</p>
+        <div style="margin-top:8px"><span class="chip">until 15 Apr 2027</span></div></div>
+      <div class="w num pos">−$1,120</div>
+    </div>
+    <div class="opt">
+      <div><h4>Contribute to an HSA</h4>
+        <p>$4,300 limit. Untaxed going in, and untaxed coming out for medical costs.</p>
+        <div style="margin-top:8px"><span class="chip h">needs a high-deductible health plan</span></div></div>
+      <div class="w num pos">−$582</div>
+    </div>
+    <div class="opt">
+      <div><h4>Sell the positions that are down</h4>
+        <p>$150 of losses available. You can't buy the same thing back for 30 days.</p>
+        <div style="margin-top:8px"><span class="chip p">no cash needed</span></div></div>
+      <div class="w num pos">−$24</div>
+    </div>
+  </div>
+
+  <div class="spec"><h2>Before and after</h2><span>what one change does</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:14px">Putting $7,000 into a traditional IRA</div>
+    <div class="ba">
+      <div class="s now"><div class="label">Now</div><div class="v num">$3,246</div></div>
+      <div class="mid">→</div>
+      <div class="s next"><div class="label">After</div><div class="v num">$2,126</div></div>
+    </div>
+    <p class="sub" style="margin:14px 0 0">
+      <strong class="pos">$1,120 less tax</strong> — and the $7,000 is still your
+      money, just held somewhere you can't touch it until later.
+    </p>
+  </div>
+
+  <div class="spec"><h2>Scenarios</h2><span>three or more ways it could go</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:14px">If you sell NVDA…</div>
+    <div class="scen">
+      <div class="s"><div class="label">Today</div><div class="v num">$53</div>
+        <div class="l"><span>Term</span><span>Short</span></div>
+        <div class="l"><span>Taxed at</span><span class="num">12%</span></div>
+        <div class="l"><span>You keep</span><span class="num">$385</span></div></div>
+      <div class="s on"><div class="label">In 96 days</div><div class="v num">$0</div>
+        <div class="l"><span>Term</span><span>Long</span></div>
+        <div class="l"><span>Taxed at</span><span class="num">0%</span></div>
+        <div class="l"><span>You keep</span><span class="num">$438</span></div></div>
+      <div class="s"><div class="label">Next year</div><div class="v num">?</div>
+        <div class="l"><span>Term</span><span>Long</span></div>
+        <div class="l"><span>Taxed at</span><span class="none">depends on income</span></div>
+        <div class="l"><span>You keep</span><span class="none">—</span></div></div>
+    </div>
+  </div>
+
+  <div class="spec"><h2>Bars</h2><span>two or three things measured the same way</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:16px">Your money against the same money in the S&amp;P 500</div>
+    <div class="bars">
+      <div class="b"><em class="num pos">+$848</em><i style="height:62%"></i><span>You</span></div>
+      <div class="b alt"><em class="num pos">+$734</em><i style="height:54%"></i><span>S&amp;P 500</span></div>
+    </div>
+    <p class="sub" style="margin:16px 0 0">
+      Same dollars, bought on the same days. Ahead by <span class="num">$114</span> —
+      but this only covers the 2% of your money whose purchase price is known.
+    </p>
+  </div>
+
+  <div class="spec"><h2>Allocation</h2><span>what the money is spread across</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:18px">Where your $192,199 sits</div>
+    <div class="alloc">
+      <div class="donut" style="background:conic-gradient(var(--accent) 0 49%, var(--accent-2) 49% 69%, var(--accent-3) 69% 84%, var(--ink-4) 84% 100%)">
+        <div class="c"><b class="num">9</b><span>positions</span></div>
+      </div>
+      <div class="legend" style="margin:0;flex:1;min-width:200px">
+        <div><b style="background:var(--accent)"></b><span>US total market</span>
+          <span class="pct num">49%</span><span class="amt num">$95,000</span></div>
+        <div><b style="background:var(--accent-2)"></b><span>International</span>
+          <span class="pct num">20%</span><span class="amt num">$38,000</span></div>
+        <div><b style="background:var(--accent-3)"></b><span>Bonds</span>
+          <span class="pct num">15%</span><span class="amt num">$28,500</span></div>
+        <div><b style="background:var(--ink-4)"></b><span>Individual shares</span>
+          <span class="pct num">16%</span><span class="amt num">$30,699</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spec"><h2>Timeline</h2><span>dates that matter, in order</span></div>
+  <div class="card">
+    <div class="ev done"><div class="d num">15 Apr</div><div class="m"></div>
+      <div class="b">First quarterly payment<em>paid</em></div></div>
+    <div class="ev done"><div class="d num">15 Jun</div><div class="m"></div>
+      <div class="b">Second quarterly payment<em>paid</em></div></div>
+    <div class="ev now"><div class="d num">15 Sep</div><div class="m"></div>
+      <div class="b">Third quarterly payment<em><span class="num">$1,271</span> · in 46 days</em></div></div>
+    <div class="ev"><div class="d num">31 Dec</div><div class="m"></div>
+      <div class="b">Last day to sell anything that counts for this year</div></div>
+    <div class="ev"><div class="d num">15 Apr 2027</div><div class="m"></div>
+      <div class="b">Filing deadline<em>also the last day to fund an IRA for 2026</em></div></div>
+  </div>
+
+  <div class="spec"><h2>Countdown</h2><span>time until something changes</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:10px">NVDA becomes long-term in</div>
+    <div class="cd"><b class="num accent">96</b><span>days</span></div>
+    <p class="sub" style="margin:14px 0 0">
+      Sell before then and the <span class="num">$438</span> gain is taxed like your
+      pay, at 12% — about <span class="num">$53</span>. Sell after and it's taxed at
+      0%, because of where your income sits.
+    </p>
+  </div>
+
+  <div class="spec"><h2>Breakdown</h2><span>where a total goes</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:14px">Your $7,046 of tax</div>
+    <div class="split">
+      <i style="width:42%;background:var(--accent)"></i>
+      <i style="width:46%;background:var(--accent-2)"></i>
+      <i style="width:12%;background:var(--accent-3)"></i>
+    </div>
+    <div class="legend">
+      <div><b style="background:var(--accent)"></b><span>Federal income tax</span>
+        <span class="pct num">42%</span><span class="amt num">$2,956</span></div>
+      <div><b style="background:var(--accent-2)"></b><span>Social Security and Medicare</span>
+        <span class="pct num">46%</span><span class="amt num">$3,213</span></div>
+      <div><b style="background:var(--accent-3)"></b><span>California</span>
+        <span class="pct num">12%</span><span class="amt num">$878</span></div>
+    </div>
+  </div>
+
+  <div class="spec"><h2>Table</h2><span>many things, same questions</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:12px">Everything you hold</div>
+    <table>
+      <thead><tr><th>Position</th><th>Year</th><th>Held</th><th class="r">Value</th><th class="r">Gain</th><th class="r">Tax if sold</th></tr></thead>
+      <tbody>
+        <tr><td class="tick">NVDA</td>
+          <td><svg class="spark p" viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="0,22 25,17 50,12 75,9 100,3"/></svg></td>
+          <td class="sub">9 months</td><td class="r num">$1,620</td><td class="r num pos">+$438</td><td class="r num">$53</td></tr>
+        <tr><td class="tick">VOO</td>
+          <td><svg class="spark p" viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="0,18 25,15 50,16 75,11 100,9"/></svg></td>
+          <td class="sub">5 months</td><td class="r num">$1,688</td><td class="r num pos">+$173</td><td class="r num">$21</td></tr>
+        <tr><td class="tick">TSLA</td>
+          <td><svg class="spark n" viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="0,6 25,10 50,9 75,16 100,20"/></svg></td>
+          <td class="sub">9 months</td><td class="r num">$1,105</td><td class="r num neg">−$95</td><td class="r num">$0</td></tr>
+        <tr><td class="tick">VTI</td><td class="none">—</td>
+          <td class="none">not known</td><td class="r num">$95,000</td><td class="r none">—</td><td class="r none">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="spec"><h2>Their figure against yours</h2><span>a form checked line by line</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:12px">Robinhood's 1099-B, against your own record</div>
+    <div class="recon head"><span>Position</span><span>On the form</span><span>Your record</span><span>Difference</span></div>
+    <div class="recon"><span class="tick">VOO</span><span class="num">$70.60</span><span class="num">$70.60</span>
+      <span class="d"><span class="chip p">matches</span></span></div>
+    <div class="recon"><span class="tick">NVDA</span><span class="num">$317.92</span><span class="num">$353.96</span>
+      <span class="d num neg">−$36.04</span></div>
+    <div class="recon"><span class="tick">TSLA</span><span class="num">−$265.00</span><span class="none">no history</span>
+      <span class="d"><span class="chip h">can't check</span></span></div>
+    <p class="sub" style="margin:14px 0 0">
+      A difference isn't automatically their mistake — but it's yours to explain
+      if the IRS asks, so it's worth knowing which of you is right.
+    </p>
+  </div>
+
+  <div class="spec"><h2>Callout</h2><span>one fact pulled out</span></div>
+  <div class="callout">
+    <div class="label">Worth knowing</div>
+    <div class="v num">$22,425</div>
+    <p class="sub" style="margin:0;color:var(--ink-2)">
+      of profit on things you've held over a year could be taken this year with no
+      federal tax on it at all, because of where your income sits.
+    </p>
+  </div>
+
+  <div class="spec"><h2>Steps</h2><span>how to actually do a thing</span></div>
+  <div class="card">
+    <div class="label" style="margin-bottom:16px">Filing for the first time</div>
+    <div class="step"><div class="i">1</div><div>
+      <h4>Collect the forms that arrive in January</h4>
+      <p>A W-2 from your employer. A 1099-B from your brokerage if you sold anything.</p></div></div>
+    <div class="step"><div class="i">2</div><div>
+      <h4>Check the brokerage form against your own record</h4>
+      <p>Brokerages often don't know what you paid for shares you moved from somewhere else.</p></div></div>
+    <div class="step"><div class="i">3</div><div>
+      <h4>Decide on anything that lowers the bill</h4>
+      <p>An IRA contribution still counts for last year, right up to the April deadline.</p></div></div>
+    <div class="step"><div class="i">4</div><div>
+      <h4>File it</h4>
+      <p>Most people earning under $80,000 can file federal for free.</p></div></div>
+  </div>
+
+  <div class="spec"><h2>Quote</h2><span>opens any question about one company</span></div>
+  <div class="card">
+    <div class="quote">
+      <div><div class="t">NVDA</div><div class="sub">NVIDIA Corporation</div></div>
+      <div style="text-align:right">
+        <div class="p num">$198.32</div>
+        <div class="num pos up" style="font-size:13px;font-weight:500">$4.12 · 2.12% today</div>
+      </div>
+    </div>
+    <div class="plot">
+      <svg viewBox="-2 0 644 122" width="100%" height="112">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2b59ff" stop-opacity=".18"/>
+          <stop offset="100%" stop-color="#2b59ff" stop-opacity="0"/>
+        </linearGradient></defs>
+        <path d="M0,92 C60,86 90,74 140,78 C200,83 230,58 290,50 C350,42 380,60 430,46 C490,29 520,24 580,16 L638,10 L638,122 L0,122 Z" fill="url(#g)"/>
+        <path d="M0,92 C60,86 90,74 140,78 C200,83 230,58 290,50 C350,42 380,60 430,46 C490,29 520,24 580,16 L638,10"
+              fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle cx="638" cy="10" r="3.5" fill="var(--accent)"/>
+      </svg>
+      <div class="mark buy" style="left:22%;top:64%"></div>
+      <div class="tag" style="left:22%;top:74%">You bought · 8 units</div>
+    </div>
+    <div class="axis"><span>1 Aug 2025</span><span>today</span></div>
+  </div>
+
+  <div class="spec"><h2>Range</h2><span>where today sits inside a span</span></div>
+  <div class="card">
+    <div class="label">Its range over the last year</div>
+    <div class="range">
+      <div class="cap num" style="left:89%">$198.32</div>
+      <div class="pin" style="left:89%"></div>
+    </div>
+    <div class="ends"><span class="num">$86.62</span><span class="num">$212.19</span></div>
+  </div>
+
+  <div class="spec"><h2>Stats</h2><span>the standing figures for a company</span></div>
+  <div class="card">
+    <div class="stats">
+      <div><div class="k">Market value</div><div class="v num">$4.82T</div></div>
+      <div><div class="k">Price to earnings</div><div class="v num">51.4</div></div>
+      <div><div class="k">Revenue growth</div><div class="v num pos up">62%</div></div>
+      <div><div class="k">Profit margin</div><div class="v num">55.8%</div></div>
+      <div><div class="k">Dividend</div><div class="v num">0.02%</div></div>
+      <div><div class="k">Your position</div><div class="v num">$1,620</div></div>
+    </div>
+  </div>
+
+  <div class="spec"><h2>Plain meaning</h2><span>a term explained where it's used</span></div>
+  <div class="def">
+    <h4>Sell within a year of buying and the profit is taxed like your salary</h4>
+    <p>Hold longer than a year and it's taxed at a lower rate — often nothing at all,
+       at your income.</p>
+    <span class="term">short-term vs long-term capital gains</span>
+  </div>
+
+  <div class="spec"><h2>Caveat</h2><span>the condition attached to a number</span></div>
+  <div class="caveat"><div class="i">!</div>
+    <div>5 of your 9 positions have no purchase price on file, so their gains aren't in
+    any of these totals. They arrived by transfer and the brokerage didn't pass the
+    price along.</div></div>
+
+  <div class="spec"><h2>Not known</h2><span>when the honest answer is that we can't say</span></div>
+  <div class="unknown">
+    <h4>We can't work out what VTI would cost you in tax</h4>
+    <p>It's worth $95,000, but nothing on file says what you paid for it or when —
+       and without that there's no gain to tax, only a guess.</p>
+    <span class="fix">Import the statement from the account it came from →</span>
+  </div>
+
+  <div class="spec"><h2>Status</h2><span>several things, and where each stands</span></div>
+  <div class="card">
+    <div class="row"><i style="background:var(--pos)"></i><span>Forms collected</span><span class="v num">2 on file</span></div>
+    <div class="row"><i style="background:var(--accent)"></i><span>Purchase prices</span><span class="v num">5 of 9 missing</span></div>
+    <div class="row"><i style="background:var(--accent)"></i><span>Quarterly payment</span><span class="v num">$1,271 by 15 Sep</span></div>
+    <div class="row"><i style="background:var(--line-2)"></i><span>Brokerage form checked</span><span class="v">not started</span></div>
+  </div>
+
+</div>
+</body>
+</html>
