@@ -230,7 +230,7 @@ export function PaperCollage() {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(70% 64% at 50% 47%, rgba(226,216,195,0.97) 0%, rgba(226,216,195,0.92) 42%, rgba(226,216,195,0.6) 68%, rgba(226,216,195,0) 92%)',
+            'radial-gradient(80% 72% at 50% 46%, rgba(226,216,195,0.86) 0%, rgba(226,216,195,0.68) 26%, rgba(226,216,195,0.42) 52%, rgba(226,216,195,0.17) 76%, rgba(226,216,195,0) 96%)',
         }}
       />
       {/* Settle the edges into the page */}

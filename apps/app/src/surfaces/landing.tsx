@@ -66,7 +66,7 @@ export function LandingSurface() {
             </p>
           </div>
 
-          <p className="mx-auto mt-12 max-w-md text-center text-[11px] leading-relaxed text-ink/55">
+          <p className="mx-auto mt-12 max-w-md text-center text-[11px] leading-relaxed text-ink/75">
             {BRAND.name} provides educational estimates computed from your data — not investment
             advice, tax advice, or a tax filing. Brokerage connections are read-only.
           </p>
