@@ -223,12 +223,14 @@ export function PaperCollage() {
         </div>
       ))}
 
-      {/* Calm the middle so the hero has ground to stand on */}
+      {/* Calm the middle so the hero has ground to stand on. The wash is the
+          paper's own colour, not a lighter one — anything cooler than the stock
+          reads as fog sitting on the pile instead of clean paper. */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(70% 64% at 50% 47%, rgba(236,230,215,0.97) 0%, rgba(236,230,215,0.92) 42%, rgba(236,230,215,0.6) 68%, rgba(236,230,215,0) 92%)',
+            'radial-gradient(70% 64% at 50% 47%, rgba(226,216,195,0.97) 0%, rgba(226,216,195,0.92) 42%, rgba(226,216,195,0.6) 68%, rgba(226,216,195,0) 92%)',
         }}
       />
       {/* Settle the edges into the page */}
