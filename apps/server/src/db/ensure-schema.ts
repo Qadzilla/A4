@@ -37,6 +37,14 @@ export function ensureLaunchSchema(sqlite: Database.Database): void {
       source TEXT NOT NULL DEFAULT 'manual', external_id TEXT UNIQUE,
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS workspace_panels (
+      id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, workspace_id TEXT NOT NULL,
+      user_id TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL, subtitle TEXT,
+      payload TEXT NOT NULL, payload_version INTEGER NOT NULL DEFAULT 1,
+      position REAL NOT NULL DEFAULT 0, pinned INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_panels_conversation ON workspace_panels(conversation_id);
     CREATE TABLE IF NOT EXISTS tax_1099s (
       id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
       file_id TEXT NOT NULL UNIQUE, tax_year INTEGER NOT NULL, broker TEXT,

@@ -36,6 +36,7 @@ export function ChatSurface() {
     toolActivity,
     panels,
     dismissPanel,
+    togglePinned,
     startNewConversation,
   } = useChat({ spaceId });
   const [draft, setDraft] = useState('');
@@ -200,7 +201,12 @@ export function ChatSurface() {
           ) : (
             <div className="space-y-4">
               {panels.map((p) => (
-                <PanelCard key={p.id} panel={p} onDismiss={dismissPanel} />
+                <PanelCard
+                  key={p.id}
+                  panel={p}
+                  onDismiss={dismissPanel}
+                  onTogglePin={togglePinned}
+                />
               ))}
             </div>
           )}

@@ -10,6 +10,13 @@
 
 export type PanelKind = 'lots' | 'tax' | 'benchmark' | 'ledger' | 'holdings' | 'search';
 
+/**
+ * Bumped when the stored payload shape changes in a way readers must know
+ * about. Rows carry the version they were written with, so an old payload can
+ * be migrated or ignored rather than silently rendered wrong.
+ */
+export const PANEL_PAYLOAD_VERSION = 1;
+
 export interface Panel {
   /** The tool call that produced it — stable, so a rerun replaces rather than stacks. */
   id: string;
@@ -18,6 +25,7 @@ export interface Panel {
   subtitle: string | null;
   data: Record<string, unknown>;
   createdAt: number;
+  pinned?: boolean;
 }
 
 const PANEL_TOOLS: Record<string, { kind: PanelKind; title: string }> = {
@@ -69,5 +77,13 @@ export function panelFromToolResult(
 
 /** Newest first, and a rerun of the same tool call replaces its old panel. */
 export function mergePanel(panels: Panel[], next: Panel): Panel[] {
-  return [next, ...panels.filter((p) => p.id !== next.id)];
+  const previous = panels.find((p) => p.id === next.id);
+  // A rerun of a pinned panel stays pinned — the pin is the user's, not the tool's
+  const merged = previous?.pinned ? { ...next, pinned: true } : next;
+  return sortPanels([merged, ...panels.filter((p) => p.id !== next.id)]);
+}
+
+/** Pinned first, then whatever order the list already carries. */
+export function sortPanels(panels: Panel[]): Panel[] {
+  return [...panels].sort((a, b) => Number(b.pinned ?? false) - Number(a.pinned ?? false));
 }

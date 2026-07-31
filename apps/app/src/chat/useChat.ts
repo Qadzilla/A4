@@ -1,6 +1,13 @@
 import { useAuthToken } from '@/auth/useAuthToken';
 import { useTRPC } from '@/lib/trpc';
-import { type Panel, mergePanel, panelFromToolResult } from '@/workspace/panel';
+import {
+  PANEL_PAYLOAD_VERSION,
+  type Panel,
+  type PanelKind,
+  mergePanel,
+  panelFromToolResult,
+  sortPanels,
+} from '@/workspace/panel';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -31,9 +38,14 @@ export function useChat({ spaceId }: { spaceId: string }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<ChatError | null>(null);
   const [toolActivity, setToolActivity] = useState<ToolActivity[]>([]);
-  // What the conversation leaves on the workspace. Panels outlive the turn
-  // that produced them — clearing them is the user's call, not the stream's.
+  // What the conversation leaves on the workspace. Held locally so panels
+  // appear the instant a tool returns, and mirrored to the server so the desk
+  // is still set when you come back to the thread.
   const [panels, setPanels] = useState<Panel[]>([]);
+  /** The conversation the local panels belong to, so a switch can't leak. */
+  const panelsForRef = useRef<string | null>(null);
+  /** Set by "New" — stops the resume effect dragging the old thread back. */
+  const startedFreshRef = useRef(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastFailedRef = useRef<string | null>(null);
@@ -44,8 +56,52 @@ export function useChat({ spaceId }: { spaceId: string }) {
     enabled: !!conversationId,
   });
 
+  // Resume the most recent thread on load. Without this the workspace is
+  // pointless: the panels are on the server, but a reload starts a blank
+  // conversation and there is nothing to hang them on.
+  const conversationList = useQuery({
+    ...trpc.chat.listConversations.queryOptions({ workspaceId: spaceId }),
+    enabled: !conversationId && !startedFreshRef.current,
+  });
+  const latestConversationId = conversationList.data?.[0]?.id;
+  useEffect(() => {
+    if (conversationId || startedFreshRef.current || !latestConversationId) return;
+    setConversationId(latestConversationId);
+  }, [conversationId, latestConversationId]);
+
   const createConversation = useMutation(trpc.chat.createConversation.mutationOptions());
   const persistMessage = useMutation(trpc.chat.sendMessage.mutationOptions());
+
+  const panelQuery = useQuery({
+    ...trpc.panel.list.queryOptions({ conversationId: conversationId ?? '' }),
+    enabled: !!conversationId,
+  });
+  const upsertPanel = useMutation(trpc.panel.upsert.mutationOptions());
+  const removePanel = useMutation(trpc.panel.remove.mutationOptions());
+  const setPinnedPanel = useMutation(trpc.panel.setPinned.mutationOptions());
+
+  // Hydrate the desk when a conversation loads or changes. Local state is the
+  // render source — the server list only seeds it, so a panel that just
+  // arrived over the stream is never clobbered by a stale fetch.
+  const storedPanels = panelQuery.data;
+  useEffect(() => {
+    if (!conversationId || !storedPanels) return;
+    if (panelsForRef.current === conversationId) return;
+    panelsForRef.current = conversationId;
+    setPanels(
+      sortPanels(
+        storedPanels.map((p) => ({
+          id: p.id,
+          kind: p.kind as PanelKind,
+          title: p.title,
+          subtitle: p.subtitle,
+          data: p.data as Record<string, unknown>,
+          createdAt: p.createdAt,
+          pinned: p.pinned,
+        })),
+      ),
+    );
+  }, [conversationId, storedPanels]);
 
   // Tool-result rows (role 'tool') and empty intermediate assistant turns are
   // plumbing for the model, not conversation — never render them.
@@ -167,7 +223,20 @@ export function useChat({ spaceId }: { spaceId: string }) {
                   event.toolCallId as string,
                   event.result,
                 );
-                if (panel) setPanels((prev) => mergePanel(prev, panel));
+                if (!panel) break;
+                setPanels((prev) => mergePanel(prev, panel));
+                // Mirror to the server. Fire-and-forget: a failed write costs
+                // the panel on reload, not the panel you're looking at.
+                upsertPanel.mutate({
+                  id: panel.id,
+                  conversationId: convId,
+                  workspaceId: spaceId,
+                  kind: panel.kind,
+                  title: panel.title,
+                  subtitle: panel.subtitle,
+                  payload: panel.data,
+                  payloadVersion: PANEL_PAYLOAD_VERSION,
+                });
                 break;
               }
               case 'error':
@@ -205,6 +274,7 @@ export function useChat({ spaceId }: { spaceId: string }) {
       getToken,
       queryClient,
       trpc,
+      upsertPanel.mutate,
     ],
   );
 
@@ -225,11 +295,24 @@ export function useChat({ spaceId }: { spaceId: string }) {
     retry,
     toolActivity,
     panels,
-    dismissPanel: (id: string) => setPanels((prev) => prev.filter((p) => p.id !== id)),
+    dismissPanel: (id: string) => {
+      setPanels((prev) => prev.filter((p) => p.id !== id));
+      removePanel.mutate({ id });
+    },
+    togglePinned: (id: string) => {
+      // Read the next value from current state, not from inside the updater:
+      // React runs updaters later (and twice under StrictMode), so anything
+      // assigned in there is stale by the time the mutation fires.
+      const next = !(panels.find((p) => p.id === id)?.pinned ?? false);
+      setPanels((prev) => sortPanels(prev.map((p) => (p.id === id ? { ...p, pinned: next } : p))));
+      setPinnedPanel.mutate({ id, pinned: next });
+    },
     startNewConversation: () => {
+      startedFreshRef.current = true;
       setConversationId(null);
       setError(null);
       setPanels([]);
+      panelsForRef.current = null;
     },
   };
 }

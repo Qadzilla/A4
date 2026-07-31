@@ -11,6 +11,7 @@ import { healthRouter } from './routers/health';
 import { holdingRouter } from './routers/holding';
 import { insightsRouter } from './routers/insights';
 import { marketDataRouter } from './routers/market-data';
+import { panelRouter } from './routers/panel';
 import { taxRouter } from './routers/tax';
 import { userRouter } from './routers/user';
 import { workspaceRouter } from './routers/workspace';
@@ -29,6 +30,7 @@ export const appRouter = router({
   holding: holdingRouter,
   insights: insightsRouter,
   marketData: marketDataRouter,
+  panel: panelRouter,
   tax: taxRouter,
   user: userRouter,
   billing: billingRouter,

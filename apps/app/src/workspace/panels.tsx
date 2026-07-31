@@ -1,5 +1,5 @@
 import type { Panel } from '@/workspace/panel';
-import { X } from 'lucide-react';
+import { Pin, X } from 'lucide-react';
 
 /**
  * Panel renderers. Every payload here arrives as untyped JSON off the chat
@@ -273,7 +273,15 @@ function SearchPanel({ d }: { d: Record<string, unknown> }) {
   );
 }
 
-export function PanelCard({ panel, onDismiss }: { panel: Panel; onDismiss: (id: string) => void }) {
+export function PanelCard({
+  panel,
+  onDismiss,
+  onTogglePin,
+}: {
+  panel: Panel;
+  onDismiss: (id: string) => void;
+  onTogglePin: (id: string) => void;
+}) {
   return (
     <section className="rise rounded-card bg-surface p-5 shadow-card">
       <header className="mb-4 flex items-baseline justify-between gap-3">
@@ -281,14 +289,27 @@ export function PanelCard({ panel, onDismiss }: { panel: Panel; onDismiss: (id: 
           <h2 className="eyebrow">{panel.title}</h2>
           {panel.subtitle && <span className="font-mono text-xs text-muted">{panel.subtitle}</span>}
         </div>
-        <button
-          type="button"
-          onClick={() => onDismiss(panel.id)}
-          aria-label="Remove panel"
-          className="text-faint transition-colors hover:text-ink"
-        >
-          <X size={14} />
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => onTogglePin(panel.id)}
+            aria-label={panel.pinned ? 'Unpin panel' : 'Pin panel'}
+            aria-pressed={panel.pinned ?? false}
+            className={`transition-colors ${
+              panel.pinned ? 'text-accent' : 'text-faint hover:text-ink'
+            }`}
+          >
+            <Pin size={13} fill={panel.pinned ? 'currentColor' : 'none'} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDismiss(panel.id)}
+            aria-label="Remove panel"
+            className="text-faint transition-colors hover:text-ink"
+          >
+            <X size={14} />
+          </button>
+        </div>
       </header>
 
       {panel.kind === 'lots' && <LotsPanel d={panel.data} />}

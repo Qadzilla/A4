@@ -275,6 +275,37 @@ export const categorizationRules = sqliteTable('categorization_rules', {
 });
 
 // Chat conversations (workspace-scoped)
+/**
+ * What a conversation leaves on the workspace. One row per panel, keyed by
+ * the tool call that produced it so a rerun replaces rather than duplicates.
+ *
+ * `payload` is the tool's raw JSON result and `payloadVersion` says which
+ * shape it was written in — the renderers read defensively, so an old payload
+ * degrades to a thinner panel instead of breaking, and a future change to a
+ * tool's return type can be migrated or ignored per version rather than
+ * silently rendering wrong.
+ */
+export const workspacePanels = sqliteTable('workspace_panels', {
+  id: text('id').primaryKey(),
+  conversationId: text('conversation_id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  kind: text('kind').notNull(),
+  title: text('title').notNull(),
+  subtitle: text('subtitle'),
+  payload: text('payload').notNull(), // JSON
+  payloadVersion: integer('payload_version').notNull().default(1),
+  // Fractional, so a panel can be dropped between two others without renumbering
+  position: real('position').notNull().default(0),
+  pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const conversations = sqliteTable('conversations', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull(),
