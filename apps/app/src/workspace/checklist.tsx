@@ -14,6 +14,35 @@ import { Check, Circle, CircleDashed, Minus } from 'lucide-react';
 
 type LineStatus = 'resolved' | 'attention' | 'not-started' | 'unknown';
 
+/**
+ * What to ask about a line that isn't settled. Phrased as the question behind
+ * the status rather than "tell me about X", because the answer worth having
+ * is why it matters, not a reading of the line.
+ */
+const LINE_QUESTIONS: Record<string, string> = {
+  basis: "Which positions are missing cost basis, and what can't I work out without it?",
+  documents: 'What documents should I be collecting for this tax year?',
+  trades: 'Why does my realized-gains picture need trade history?',
+  wash: 'Explain the wash sale on my account and what it costs me.',
+  window: 'How should I be thinking about my 0% long-term gains window?',
+  approaching: 'Which positions are close to long-term, and is it worth waiting?',
+  losses: 'Are my unrealized losses worth harvesting this year?',
+  quarterly: 'Do I actually need to make a quarterly payment, and how much?',
+  reconcile: "Where does my 1099 disagree with your numbers, and who's right?",
+};
+
+/** Questions drawn from what's actually outstanding on this desk. */
+export function useDeskQuestions(spaceId: string, taxYear: number): string[] {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.desk.status.queryOptions({ workspaceId: spaceId, taxYear }));
+  if (!data) return [];
+  return data.lines
+    .filter((l) => l.status === 'attention' || l.status === 'not-started')
+    .map((l) => LINE_QUESTIONS[l.id])
+    .filter((q): q is string => q !== undefined)
+    .slice(0, 4);
+}
+
 const STATUS: Record<LineStatus, { icon: typeof Check; className: string; label: string }> = {
   resolved: { icon: Check, className: 'text-good', label: 'Settled' },
   attention: { icon: Circle, className: 'text-accent', label: 'Worth a look' },

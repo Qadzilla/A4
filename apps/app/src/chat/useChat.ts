@@ -168,7 +168,7 @@ export function useChat({ spaceId, taxYear }: { spaceId: string; taxYear: number
 
         const response = await fetch('/api/chat/stream', {
           method: 'POST',
-          body: JSON.stringify({ conversationId: convId }),
+          body: JSON.stringify({ conversationId: convId, taxYear }),
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -284,6 +284,7 @@ export function useChat({ spaceId, taxYear }: { spaceId: string; taxYear: number
     [
       conversationId,
       spaceId,
+      taxYear,
       isStreaming,
       createConversation,
       persistMessage,

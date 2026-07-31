@@ -224,11 +224,17 @@ chatStreamRouter.post('/', async (req, res) => {
   }
 
   // 2. Parse body
-  const { conversationId } = req.body ?? {};
+  const { conversationId, taxYear } = req.body ?? {};
   if (!conversationId || typeof conversationId !== 'string') {
     res.status(400).json({ error: 'conversationId is required' });
     return;
   }
+  // The conversation happens inside a desk; without the year the model can't
+  // be told what's outstanding. Optional, so an older client still works.
+  const deskYear =
+    typeof taxYear === 'number' && Number.isInteger(taxYear) && taxYear >= 2000 && taxYear <= 2100
+      ? taxYear
+      : undefined;
 
   // 3. Load conversation
   const [conversation] = await db
@@ -273,6 +279,7 @@ chatStreamRouter.post('/', async (req, res) => {
       userId,
       conversation.workspaceId,
       conversationId,
+      deskYear,
     );
 
     // 6b. RAG: inject document context if workspace has chunks

@@ -1,7 +1,7 @@
 import { BasisMark } from '@/brand-mark';
 import { useChat } from '@/chat/useChat';
 import { useSpaceId } from '@/surfaces/layout';
-import { DeskChecklist } from '@/workspace/checklist';
+import { DeskChecklist, useDeskQuestions } from '@/workspace/checklist';
 import { isSummonKind } from '@/workspace/panel';
 import { PanelCard } from '@/workspace/panels';
 import { ArrowUp, Loader2, MessageSquare, Plus, Table2 } from 'lucide-react';
@@ -20,7 +20,8 @@ import remarkGfm from 'remark-gfm';
 /** The persona's name — server-side twin lives in ai-context.ts (AI_NAME). */
 const AI_NAME = 'Bip';
 
-const SUGGESTIONS = [
+/** Used only when the desk has nothing outstanding to ask about. */
+const FALLBACK_SUGGESTIONS = [
   'What happens tax-wise if I sell my biggest position?',
   'How much would I owe in taxes if the year ended today?',
   'Am I actually beating the S&P 500?',
@@ -48,6 +49,8 @@ export function ChatSurface() {
     togglePinned,
     startNewConversation,
   } = useChat({ spaceId, taxYear });
+  const deskQuestions = useDeskQuestions(spaceId, taxYear);
+  const suggestions = deskQuestions.length > 0 ? deskQuestions : FALLBACK_SUGGESTIONS;
   const [draft, setDraft] = useState('');
   /** Below md only one pane fits; this is which one you're looking at. */
   const [mobilePane, setMobilePane] = useState<'chat' | 'workspace'>('chat');
@@ -131,7 +134,7 @@ export function ChatSurface() {
                 appears on the left.
               </p>
               <div className="grid gap-2">
-                {SUGGESTIONS.map((s) => (
+                {suggestions.map((s) => (
                   <button
                     key={s}
                     type="button"

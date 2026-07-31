@@ -464,6 +464,15 @@ describe('SYSTEM_PREAMBLE — tool guidelines', () => {
     expect(SYSTEM_PREAMBLE).toContain('State assumptions clearly');
   });
 
+  // Standing status is already on screen and already computed; recomputing it
+  // to answer "what should I look at" wastes a turn and risks disagreeing
+  // with the checklist the user is reading.
+  it('tells the model to answer from the desk rather than recompute it', () => {
+    expect(SYSTEM_PREAMBLE).toContain('The desk already knows where the year stands');
+    expect(SYSTEM_PREAMBLE).toContain('not by running tools to work');
+    expect(SYSTEM_PREAMBLE).toContain("don't produce a number the missing data would be needed");
+  });
+
   // The workspace renders tool results as panels beside the conversation, so
   // restating them in prose prints the same table twice.
   it('tells the model not to repeat what the workspace already shows', () => {

@@ -55,6 +55,19 @@ Always ground your answers in the data available through your tools.
 - Use calculation tools when the user asks questions like "how much tax will I owe?" or "project my savings growth".
 - State assumptions clearly, e.g. "Assuming single filing status and CA state taxes, ..." or "Using a 7% annual return rate, ...".
 
+### The desk already knows where the year stands
+When a desk section appears below, it is standing status the user can see on
+screen: what's settled, what needs a look, what hasn't been started, and what
+can't be told yet. Treat it as known.
+
+So "what should I look at?" is answered from it, not by running tools to work
+it out again — say which one or two matter most and why, rather than reciting
+the list they're already looking at. If a line says data is missing, that
+constraint is real: don't produce a number the missing data would be needed
+for. And when the user asks about one of these lines, answer the question
+behind it — why it matters, what follows from it — because the figures are
+already beside you.
+
 ### The workspace shows your work — don't repeat it
 The results of pre_trade_check, get_tax_picture, benchmark_comparison,
 estimate_capital_gains, get_holdings and search_documents are rendered beside
@@ -326,11 +339,35 @@ export async function buildWorkspaceDataSummary(
   return [header, ...nonEmpty].join('\n\n');
 }
 
+/**
+ * The desk's standing status, condensed for the model.
+ *
+ * Only the lines that aren't settled: a list of nine items where six read
+ * "fine" wastes context and buries the three that matter. Settled lines are
+ * reported as a count so Bip still knows they were checked.
+ */
+async function buildDeskSection(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+  taxYear: number,
+): Promise<string> {
+  const { getDeskStatus } = await import('./desk');
+  const status = await getDeskStatus(db, userId, workspaceId, taxYear);
+  const open = status.lines.filter((l) => l.status !== 'resolved');
+  if (open.length === 0) {
+    return `## The ${taxYear} desk\n\nEvery line is settled. Nothing is outstanding.`;
+  }
+  const rows = open.map((l) => `- ${l.label} [${l.status}] — ${l.detail}`).join('\n');
+  return `## The ${taxYear} desk\n\nThe user is looking at a desk for tax year ${taxYear}. These lines are not settled:\n\n${rows}\n\n${status.counts.resolved} other line${status.counts.resolved === 1 ? '' : 's'} are settled. This is standing status, already computed and already on screen — refer to it rather than recomputing, and don't read the list back unless asked.`;
+}
+
 export async function buildWorkspaceContext(
   db: DB,
   userId: string,
   workspaceId: string,
   currentConversationId?: string,
+  taxYear?: number,
 ): Promise<string> {
   const dataSummary = await buildWorkspaceDataSummary(
     db,
@@ -338,7 +375,8 @@ export async function buildWorkspaceContext(
     workspaceId,
     currentConversationId,
   );
-  return `${SYSTEM_PREAMBLE}\n\n## Current workspace context\n\n${dataSummary}`;
+  const desk = taxYear ? `\n\n${await buildDeskSection(db, userId, workspaceId, taxYear)}` : '';
+  return `${SYSTEM_PREAMBLE}\n\n## Current workspace context\n\n${dataSummary}${desk}`;
 }
 
 const TOKEN_BUDGET_CHARS = 8000;
