@@ -4,6 +4,21 @@
 > becomes a tax year with standing state: what's resolved, what isn't, and why
 > it matters. The conversation moves inside it.
 
+## Status — shipped
+
+All five slices done. The desk holds a tax year, knows where it stands, opens
+the evidence behind any line, compares every position side by side, and the
+conversation reads the same standing status the user does.
+
+Worth keeping from the build: **S1 deleted more than it added**. Moving panels
+off conversations removed the hydration-slot claim, the resume gate, and two
+conversation-creation dances — every one of them a workaround for a scope that
+was wrong. When a change makes scaffolding disappear, the scaffolding was the
+symptom.
+
+And the rule that shaped every line: a status that can't be computed says so.
+`unknown` is not a failure state, it's the honest one.
+
 ## Why
 
 The user has no accountant. They need to understand what they're doing and
