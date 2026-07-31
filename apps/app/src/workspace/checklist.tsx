@@ -79,15 +79,18 @@ export function DeskChecklist({
   const needsLook = data.counts.attention;
 
   return (
-    <section className="rounded-card bg-surface shadow-card">
-      <header className="flex items-baseline justify-between gap-3 border-b border-hairline px-4 py-3">
+    // Folded by default: the canvas below is the desk, and nine standing lines
+    // pinned above it were taking a third of the height before a single panel
+    // got a look in. The count in the summary is the part you need at a glance.
+    <details className="group rounded-card bg-surface shadow-card">
+      <summary className="flex cursor-pointer list-none items-baseline justify-between gap-3 px-4 py-3">
         <h2 className="eyebrow">Where {taxYear} stands</h2>
-        <span className="text-xs text-muted">
+        <span className="text-xs text-muted transition-colors group-hover:text-ink">
           {needsLook === 0 ? `${data.counts.resolved} settled` : `${needsLook} worth a look`}
         </span>
-      </header>
+      </summary>
 
-      <ul className="divide-y divide-hairline">
+      <ul className="divide-y divide-hairline border-t border-hairline">
         {data.lines.map((l) => {
           const spec = STATUS[l.status as LineStatus];
           const Icon = spec.icon;
@@ -126,6 +129,6 @@ export function DeskChecklist({
           );
         })}
       </ul>
-    </section>
+    </details>
   );
 }

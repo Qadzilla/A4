@@ -67,6 +67,10 @@ export const panelRouter = router({
         subtitle: r.subtitle,
         pinned: r.pinned,
         position: r.position,
+        // Null until the canvas has placed it
+        x: r.x,
+        y: r.y,
+        w: r.w,
         // Stored as text; a row that somehow isn't valid JSON is dropped to an
         // empty object so one bad panel can't take the workspace down.
         data: safeParse(r.payload),
@@ -151,6 +155,30 @@ export const panelRouter = router({
           .set({ position: index, updatedAt: now })
           .where(and(eq(workspacePanels.id, id), eq(workspacePanels.userId, ctx.userId)));
       }
+      return { success: true };
+    }),
+
+  /**
+   * Where a panel sits on the desk. Written on drop rather than during the
+   * drag — a pointer move is sixty writes a second, and the only position
+   * that matters is the one it was let go at.
+   */
+  setLayout: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        // The plane is large but not infinite; a coordinate outside this is a
+        // bug somewhere upstream, not a panel someone dragged there.
+        x: z.number().min(-20000).max(20000),
+        y: z.number().min(-20000).max(20000),
+        w: z.number().min(240).max(1600),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(workspacePanels)
+        .set({ x: input.x, y: input.y, w: input.w, updatedAt: new Date() })
+        .where(and(eq(workspacePanels.id, input.id), eq(workspacePanels.userId, ctx.userId)));
       return { success: true };
     }),
 

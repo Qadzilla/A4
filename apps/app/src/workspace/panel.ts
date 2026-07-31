@@ -73,6 +73,10 @@ export interface Panel {
   data: Record<string, unknown>;
   createdAt: number;
   pinned?: boolean;
+  /** Where it sits on the canvas. Undefined until it has been placed. */
+  x?: number | null;
+  y?: number | null;
+  w?: number | null;
 }
 
 const PANEL_TOOLS: Record<string, { kind: PanelKind; title: string }> = {

@@ -1,9 +1,9 @@
 import { BasisMark } from '@/brand-mark';
 import { useChat } from '@/chat/useChat';
 import { useSpaceId } from '@/surfaces/layout';
+import { Canvas } from '@/workspace/canvas';
 import { DeskChecklist, useDeskQuestions } from '@/workspace/checklist';
 import { isSummonKind } from '@/workspace/panel';
-import { PanelCard } from '@/workspace/panels';
 import { ArrowUp, Loader2, MessageSquare, Plus, Table2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
@@ -46,7 +46,7 @@ export function ChatSurface() {
     openDocument,
     summon,
     dismissPanel,
-    togglePinned,
+    setLayout,
     startNewConversation,
   } = useChat({ spaceId, taxYear });
   const deskQuestions = useDeskQuestions(spaceId, taxYear);
@@ -219,13 +219,13 @@ export function ChatSurface() {
 
       {/* Workspace */}
       <section
-        className={`min-h-0 flex-1 overflow-y-auto ${
-          mobilePane === 'workspace' ? 'block' : 'hidden md:block'
+        className={`flex min-h-0 flex-1 flex-col ${
+          mobilePane === 'workspace' ? 'flex' : 'hidden md:flex'
         }`}
       >
-        <div className="mx-auto max-w-2xl px-5 py-6">
+        <div className="border-b border-hairline px-5 py-4">
           {/* The desk is a tax year. Switching years switches desks. */}
-          <div className="mb-5 flex items-baseline justify-between gap-3">
+          <div className="mb-4 flex items-baseline justify-between gap-3">
             <div className="flex items-baseline gap-3">
               <p className="eyebrow">Desk</p>
               <button
@@ -254,29 +254,23 @@ export function ChatSurface() {
 
           {/* Standing state first: the desk knows where the year is before
               anyone asks it anything. */}
-          <div className="mb-4">
-            <DeskChecklist spaceId={spaceId} taxYear={taxYear} onOpen={summon} />
-          </div>
-
-          {panels.length === 0 ? (
-            <p className="px-1 text-xs leading-relaxed text-muted">
-              Ask {AI_NAME} about any of these, or about a position or a document, and what it reads
-              to answer lands here.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {panels.map((p) => (
-                <PanelCard
-                  key={p.id}
-                  panel={p}
-                  taxYear={taxYear}
-                  onDismiss={dismissPanel}
-                  onTogglePin={togglePinned}
-                />
-              ))}
-            </div>
-          )}
+          <DeskChecklist spaceId={spaceId} taxYear={taxYear} onOpen={summon} />
         </div>
+
+        {/* The desk itself. Panels keep the place and width they were given. */}
+        <Canvas
+          panels={panels}
+          taxYear={taxYear}
+          onDismiss={dismissPanel}
+          onLayout={setLayout}
+          emptyMessage={
+            <p className="text-xs leading-relaxed text-muted">
+              Ask {AI_NAME} about any of these, or about a position or a document, and what it reads
+              to answer lands here. Drag anything to move it, and pull its right edge to give it
+              more room.
+            </p>
+          }
+        />
       </section>
 
       {/* Pane switch — small screens only */}

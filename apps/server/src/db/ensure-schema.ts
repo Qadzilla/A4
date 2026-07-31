@@ -82,4 +82,17 @@ export function ensureLaunchSchema(sqlite: Database.Database): void {
       sqlite.exec('ALTER TABLE holdings ADD COLUMN acquired_at TEXT');
     }
   }
+
+  // P9: panels gained a position on the canvas. Nullable, so every panel that
+  // predates the canvas simply reads as unplaced and gets packed on first sight.
+  const canvasColumns = new Set(
+    (sqlite.prepare('PRAGMA table_info(workspace_panels)').all() as Array<{ name: string }>).map(
+      (c) => c.name,
+    ),
+  );
+  if (canvasColumns.size > 0) {
+    if (!canvasColumns.has('x')) sqlite.exec('ALTER TABLE workspace_panels ADD COLUMN x REAL');
+    if (!canvasColumns.has('y')) sqlite.exec('ALTER TABLE workspace_panels ADD COLUMN y REAL');
+    if (!canvasColumns.has('w')) sqlite.exec('ALTER TABLE workspace_panels ADD COLUMN w REAL');
+  }
 }

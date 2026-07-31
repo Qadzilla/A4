@@ -726,17 +726,19 @@ function ComparisonPanel() {
   );
 }
 
+/**
+ * A panel on the desk. It carries no pin: on a canvas the arrangement *is*
+ * where you put things, so an ordering flag has nothing left to order.
+ */
 export function PanelCard({
   panel,
   taxYear,
   onDismiss,
-  onTogglePin,
 }: {
   panel: Panel;
   /** The desk's year — the live panels that are year-scoped read it. */
   taxYear: number;
   onDismiss: (id: string) => void;
-  onTogglePin: (id: string) => void;
 }) {
   return (
     <section className="rise rounded-card bg-surface p-5 shadow-card">
@@ -746,17 +748,6 @@ export function PanelCard({
           {panel.subtitle && <span className="font-mono text-xs text-muted">{panel.subtitle}</span>}
         </div>
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => onTogglePin(panel.id)}
-            aria-label={panel.pinned ? 'Unpin panel' : 'Pin panel'}
-            aria-pressed={panel.pinned ?? false}
-            className={`transition-colors ${
-              panel.pinned ? 'text-accent' : 'text-faint hover:text-ink'
-            }`}
-          >
-            <Pin size={13} fill={panel.pinned ? 'currentColor' : 'none'} />
-          </button>
           <button
             type="button"
             onClick={() => onDismiss(panel.id)}

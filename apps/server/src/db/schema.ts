@@ -301,6 +301,15 @@ export const workspacePanels = sqliteTable('workspace_panels', {
   // Fractional, so a panel can be dropped between two others without renumbering
   position: real('position').notNull().default(0),
   pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
+  // Where it sits on the desk. Null means never placed — the canvas packs
+  // those into free space on first sight and writes the result back, so a
+  // panel made before the canvas existed still lands somewhere sensible.
+  // Height is deliberately not stored: these panels are vertical-flow content
+  // and size to what they contain, so width is the only dimension worth
+  // arguing with.
+  x: real('x'),
+  y: real('y'),
+  w: real('w'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),

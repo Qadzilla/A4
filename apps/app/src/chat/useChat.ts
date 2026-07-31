@@ -82,6 +82,7 @@ export function useChat({ spaceId, taxYear }: { spaceId: string; taxYear: number
   const upsertPanel = useMutation(trpc.panel.upsert.mutationOptions());
   const removePanel = useMutation(trpc.panel.remove.mutationOptions());
   const setPinnedPanel = useMutation(trpc.panel.setPinned.mutationOptions());
+  const setPanelLayout = useMutation(trpc.panel.setLayout.mutationOptions());
 
   // Switching years switches desks, so the old year's panels have to go
   // immediately. Without this the merge below — which exists to protect a
@@ -108,6 +109,9 @@ export function useChat({ spaceId, taxYear }: { spaceId: string; taxYear: number
       data: p.data as Record<string, unknown>,
       createdAt: p.createdAt,
       pinned: p.pinned,
+      x: p.x,
+      y: p.y,
+      w: p.w,
     }));
     // Merge rather than replace. A panel placed while this fetch was in flight
     // is already on the desk and not yet in the response — overwriting would
@@ -358,6 +362,14 @@ export function useChat({ spaceId, taxYear }: { spaceId: string; taxYear: number
     dismissPanel: (id: string) => {
       setPanels((prev) => prev.filter((p) => p.id !== id));
       removePanel.mutate({ id });
+    },
+    /**
+     * Where a panel was let go. Kept in local state too, so the desk doesn't
+     * jump back to the old spot if the write is slow or fails.
+     */
+    setLayout: (id: string, place: { x: number; y: number; w: number }) => {
+      setPanels((prev) => prev.map((p) => (p.id === id ? { ...p, ...place } : p)));
+      setPanelLayout.mutate({ id, ...place });
     },
     togglePinned: (id: string) => {
       // Read the next value from current state, not from inside the updater:
