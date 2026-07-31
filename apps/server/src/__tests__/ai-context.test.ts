@@ -461,7 +461,14 @@ describe('SYSTEM_PREAMBLE — tool guidelines', () => {
   });
 
   it('includes calculation guidelines', () => {
-    expect(SYSTEM_PREAMBLE).toContain('Show key results inline');
+    expect(SYSTEM_PREAMBLE).toContain('State assumptions clearly');
+  });
+
+  // The workspace renders tool results as panels beside the conversation, so
+  // restating them in prose prints the same table twice.
+  it('tells the model not to repeat what the workspace already shows', () => {
+    expect(SYSTEM_PREAMBLE).toContain("The workspace shows your work — don't repeat it");
+    expect(SYSTEM_PREAMBLE).toContain('never restate');
   });
 
   it('system prompt stays under token budget for typical workspace', async () => {
