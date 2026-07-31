@@ -7,7 +7,11 @@
  * an explicit toggle, not an OS default — the product leads light.
  */
 @theme {
-  --color-paper: #f5f6f9;
+  /* The ground is the landing collage's paper *after* the wash — the exact
+     tone the middle of the hero resolves to, so the pile and the rest of the
+     page are one stock. Only the ground moves; surface, ink and the rest of
+     the ramp stay as they are. */
+  --color-paper: #e2d8c3;
   --color-surface: #ffffff;
   --color-ink: #171b23;
   --color-muted: #5c6472;

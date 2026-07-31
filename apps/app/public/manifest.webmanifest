@@ -4,7 +4,7 @@
   "description": "Know your basis. Investing and taxes, minus the vibes.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f6f9",
+  "background_color": "#e2d8c3",
   "theme_color": "#f5f6f9",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
