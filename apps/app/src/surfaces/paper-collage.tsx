@@ -223,14 +223,12 @@ export function PaperCollage() {
         </div>
       ))}
 
-      {/* Calm the middle so the hero has ground to stand on. Wide and gradual,
-          and never falling to zero — a tighter gradient reads as a blob of fog
-          sitting on the paper instead of the paper simply being lighter here. */}
+      {/* Calm the middle so the hero has ground to stand on */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(125% 115% at 50% 45%, rgba(236,230,215,0.86) 0%, rgba(236,230,215,0.79) 20%, rgba(236,230,215,0.66) 40%, rgba(236,230,215,0.5) 60%, rgba(236,230,215,0.34) 80%, rgba(236,230,215,0.24) 100%)',
+            'radial-gradient(70% 64% at 50% 47%, rgba(236,230,215,0.97) 0%, rgba(236,230,215,0.92) 42%, rgba(236,230,215,0.6) 68%, rgba(236,230,215,0) 92%)',
         }}
       />
       {/* Settle the edges into the page */}
