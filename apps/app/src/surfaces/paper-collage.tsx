@@ -103,45 +103,65 @@ interface Scrap {
   tintAlpha: number;
   drift: number;
   delay: number;
+  /** Base-course sheets are buried: no drift, no shadow, nothing to see. */
+  base: boolean;
 }
 
-/** Cell size of the jittered grid the scraps are seeded on. */
+/** Cell size of the jittered grid the top course is seeded on. */
 const CELL_W = 250;
 const CELL_H = 190;
 
-function buildScraps(width: number, height: number): Scrap[] {
-  const cols = Math.max(2, Math.ceil(width / CELL_W) + 1);
-  const rows = Math.max(2, Math.ceil(height / CELL_H) + 1);
+/**
+ * One stock. Sheets differ only in how deeply they're shaded — two tint
+ * families read as two different papers, which is what makes a pile look
+ * assembled rather than found.
+ */
+const PAPER_TINT = '152,128,88';
+
+/**
+ * A course of the pile. The base course is all large sheets laid nearly flat
+ * with heavy overlap — it exists to guarantee coverage, since a single layer
+ * of jittered scraps always leaves holes somewhere. The top course is the
+ * varied one that does the visual work.
+ */
+function buildCourse(width: number, height: number, startKey: number, base: boolean): Scrap[] {
+  const cellW = base ? 300 : CELL_W;
+  const cellH = base ? 225 : CELL_H;
+  const jitter = base ? 0.45 : 1.4;
+  // Extra ring of cells so the pile runs past every edge
+  const cols = Math.max(3, Math.ceil(width / cellW) + 3);
+  const rows = Math.max(3, Math.ceil(height / cellH) + 3);
   const scraps: Scrap[] = [];
-  let key = 0;
+  let key = startKey;
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const rnd = mulberry32(key * 2654435761 + 12345);
       const source = SOURCES[rnd() < 0.55 ? 0 : 1] as (typeof SOURCES)[number];
 
-      // Size varies widely — slivers through near-sheets — so the pile never
-      // reads as evenly shredded.
+      // Size varies widely on the top course — slivers through near-sheets —
+      // so the pile never reads as evenly shredded.
       const roll = rnd();
-      const w =
-        roll < 0.16
+      const w = base
+        ? 440 + rnd() * 220
+        : roll < 0.16
           ? 130 + rnd() * 90 // fragment
           : roll > 0.9
             ? 480 + rnd() * 200 // large sheet
             : 250 + rnd() * 190;
-      const h = roll < 0.16 ? 70 + rnd() * 80 : 110 + rnd() * 190;
+      const h = base ? 320 + rnd() * 180 : roll < 0.16 ? 70 + rnd() * 80 : 110 + rnd() * 190;
 
-      // Jitter well past the cell so no row or column can line up
-      const left = c * CELL_W - CELL_W * 0.5 + (rnd() - 0.5) * CELL_W * 1.5;
-      const top = r * CELL_H - CELL_H * 0.5 + (rnd() - 0.5) * CELL_H * 1.6;
+      const left = (c - 1.5) * cellW + (rnd() - 0.5) * cellW * jitter;
+      const top = (r - 1.5) * cellH + (rnd() - 0.5) * cellH * jitter;
 
       // Crop from a content-bearing part of the source page
       const span = source.contentBottom - source.contentTop;
       const cropX = rnd() * Math.max(1, source.w - w);
       const cropY = source.contentTop * source.h + rnd() * Math.max(1, span * source.h - h);
 
-      const upsideDown = rnd() < 0.06;
-      const rotate = upsideDown ? 178 + (rnd() - 0.5) * 12 : (rnd() - 0.5) * 44;
+      // Sheets underneath lie flatter; the loose scraps on top can land anyhow
+      const upsideDown = !base && rnd() < 0.06;
+      const rotate = upsideDown ? 178 + (rnd() - 0.5) * 12 : (rnd() - 0.5) * (base ? 14 : 44);
 
       scraps.push({
         key,
@@ -154,15 +174,22 @@ function buildScraps(width: number, height: number): Scrap[] {
         cropX,
         cropY,
         clip: tearPolygon(rnd),
-        tint: rnd() < 0.5 ? '198,158,84' : '126,124,112',
-        tintAlpha: 0.06 + rnd() * 0.1,
+        tint: PAPER_TINT,
+        // The base course sits in shadow under everything else
+        tintAlpha: base ? 0.1 + rnd() * 0.05 : 0.02 + rnd() * 0.05,
         drift: 6 + rnd() * 10,
         delay: -rnd() * 40,
+        base,
       });
       key += 1;
     }
   }
   return scraps;
+}
+
+function buildScraps(width: number, height: number): Scrap[] {
+  const under = buildCourse(width, height, 0, true);
+  return [...under, ...buildCourse(width, height, under.length, false)];
 }
 
 export function PaperCollage() {
@@ -181,6 +208,13 @@ export function PaperCollage() {
 
   const scraps = useMemo(() => buildScraps(size.w, size.h), [size.w, size.h]);
 
+  // The scraps are a fixed physical size, so a narrow viewport shows far less
+  // paper behind the same words — the wash has to work harder there.
+  const narrow = size.w < 700;
+  const wash = narrow
+    ? 'radial-gradient(120% 62% at 50% 46%, rgba(226,216,195,0.97) 0%, rgba(226,216,195,0.93) 30%, rgba(226,216,195,0.7) 58%, rgba(226,216,195,0.3) 80%, rgba(226,216,195,0) 98%)'
+    : 'radial-gradient(80% 72% at 50% 46%, rgba(226,216,195,0.93) 0%, rgba(226,216,195,0.8) 26%, rgba(226,216,195,0.54) 52%, rgba(226,216,195,0.22) 76%, rgba(226,216,195,0) 96%)';
+
   return (
     <div
       ref={ref}
@@ -191,16 +225,20 @@ export function PaperCollage() {
       {scraps.map((s) => (
         <div
           key={s.key}
-          className="paper-scrap absolute"
+          className={s.base ? 'absolute' : 'paper-scrap absolute'}
           style={{
             left: s.left,
             top: s.top,
             width: s.width,
             height: s.height,
             transform: `rotate(${s.rotate}deg)`,
-            filter: 'drop-shadow(0 1px 1.5px rgba(70,52,28,0.22))',
-            animationDuration: `${s.drift * 6}s`,
-            animationDelay: `${s.delay}s`,
+            ...(s.base
+              ? null
+              : {
+                  filter: 'drop-shadow(0 1px 1.5px rgba(70,52,28,0.22))',
+                  animationDuration: `${s.drift * 6}s`,
+                  animationDelay: `${s.delay}s`,
+                }),
           }}
         >
           <div
@@ -229,8 +267,7 @@ export function PaperCollage() {
       <div
         className="absolute inset-0"
         style={{
-          background:
-            'radial-gradient(80% 72% at 50% 46%, rgba(226,216,195,0.86) 0%, rgba(226,216,195,0.68) 26%, rgba(226,216,195,0.42) 52%, rgba(226,216,195,0.17) 76%, rgba(226,216,195,0) 96%)',
+          background: wash,
         }}
       />
       {/* Settle the edges into the page */}
