@@ -148,7 +148,7 @@ function tradesLine(input: DeskStatusInput): DeskLine {
       sales === 0
         ? `Imported. No sales recorded in ${input.taxYear}.`
         : `${sales} sale${sales === 1 ? '' : 's'} matched to lots in ${input.taxYear}.`,
-    panel: 'ledger',
+    panel: 'gains',
   };
 }
 
@@ -168,7 +168,7 @@ function washLine(input: DeskStatusInput): DeskLine {
       label: 'Wash sales',
       status: 'attention',
       detail: `${usd(input.realized.washDisallowed)} of losses disallowed — the amount moves into the replacement shares' basis.`,
-      panel: 'ledger',
+      panel: 'gains',
     };
   }
   return {
@@ -176,7 +176,7 @@ function washLine(input: DeskStatusInput): DeskLine {
     label: 'Wash sales',
     status: 'resolved',
     detail: `None found in ${input.taxYear}.`,
-    panel: 'ledger',
+    panel: 'gains',
   };
 }
 
@@ -234,7 +234,7 @@ function approachingLine(input: DeskStatusInput): DeskLine {
       label: 'Approaching long-term',
       status: 'resolved',
       detail: 'No position is within two months of the one-year line.',
-      panel: null,
+      panel: 'approaching',
     };
   }
   const first = soon[0] as { symbol: string; days: number };
@@ -247,7 +247,7 @@ function approachingLine(input: DeskStatusInput): DeskLine {
       rest === 0
         ? `${first.symbol} turns long-term in ${first.days} day${first.days === 1 ? '' : 's'}.`
         : `${first.symbol} turns long-term in ${first.days} days, and ${rest} other${rest === 1 ? '' : 's'} follow.`,
-    panel: 'lots',
+    panel: 'approaching',
   };
 }
 
@@ -273,7 +273,7 @@ function lossesLine(input: DeskStatusInput): DeskLine {
       label: 'Losses available',
       status: 'resolved',
       detail: 'No positions are currently under water.',
-      panel: 'portfolio',
+      panel: 'losses',
     };
   }
   return {
@@ -281,7 +281,7 @@ function lossesLine(input: DeskStatusInput): DeskLine {
     label: 'Losses available',
     status: 'attention',
     detail: `${usd(Math.abs(losses))} of unrealized losses could offset gains if realized.`,
-    panel: 'portfolio',
+    panel: 'losses',
   };
 }
 

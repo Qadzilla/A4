@@ -483,12 +483,173 @@ function LiveTaxPanel() {
   );
 }
 
+/** Positions on the wrong side of the one-year line, soonest first. */
+function ApproachingPanel() {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const { data, isLoading } = useQuery(trpc.desk.positions.queryOptions({ workspaceId: spaceId }));
+
+  if (isLoading) return <p className="text-xs text-muted">Reading your positions…</p>;
+  const soon = (data ?? [])
+    .filter((p) => p.daysToLongTerm !== null)
+    .sort((a, b) => (a.daysToLongTerm ?? 0) - (b.daysToLongTerm ?? 0));
+  const undated = (data ?? []).filter((p) => p.term === null).length;
+
+  if (soon.length === 0) {
+    return (
+      <p className="text-xs text-muted">
+        Nothing is short-term right now.
+        {undated > 0 && ` ${undated} position${undated === 1 ? '' : 's'} have no acquisition date.`}
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <div className="overflow-hidden rounded-card border border-hairline">
+        {soon.map((p, i) => (
+          <Row key={p.id} first={i === 0}>
+            <span className="text-xs">
+              <span className="font-mono font-semibold">{p.symbol}</span>
+              <span className="ml-2 text-muted">held since {p.acquiredAt}</span>
+            </span>
+            <span className="tnum font-mono text-xs text-accent">
+              {p.daysToLongTerm} day{p.daysToLongTerm === 1 ? '' : 's'}
+            </span>
+          </Row>
+        ))}
+      </div>
+      <p className="text-xs text-muted">
+        Selling before the count runs out taxes the gain at your ordinary rate instead of the
+        long-term one.
+        {undated > 0 && ` ${undated} position${undated === 1 ? '' : 's'} have no acquisition date.`}
+      </p>
+    </div>
+  );
+}
+
+/** What's under water, and by how much. */
+function LossesPanel() {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const { data, isLoading } = useQuery(trpc.desk.positions.queryOptions({ workspaceId: spaceId }));
+
+  if (isLoading) return <p className="text-xs text-muted">Reading your positions…</p>;
+  const positions = data ?? [];
+  const losing = positions
+    .filter((p) => p.unrealized !== null && p.unrealized < 0)
+    .sort((a, b) => (a.unrealized ?? 0) - (b.unrealized ?? 0));
+  const unknown = positions.filter((p) => p.unrealized === null).length;
+
+  if (losing.length === 0) {
+    return (
+      <p className="text-xs text-muted">
+        No position with a known basis is under water.
+        {unknown > 0 && ` ${unknown} can't be judged without a cost basis.`}
+      </p>
+    );
+  }
+  const total = losing.reduce((s, p) => s + (p.unrealized ?? 0), 0);
+  return (
+    <div className="space-y-3">
+      <Figure label="Unrealized losses" value={usd(Math.abs(total))} tone="bad" />
+      <div className="overflow-hidden rounded-card border border-hairline">
+        {losing.map((p, i) => (
+          <Row key={p.id} first={i === 0}>
+            <span className="text-xs">
+              <span className="font-mono font-semibold">{p.symbol}</span>
+              {p.term && <span className="ml-2 text-muted">{p.term}-term</span>}
+            </span>
+            <span className="tnum font-mono text-xs text-bad">{usd(p.unrealized ?? 0)}</span>
+          </Row>
+        ))}
+      </div>
+      <p className="text-xs text-muted">
+        Realizing a loss offsets gains first, then up to $3,000 of ordinary income. Buying back
+        within 30 days disallows it.
+        {unknown > 0 && ` ${unknown} position${unknown === 1 ? '' : 's'} have no cost basis.`}
+      </p>
+    </div>
+  );
+}
+
+/** The year's realized gains, read live rather than from a tool snapshot. */
+function GainsPanel({ taxYear }: { taxYear: number }) {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const { data, isLoading } = useQuery(
+    trpc.tax.realizedGains.queryOptions({ workspaceId: spaceId, taxYear }),
+  );
+  if (isLoading) return <p className="text-xs text-muted">Matching lots…</p>;
+  if (!data) return <p className="text-xs text-muted">No trade history imported.</p>;
+  return <LedgerPanel d={data as unknown as Record<string, unknown>} />;
+}
+
+/** The 1099 check for the desk's year, without needing to know the file. */
+function ReconciliationPanel({ taxYear }: { taxYear: number }) {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const { data, isLoading } = useQuery(
+    trpc.tax.reconciliationForYear.queryOptions({ workspaceId: spaceId, taxYear }),
+  );
+
+  if (isLoading) return <p className="text-xs text-muted">Comparing against the ledger…</p>;
+  if (!data) return <p className="text-xs text-muted">No 1099 uploaded for {taxYear}.</p>;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm">
+        <span className="font-medium">{data.broker ?? 'Broker'}</span>
+        <span className="text-muted">
+          {' · '}
+          {data.matches} of {data.reportedRowCount} reported rows agree
+        </span>
+      </p>
+      <div className="overflow-hidden rounded-card border border-hairline">
+        {data.rows.map((r, i) => (
+          <Row key={`${r.symbol}|${r.term}`} first={i === 0}>
+            <span className="flex items-center gap-2">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  r.status === 'match' ? 'bg-good' : r.status === 'mismatch' ? 'bg-bad' : 'bg-warn'
+                }`}
+              />
+              <span className="font-mono text-xs font-semibold">{r.symbol}</span>
+              <span className="eyebrow rounded-full border border-hairline px-1.5 py-0.5">
+                {r.term}
+              </span>
+            </span>
+            <span className="tnum font-mono text-xs">
+              {r.status === 'match' && <span className="text-good">matches</span>}
+              {r.status === 'mismatch' && (
+                <span className="text-bad">
+                  {r.deltas.basis !== null && Math.abs(r.deltas.basis) > 1
+                    ? `basis off by ${usd(r.deltas.basis)}`
+                    : `proceeds off by ${usd(r.deltas.proceeds ?? 0)}`}
+                </span>
+              )}
+              {r.status === 'missing-history' && <span className="text-warn">no history</span>}
+              {r.status === 'not-on-1099' && <span className="text-warn">not on the form</span>}
+            </span>
+          </Row>
+        ))}
+      </div>
+      <p className="text-[11px] leading-relaxed text-faint">
+        Differences can be legitimate — specific-lot elections, transfers — so check before assuming
+        either side is wrong.
+      </p>
+    </div>
+  );
+}
+
 export function PanelCard({
   panel,
+  taxYear,
   onDismiss,
   onTogglePin,
 }: {
   panel: Panel;
+  /** The desk's year — the live panels that are year-scoped read it. */
+  taxYear: number;
   onDismiss: (id: string) => void;
   onTogglePin: (id: string) => void;
 }) {
@@ -530,6 +691,10 @@ export function PanelCard({
       {panel.kind === 'search' && <SearchPanel d={panel.data} />}
       {panel.kind === 'document' && <DocumentPanel d={panel.data} />}
       {panel.kind === 'export' && <ExportPanel d={panel.data} />}
+      {panel.kind === 'gains' && <GainsPanel taxYear={taxYear} />}
+      {panel.kind === 'approaching' && <ApproachingPanel />}
+      {panel.kind === 'losses' && <LossesPanel />}
+      {panel.kind === 'reconciliation' && <ReconciliationPanel taxYear={taxYear} />}
       {panel.kind === 'portfolio' && <LivePortfolioPanel />}
       {panel.kind === 'taxes' && <LiveTaxPanel />}
     </section>

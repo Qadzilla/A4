@@ -23,8 +23,13 @@ const panelInput = z.object({
     'search',
     'document',
     'export',
+    // Summoned, live: no payload, read fresh every render
     'portfolio',
     'taxes',
+    'gains',
+    'approaching',
+    'losses',
+    'reconciliation',
   ]),
   title: z.string().min(1),
   subtitle: z.string().nullable(),

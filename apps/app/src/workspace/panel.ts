@@ -17,6 +17,10 @@ export type PanelKind =
   | 'search'
   | 'document'
   | 'export'
+  | 'gains'
+  | 'approaching'
+  | 'losses'
+  | 'reconciliation'
   // Summoned from a dashboard rather than produced by a tool. These carry no
   // payload: a tool panel is evidence from the moment Bip looked, a summoned
   // panel is the dashboard itself and reads live every time it renders.
@@ -26,6 +30,10 @@ export type PanelKind =
 export const SUMMONABLE = {
   portfolio: { title: 'Portfolio', subtitle: 'live' },
   taxes: { title: 'Taxes', subtitle: 'live' },
+  gains: { title: 'Realized gains', subtitle: 'live' },
+  approaching: { title: 'Approaching long-term', subtitle: 'live' },
+  losses: { title: 'Losses available', subtitle: 'live' },
+  reconciliation: { title: '1099 check', subtitle: 'live' },
 } as const;
 
 export type SummonKind = keyof typeof SUMMONABLE;

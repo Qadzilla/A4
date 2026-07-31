@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
+import type { DB } from '../../db';
 import { files, tax1099s, taxProfiles, trades } from '../../db/schema';
 import { computeRealizedGains, reconcile1099 } from '../../lib/calc';
 import type { Extracted1099 } from '../../lib/calc';
@@ -42,6 +43,45 @@ const profileUpdateSchema = z.object({
   priorYearTax: z.number().min(0).nullable().optional(),
   priorYearAgi: z.number().min(0).nullable().optional(),
 });
+
+/** One 1099, reconciled against the ledger for its own tax year. */
+async function buildReconciliation(db: DB, userId: string, workspaceId: string, fileId: string) {
+  const [row] = await db
+    .select()
+    .from(tax1099s)
+    .where(
+      and(
+        eq(tax1099s.fileId, fileId),
+        eq(tax1099s.workspaceId, workspaceId),
+        eq(tax1099s.userId, userId),
+      ),
+    );
+  if (!row) return null;
+
+  const extracted = JSON.parse(row.payload) as Extracted1099;
+  const tradeRows = await db
+    .select()
+    .from(trades)
+    .where(and(eq(trades.workspaceId, workspaceId), eq(trades.userId, userId)));
+  const ledger = computeRealizedGains(
+    tradeRows.map((t) => ({
+      id: t.id,
+      symbol: t.symbol,
+      side: t.side as 'buy' | 'sell',
+      tradeDate: t.tradeDate,
+      units: t.units,
+      price: t.price,
+      fees: t.fees,
+    })),
+    row.taxYear,
+  );
+  return {
+    taxYear: row.taxYear,
+    broker: row.broker,
+    reportedRowCount: extracted.rows.length,
+    ...reconcile1099(extracted, ledger.sales),
+  };
+}
 
 export const taxRouter = router({
   getProfile: protectedProcedure
@@ -123,48 +163,40 @@ export const taxRouter = router({
     }),
 
   /**
-   * Broker-reported vs computed: reconcile one extracted 1099 against the
-   * lot engine's ledger for that form's tax year.
+   * The 1099 check for a year without having to know which file it came from
+   * — what the desk needs, since a checklist line knows the year and nothing
+   * else. Null when no form has been uploaded for that year.
    */
-  reconciliation: protectedProcedure
-    .input(z.object({ workspaceId: z.string().uuid(), fileId: z.string() }))
+  reconciliationForYear: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        taxYear: z.number().int().min(2000).max(2100),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const [row] = await ctx.db
-        .select()
+        .select({ fileId: tax1099s.fileId })
         .from(tax1099s)
         .where(
           and(
-            eq(tax1099s.fileId, input.fileId),
             eq(tax1099s.workspaceId, input.workspaceId),
             eq(tax1099s.userId, ctx.userId),
+            eq(tax1099s.taxYear, input.taxYear),
           ),
-        );
-      if (!row) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: '1099 not found' });
-      }
-      const extracted = JSON.parse(row.payload) as Extracted1099;
-      const tradeRows = await ctx.db
-        .select()
-        .from(trades)
-        .where(and(eq(trades.workspaceId, input.workspaceId), eq(trades.userId, ctx.userId)));
-      const ledger = computeRealizedGains(
-        tradeRows.map((t) => ({
-          id: t.id,
-          symbol: t.symbol,
-          side: t.side as 'buy' | 'sell',
-          tradeDate: t.tradeDate,
-          units: t.units,
-          price: t.price,
-          fees: t.fees,
-        })),
-        row.taxYear,
-      );
-      return {
-        taxYear: row.taxYear,
-        broker: row.broker,
-        reportedRowCount: extracted.rows.length,
-        ...reconcile1099(extracted, ledger.sales),
-      };
+        )
+        .orderBy(desc(tax1099s.createdAt));
+      if (!row) return null;
+      return buildReconciliation(ctx.db, ctx.userId, input.workspaceId, row.fileId);
+    }),
+
+  /** Broker-reported vs computed, for one named form. */
+  reconciliation: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid(), fileId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const result = await buildReconciliation(ctx.db, ctx.userId, input.workspaceId, input.fileId);
+      if (!result) throw new TRPCError({ code: 'NOT_FOUND', message: '1099 not found' });
+      return result;
     }),
 
   /**

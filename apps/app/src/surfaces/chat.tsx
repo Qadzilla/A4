@@ -243,7 +243,7 @@ export function ChatSurface() {
           {/* Standing state first: the desk knows where the year is before
               anyone asks it anything. */}
           <div className="mb-4">
-            <DeskChecklist spaceId={spaceId} taxYear={taxYear} />
+            <DeskChecklist spaceId={spaceId} taxYear={taxYear} onOpen={summon} />
           </div>
 
           {panels.length === 0 ? (
@@ -257,6 +257,7 @@ export function ChatSurface() {
                 <PanelCard
                   key={p.id}
                   panel={p}
+                  taxYear={taxYear}
                   onDismiss={dismissPanel}
                   onTogglePin={togglePinned}
                 />

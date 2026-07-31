@@ -1,4 +1,5 @@
 import { useTRPC } from '@/lib/trpc';
+import { type SummonKind, isSummonKind } from '@/workspace/panel';
 import { useQuery } from '@tanstack/react-query';
 import { Check, Circle, CircleDashed, Minus } from 'lucide-react';
 
@@ -23,9 +24,12 @@ const STATUS: Record<LineStatus, { icon: typeof Check; className: string; label:
 export function DeskChecklist({
   spaceId,
   taxYear,
+  onOpen,
 }: {
   spaceId: string;
   taxYear: number;
+  /** Put the panel that justifies a line on the desk. */
+  onOpen: (kind: SummonKind) => void;
 }) {
   const trpc = useTRPC();
   const { data, isLoading } = useQuery(
@@ -58,8 +62,11 @@ export function DeskChecklist({
         {data.lines.map((l) => {
           const spec = STATUS[l.status as LineStatus];
           const Icon = spec.icon;
-          return (
-            <li key={l.id} className="flex items-start gap-3 px-4 py-3">
+          // A line only opens if there's a panel that actually justifies it.
+          // The rest stay plain rather than offering a click that does nothing.
+          const openable = l.panel !== null && isSummonKind(l.panel);
+          const body = (
+            <>
               <Icon
                 size={14}
                 strokeWidth={2}
@@ -70,6 +77,22 @@ export function DeskChecklist({
                 <p className="text-sm font-medium">{l.label}</p>
                 <p className="text-xs leading-relaxed text-muted">{l.detail}</p>
               </div>
+            </>
+          );
+
+          return (
+            <li key={l.id}>
+              {openable ? (
+                <button
+                  type="button"
+                  onClick={() => onOpen(l.panel as SummonKind)}
+                  className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-paper"
+                >
+                  {body}
+                </button>
+              ) : (
+                <div className="flex items-start gap-3 px-4 py-3">{body}</div>
+              )}
             </li>
           );
         })}
