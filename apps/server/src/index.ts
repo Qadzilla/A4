@@ -10,6 +10,7 @@ import helmet from 'helmet';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { DEV_AUTH_BYPASS, env } from './env';
 import { chatStreamRouter } from './routes/chat-stream';
+import { exportsRouter } from './routes/exports';
 import { filesRouter } from './routes/files';
 import { startJobWorker } from './services/job-queue';
 import { PolygonService } from './services/polygon';
@@ -78,6 +79,7 @@ app.use('/api/chat/stream', chatStreamRouter);
 
 // File upload/download/delete routes (Express, not tRPC — multipart)
 app.use('/api/files', filesRouter);
+app.use('/api/exports', exportsRouter);
 
 // MCP endpoint for external agents (PAT auth, not Clerk) — same limiter
 // family as the chat endpoint since tool calls hit the same AI surface

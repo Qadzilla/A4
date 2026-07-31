@@ -23,6 +23,7 @@ const panelInput = z.object({
     'holdings',
     'search',
     'document',
+    'export',
     'portfolio',
     'taxes',
   ]),

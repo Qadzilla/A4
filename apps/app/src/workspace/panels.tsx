@@ -2,7 +2,7 @@ import { useTRPC } from '@/lib/trpc';
 import { useSpaceId } from '@/surfaces/layout';
 import type { Panel } from '@/workspace/panel';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, ExternalLink, Pin, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, ExternalLink, Pin, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 
@@ -345,6 +345,65 @@ function DocumentPanel({ d }: { d: Record<string, unknown> }) {
   );
 }
 
+function ExportPanel({ d }: { d: Record<string, unknown> }) {
+  const path = str(d.downloadPath);
+  const isBasisReport = d.kind === 'cost-basis';
+  const rowCount = num(d.rowCount);
+  const shortTerm = num(d.shortTermGain);
+  const longTerm = num(d.longTermGain);
+  const wash = num(d.washDisallowed);
+  const basisKnown = num(d.basisKnownCount);
+
+  return (
+    <div className="space-y-4">
+      {isBasisReport ? (
+        <p className="text-sm text-muted">
+          {rowCount ?? 0} position{rowCount === 1 ? '' : 's'}
+          {basisKnown !== null && (
+            <> · {basisKnown} with a known cost basis, the rest marked NOT REPORTED</>
+          )}
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            {shortTerm !== null && (
+              <Figure
+                label="Short-term"
+                value={usd(shortTerm)}
+                tone={shortTerm >= 0 ? 'good' : 'bad'}
+              />
+            )}
+            {longTerm !== null && (
+              <Figure
+                label="Long-term"
+                value={usd(longTerm)}
+                tone={longTerm >= 0 ? 'good' : 'bad'}
+              />
+            )}
+          </div>
+          <p className="text-xs text-muted">
+            {rowCount ?? 0} reportable sale{rowCount === 1 ? '' : 's'}
+            {wash !== null && wash > 0 && <> · {usd(wash)} disallowed by wash sales, coded W</>}
+          </p>
+        </>
+      )}
+
+      {path && (
+        <a
+          href={path}
+          className="inline-flex items-center gap-2 rounded-card bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+        >
+          <Download size={15} /> Download CSV
+        </a>
+      )}
+
+      <p className="text-[11px] leading-relaxed text-faint">
+        Computed from your own data. An educational worksheet, not a filing.
+      </p>
+    </div>
+  );
+}
+
 /**
  * Summoned dashboards. Unlike the tool panels these hold no payload — they
  * read the same routers Portfolio and Taxes do, so what sits on the workspace
@@ -470,6 +529,7 @@ export function PanelCard({
       {panel.kind === 'holdings' && <HoldingsPanel d={panel.data} />}
       {panel.kind === 'search' && <SearchPanel d={panel.data} />}
       {panel.kind === 'document' && <DocumentPanel d={panel.data} />}
+      {panel.kind === 'export' && <ExportPanel d={panel.data} />}
       {panel.kind === 'portfolio' && <LivePortfolioPanel />}
       {panel.kind === 'taxes' && <LiveTaxPanel />}
     </section>

@@ -24,6 +24,7 @@ import {
   createDefaultTaxEstimatorData,
 } from '../lib/calc';
 import type { LotTrade, ProjectionCardData, TaxEstimatorData } from '../lib/calc';
+import { buildForm8949Rows } from '../lib/calc/exports';
 import { getPolygonService } from '../trpc/context';
 import { computeBenchmark } from './benchmark';
 import { buildTaxPicture } from './tax-picture';
@@ -795,7 +796,81 @@ const TOOLS: ToolRegistration[] = [
     },
   },
 
-  // 14. pre_trade_check
+  // 14. prepare_export
+  {
+    definition: {
+      name: 'prepare_export',
+      description:
+        "Prepare a document the user can download: a Form 8949 worksheet of the year's realized gains, or a cost-basis report of current positions. Returns what the document will contain and where to download it. Use when the user asks for something to give an accountant, to file with, or to keep.",
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          kind: {
+            type: 'string',
+            enum: ['form-8949', 'cost-basis'],
+            description:
+              "'form-8949' for realized gains in the shape the tax form expects; 'cost-basis' for what is currently held and what it cost",
+          },
+          taxYear: {
+            type: 'number',
+            description: 'Tax year for form-8949 (defaults to the current year)',
+          },
+        },
+        required: ['kind'],
+      },
+    },
+    execute: async (input, ctx) => {
+      const kind = input.kind === 'cost-basis' ? 'cost-basis' : 'form-8949';
+      const taxYear = (input.taxYear as number | undefined) ?? new Date().getFullYear();
+
+      if (kind === 'form-8949') {
+        const rows = await loadTrades(ctx);
+        if (rows.length === 0) {
+          return {
+            available: false,
+            reason:
+              'No trade history imported, so there are no realized gains to report. Connect a brokerage or upload statements first.',
+          };
+        }
+        const summary = computeRealizedGains(rows, taxYear);
+        const reportable = buildForm8949Rows(summary.sales);
+        if (reportable.length === 0) {
+          return {
+            available: false,
+            reason: `No sales with a known cost basis in ${taxYear} — nothing to report on Form 8949.`,
+          };
+        }
+        return {
+          available: true,
+          kind,
+          taxYear,
+          rowCount: reportable.length,
+          shortTermGain: summary.shortTermGain,
+          longTermGain: summary.longTermGain,
+          washDisallowed: summary.washDisallowed,
+          downloadPath: `/api/exports/form-8949?workspaceId=${ctx.workspaceId}&taxYear=${taxYear}`,
+        };
+      }
+
+      const positions = await ctx.db
+        .select()
+        .from(holdings)
+        .where(and(eq(holdings.workspaceId, ctx.workspaceId), eq(holdings.userId, ctx.userId)));
+      if (positions.length === 0) {
+        return { available: false, reason: 'No positions to report on.' };
+      }
+      const known = positions.filter((h) => h.costBasis !== null && h.costBasis > 0);
+      return {
+        available: true,
+        kind,
+        rowCount: positions.length,
+        basisKnownCount: known.length,
+        downloadPath: `/api/exports/cost-basis?workspaceId=${ctx.workspaceId}`,
+      };
+    },
+  },
+
+  // 15. pre_trade_check
   {
     definition: {
       name: 'pre_trade_check',

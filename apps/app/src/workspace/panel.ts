@@ -16,6 +16,7 @@ export type PanelKind =
   | 'holdings'
   | 'search'
   | 'document'
+  | 'export'
   // Summoned from a dashboard rather than produced by a tool. These carry no
   // payload: a tool panel is evidence from the moment Bip looked, a summoned
   // panel is the dashboard itself and reads live every time it renders.
@@ -70,6 +71,7 @@ const PANEL_TOOLS: Record<string, { kind: PanelKind; title: string }> = {
   estimate_capital_gains: { kind: 'ledger', title: 'Realized gains' },
   get_holdings: { kind: 'holdings', title: 'Holdings' },
   search_documents: { kind: 'search', title: 'Documents' },
+  prepare_export: { kind: 'export', title: 'Ready to download' },
 };
 
 /** A short line of context for the panel header, pulled from the result. */
@@ -81,6 +83,10 @@ function subtitleFor(kind: PanelKind, data: Record<string, unknown>): string | n
       return typeof data.taxYear === 'number' ? String(data.taxYear) : null;
     case 'benchmark':
       return typeof data.benchmarkSymbol === 'string' ? data.benchmarkSymbol : null;
+    case 'export':
+      return data.kind === 'cost-basis'
+        ? 'Cost basis report'
+        : `Form 8949 · ${typeof data.taxYear === 'number' ? data.taxYear : ''}`.trim();
     default:
       return null;
   }
