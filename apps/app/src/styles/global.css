@@ -44,6 +44,27 @@ body {
   min-height: 100dvh;
 }
 
+/*
+ * The wash — the same lighter-in-the-middle ground the landing pile sits on,
+ * carried across every surface. Painted on a fixed pseudo-element rather than
+ * a fixed background-attachment, which janks on mobile scroll, and pinned to
+ * the viewport so long pages don't stretch the gradient into a smear.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    100% 78% at 50% 38%,
+    #e9e2d1 0%,
+    #e5dcc8 38%,
+    #e0d6c0 68%,
+    #dad0b9 100%
+  );
+}
+
 /* Numbers line up, always */
 .tnum {
   font-variant-numeric: tabular-nums;
