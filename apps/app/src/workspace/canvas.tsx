@@ -1,5 +1,6 @@
 import type { Panel } from '@/workspace/panel';
 import { PanelCard } from '@/workspace/panels';
+import { type Box, type Guide, snap } from '@/workspace/snapping';
 import { Maximize2, Minus, Plus, Rows3 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -116,6 +117,8 @@ export function Canvas({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [places, setPlaces] = useState<Record<string, Placement>>({});
   const [dragging, setDragging] = useState<DragState | null>(null);
+  /** Alignment lines for the drag in progress, cleared when it ends. */
+  const [guides, setGuides] = useState<Guide[]>([]);
 
   const heightsRef = useRef<Record<string, number>>({});
   const [measuredAt, setMeasuredAt] = useState(0);
@@ -235,10 +238,32 @@ export function Canvas({
       setPlaces((prev) => {
         const current = prev[dragging.id];
         if (!current) return prev;
-        return { ...prev, [dragging.id]: { ...current, x: dragging.x + dx, y: dragging.y + dy } };
+        const moved: Box = {
+          id: dragging.id,
+          x: dragging.x + dx,
+          y: dragging.y + dy,
+          width: current.w,
+          height: heightsRef.current[dragging.id] ?? ASSUMED_HEIGHT,
+        };
+        const others: Box[] = Object.entries(prev)
+          .filter(([id]) => id !== dragging.id)
+          .map(([id, p]) => ({
+            id,
+            x: p.x,
+            y: p.y,
+            width: p.w,
+            height: heightsRef.current[id] ?? ASSUMED_HEIGHT,
+          }));
+        const pull = snap(moved, others);
+        setGuides(pull.guides);
+        return {
+          ...prev,
+          [dragging.id]: { ...current, x: moved.x + pull.dx, y: moved.y + pull.dy },
+        };
       });
     };
     const onUp = () => {
+      setGuides([]);
       if (dragging.kind !== 'pan') {
         const place = places[dragging.id];
         // Moved by hand, so it is no longer the canvas's to rearrange.
@@ -343,6 +368,18 @@ export function Canvas({
           className="absolute top-0 left-0 origin-top-left"
           style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
         >
+          {guides.map((g) => (
+            <div
+              key={`${g.axis}-${g.at}-${g.from}`}
+              aria-hidden
+              className="pointer-events-none absolute z-20 bg-accent"
+              style={
+                g.axis === 'x'
+                  ? { left: g.at, top: g.from, width: 1, height: g.to - g.from }
+                  : { top: g.at, left: g.from, height: 1, width: g.to - g.from }
+              }
+            />
+          ))}
           {panels.map((panel) => {
             const place = places[panel.id];
             return (
