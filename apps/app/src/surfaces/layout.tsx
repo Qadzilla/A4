@@ -15,9 +15,9 @@ export function useSpaceId(): string {
 }
 
 const SURFACES = [
+  { to: '/chat', label: 'Chat', icon: MessageSquare },
   { to: '/portfolio', label: 'Portfolio', icon: PieChart },
   { to: '/taxes', label: 'Taxes', icon: Receipt },
-  { to: '/chat', label: 'Chat', icon: MessageSquare },
   { to: '/documents', label: 'Documents', icon: FileText },
 ] as const;
 
