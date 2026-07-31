@@ -4,6 +4,7 @@ import {
   PANEL_PAYLOAD_VERSION,
   type Panel,
   type PanelKind,
+  documentPanel,
   mergePanel,
   panelFromToolResult,
   sortPanels,
@@ -278,6 +279,42 @@ export function useChat({ spaceId }: { spaceId: string }) {
     ],
   );
 
+  /**
+   * Put a document on the workspace directly — the other way in, for when you
+   * want to look at a statement before you have a question about it. Needs a
+   * conversation to belong to, so it starts one if none is open yet.
+   */
+  const openDocument = useCallback(
+    async (fileId: string) => {
+      const file = await queryClient.fetchQuery(trpc.file.info.queryOptions({ fileId }));
+      if (!file) return;
+
+      let convId = conversationId;
+      if (!convId) {
+        const created = await createConversation.mutateAsync({ workspaceId: spaceId });
+        convId = created.id;
+        setConversationId(convId);
+        // Claim the hydration slot: the panel below is the desk's contents now,
+        // so a later fetch for this conversation must not overwrite it.
+        panelsForRef.current = convId;
+      }
+
+      const panel = documentPanel(file);
+      setPanels((prev) => mergePanel(prev, panel));
+      upsertPanel.mutate({
+        id: panel.id,
+        conversationId: convId,
+        workspaceId: spaceId,
+        kind: panel.kind,
+        title: panel.title,
+        subtitle: panel.subtitle,
+        payload: panel.data,
+        payloadVersion: PANEL_PAYLOAD_VERSION,
+      });
+    },
+    [conversationId, spaceId, createConversation, queryClient, trpc, upsertPanel.mutate],
+  );
+
   const retry = useCallback(() => {
     const failed = lastFailedRef.current;
     if (failed) {
@@ -295,6 +332,7 @@ export function useChat({ spaceId }: { spaceId: string }) {
     retry,
     toolActivity,
     panels,
+    openDocument,
     dismissPanel: (id: string) => {
       setPanels((prev) => prev.filter((p) => p.id !== id));
       removePanel.mutate({ id });

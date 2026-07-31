@@ -37,6 +37,9 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+/** Enough to read 8pt fine print when the panel is scaled up. */
+const PAGE_RENDER_SCALE = 2;
+
 // Use memory storage when R2 is active (buffer goes straight to R2).
 // Use disk storage for local dev (avoids holding large files in memory).
 const multerStorage = USE_R2
@@ -167,6 +170,63 @@ filesRouter.post('/upload', (req, res, next) => {
       next(error);
     }
   });
+});
+
+/**
+ * GET /api/files/:fileId/page/:page — one PDF page as a PNG.
+ *
+ * Rendered on demand rather than read from the visual-embedding pass: that
+ * job rasterises pages too, but it's gated on VOYAGE_API_KEY and discards the
+ * pixels, so relying on it would mean documents only display when an optional
+ * feature is switched on. mupdf is already a dependency; a page costs a few
+ * hundred milliseconds and the browser caches it from there.
+ */
+filesRouter.get('/:fileId/page/:page', async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const fileRecord = await db.select().from(files).where(eq(files.id, req.params.fileId)).get();
+  if (!fileRecord || fileRecord.userId !== userId) {
+    res.status(404).json({ error: 'File not found' });
+    return;
+  }
+  if (fileRecord.mimeType !== 'application/pdf') {
+    res.status(415).json({ error: 'Only PDFs can be rendered as pages' });
+    return;
+  }
+
+  const pageNumber = Number.parseInt(req.params.page ?? '1', 10);
+  if (!Number.isFinite(pageNumber) || pageNumber < 1) {
+    res.status(400).json({ error: 'Invalid page' });
+    return;
+  }
+
+  try {
+    const buffer = await storage.get(fileRecord.storagePath);
+    const mupdf = await import('mupdf');
+    const doc = mupdf.Document.openDocument(buffer, 'application/pdf');
+    if (pageNumber > doc.countPages()) {
+      res.status(404).json({ error: 'Page out of range' });
+      return;
+    }
+    const page = doc.loadPage(pageNumber - 1);
+    const pixmap = page.toPixmap(
+      mupdf.Matrix.scale(PAGE_RENDER_SCALE, PAGE_RENDER_SCALE),
+      mupdf.ColorSpace.DeviceRGB,
+      false,
+      true,
+    );
+    res.setHeader('Content-Type', 'image/png');
+    // Immutable: a file's bytes never change once uploaded
+    res.setHeader('Cache-Control', 'private, max-age=86400, immutable');
+    res.send(Buffer.from(pixmap.asPNG()));
+  } catch (err) {
+    console.error(`[files] page render failed for ${req.params.fileId}:`, err);
+    res.status(500).json({ error: 'Could not render page' });
+  }
 });
 
 // GET /api/files/:fileId

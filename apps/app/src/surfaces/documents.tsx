@@ -4,6 +4,7 @@ import { useSpaceId } from '@/surfaces/layout';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Loader2, Trash2, Upload } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
+import { Link } from 'react-router';
 
 const fmtSize = (bytes: number) =>
   bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
@@ -173,6 +174,12 @@ export function DocumentsSurface() {
                   </p>
                   {d.importError && <p className="mt-0.5 text-xs text-bad">{d.importError}</p>}
                 </div>
+                <Link
+                  to={`/chat?doc=${d.id}`}
+                  className="shrink-0 text-xs font-medium text-accent opacity-0 transition-opacity hover:underline group-hover:opacity-100"
+                >
+                  Open in workspace
+                </Link>
                 <button
                   type="button"
                   onClick={() => void deleteFile(d.id)}

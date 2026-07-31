@@ -5,6 +5,7 @@ import { PanelCard } from '@/workspace/panels';
 import { ArrowUp, Loader2, MessageSquare, Plus, Table2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
+import { useSearchParams } from 'react-router';
 import remarkGfm from 'remark-gfm';
 
 /**
@@ -35,6 +36,7 @@ export function ChatSurface() {
     retry,
     toolActivity,
     panels,
+    openDocument,
     dismissPanel,
     togglePinned,
     startNewConversation,
@@ -53,6 +55,19 @@ export function ChatSurface() {
   useEffect(() => {
     if (panelCount > 0) setMobilePane('workspace');
   }, [panelCount]);
+
+  // Arriving from Documents with ?doc=<id>: put it on the workspace, then drop
+  // the param so a reload doesn't keep re-opening it. The ref guards against
+  // the effect firing twice before the URL settles.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedDoc = searchParams.get('doc');
+  const openedDocRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!requestedDoc || openedDocRef.current === requestedDoc) return;
+    openedDocRef.current = requestedDoc;
+    void openDocument(requestedDoc);
+    setSearchParams({}, { replace: true });
+  }, [requestedDoc, openDocument, setSearchParams]);
 
   const submit = () => {
     const content = draft.trim();

@@ -15,7 +15,7 @@ const panelInput = z.object({
   id: z.string().min(1),
   conversationId: z.string().uuid(),
   workspaceId: z.string().uuid(),
-  kind: z.enum(['lots', 'tax', 'benchmark', 'ledger', 'holdings', 'search']),
+  kind: z.enum(['lots', 'tax', 'benchmark', 'ledger', 'holdings', 'search', 'document']),
   title: z.string().min(1),
   subtitle: z.string().nullable(),
   payload: z.unknown(),

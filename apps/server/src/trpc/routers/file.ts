@@ -5,6 +5,42 @@ import { protectedProcedure, router } from '../trpc';
 
 export const fileRouter = router({
   /**
+   * What the workspace needs to show a document: its name and how many pages
+   * it has. Counting means opening the PDF, so this is deliberately its own
+   * call rather than a column on list().
+   */
+  info: protectedProcedure
+    .input(z.object({ fileId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [file] = await ctx.db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, input.fileId), eq(files.userId, ctx.userId)));
+      if (!file) return null;
+
+      let pageCount = 0;
+      if (file.mimeType === 'application/pdf') {
+        try {
+          const { storage } = await import('../../services/storage');
+          const buffer = await storage.get(file.storagePath);
+          const mupdf = await import('mupdf');
+          pageCount = mupdf.Document.openDocument(buffer, 'application/pdf').countPages();
+        } catch (err) {
+          // A document we can't open still gets a panel — just without pages
+          console.warn(`[file] page count failed for ${input.fileId}:`, err);
+        }
+      }
+
+      return {
+        id: file.id,
+        fileName: file.fileName,
+        mimeType: file.mimeType,
+        fileSize: file.fileSize,
+        pageCount,
+      };
+    }),
+
+  /**
    * Uploaded documents with processing signals: chunk count (RAG readiness)
    * and any pending/failed import job, so the client can show honest status.
    */

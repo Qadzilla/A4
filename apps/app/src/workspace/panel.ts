@@ -8,7 +8,14 @@
  * the desk rather than a log of everything that ran.
  */
 
-export type PanelKind = 'lots' | 'tax' | 'benchmark' | 'ledger' | 'holdings' | 'search';
+export type PanelKind =
+  | 'lots'
+  | 'tax'
+  | 'benchmark'
+  | 'ledger'
+  | 'holdings'
+  | 'search'
+  | 'document';
 
 /**
  * Bumped when the stored payload shape changes in a way readers must know
@@ -71,6 +78,31 @@ export function panelFromToolResult(
     title: spec.title,
     subtitle: subtitleFor(spec.kind, data),
     data,
+    createdAt: Date.now(),
+  };
+}
+
+/**
+ * A document opened by hand rather than produced by a tool. Keyed by file id
+ * so opening the same document twice moves it to the top instead of stacking.
+ */
+export function documentPanel(file: {
+  id: string;
+  fileName: string;
+  pageCount: number;
+  mimeType: string;
+}): Panel {
+  return {
+    id: `doc:${file.id}`,
+    kind: 'document',
+    title: 'Document',
+    subtitle: file.fileName,
+    data: {
+      fileId: file.id,
+      fileName: file.fileName,
+      pageCount: file.pageCount,
+      mimeType: file.mimeType,
+    },
     createdAt: Date.now(),
   };
 }

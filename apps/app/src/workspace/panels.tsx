@@ -1,5 +1,6 @@
 import type { Panel } from '@/workspace/panel';
-import { Pin, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Pin, X } from 'lucide-react';
+import { useState } from 'react';
 
 /**
  * Panel renderers. Every payload here arrives as untyped JSON off the chat
@@ -273,6 +274,73 @@ function SearchPanel({ d }: { d: Record<string, unknown> }) {
   );
 }
 
+function DocumentPanel({ d }: { d: Record<string, unknown> }) {
+  const fileId = str(d.fileId);
+  const pageCount = num(d.pageCount) ?? 0;
+  const isPdf = str(d.mimeType) === 'application/pdf';
+  const [page, setPage] = useState(1);
+
+  if (!fileId) return <p className="text-xs text-muted">This document is no longer available.</p>;
+
+  return (
+    <div className="space-y-3">
+      {isPdf && pageCount > 0 ? (
+        <>
+          <div className="overflow-hidden rounded-card border border-hairline bg-paper">
+            {/* Pages are rendered on demand and cached by the browser */}
+            <img
+              key={page}
+              src={`/api/files/${fileId}/page/${page}`}
+              alt={`${str(d.fileName) ?? 'Document'} — page ${page}`}
+              className="block w-full"
+            />
+          </div>
+          {pageCount > 1 && (
+            <div className="flex items-center justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                aria-label="Previous page"
+                className="text-muted transition-colors hover:text-ink disabled:opacity-30"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="tnum font-mono text-xs text-muted">
+                {page} / {pageCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                disabled={page === pageCount}
+                aria-label="Next page"
+                className="text-muted transition-colors hover:text-ink disabled:opacity-30"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="text-xs text-muted">
+          {isPdf
+            ? "This PDF couldn't be opened for preview."
+            : 'Preview is available for PDFs; open the original to view this one.'}
+        </p>
+      )}
+
+      <a
+        href={`/api/files/${fileId}`}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline"
+      >
+        Open the original <ExternalLink size={12} />
+      </a>
+    </div>
+  );
+}
+
 export function PanelCard({
   panel,
   onDismiss,
@@ -318,6 +386,7 @@ export function PanelCard({
       {panel.kind === 'ledger' && <LedgerPanel d={panel.data} />}
       {panel.kind === 'holdings' && <HoldingsPanel d={panel.data} />}
       {panel.kind === 'search' && <SearchPanel d={panel.data} />}
+      {panel.kind === 'document' && <DocumentPanel d={panel.data} />}
     </section>
   );
 }
