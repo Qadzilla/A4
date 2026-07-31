@@ -22,6 +22,7 @@ export type PanelKind =
   | 'losses'
   | 'reconciliation'
   | 'comparison'
+  | 'generated'
   // Summoned from a dashboard rather than produced by a tool. These carry no
   // payload: a tool panel is evidence from the moment Bip looked, a summoned
   // panel is the dashboard itself and reads live every time it renders.
@@ -82,6 +83,7 @@ const PANEL_TOOLS: Record<string, { kind: PanelKind; title: string }> = {
   get_holdings: { kind: 'holdings', title: 'Holdings' },
   search_documents: { kind: 'search', title: 'Documents' },
   prepare_export: { kind: 'export', title: 'Ready to download' },
+  show_on_desk: { kind: 'generated', title: 'Answer' },
 };
 
 /** A short line of context for the panel header, pulled from the result. */
@@ -116,11 +118,24 @@ export function panelFromToolResult(
   // a panel that can only say "no data" is worse than no panel.
   if (data.available === false) return null;
 
+  // A generated answer names itself — the tool's fixed label is only a
+  // fallback, since the whole point is that Bip decided what this is.
+  const title =
+    spec.kind === 'generated' && typeof data.title === 'string' && data.title.length > 0
+      ? data.title
+      : spec.title;
+  const subtitle =
+    spec.kind === 'generated'
+      ? typeof data.subtitle === 'string' && data.subtitle.length > 0
+        ? data.subtitle
+        : null
+      : subtitleFor(spec.kind, data);
+
   return {
     id: toolCallId,
     kind: spec.kind,
-    title: spec.title,
-    subtitle: subtitleFor(spec.kind, data),
+    title,
+    subtitle,
     data,
     createdAt: Date.now(),
   };

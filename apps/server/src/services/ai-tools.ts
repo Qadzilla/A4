@@ -79,6 +79,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const LONG_TERM_DAYS = 365;
 const WASH_WINDOW_DAYS = 30;
 
+/** Big enough for a real layout, small enough not to bloat a stored panel. */
+const MAX_PANEL_HTML = 24_000;
+
 /**
  * The pre-trade check behind Bip's most important behavior: surfacing what a
  * sale actually costs BEFORE it happens. FIFO order, per-lot terms, tax at
@@ -796,7 +799,57 @@ const TOOLS: ToolRegistration[] = [
     },
   },
 
-  // 14. prepare_export
+  // 14. show_on_desk
+  {
+    definition: {
+      name: 'show_on_desk',
+      description: `Build a visual answer and put it on the user's canvas. Use this for almost any question where seeing the figures laid out would help more than reading them in a sentence — a stock broken down, a tax position, the moves available and what each is worth, a comparison, a timeline, a breakdown.
+
+Gather the real figures with the other tools FIRST, then pass a self-contained HTML fragment that lays them out. You are composing the presentation, never the data: every number in the fragment must be one a tool actually returned or the user actually gave you. If you don't have a figure, leave it out or mark it unknown — never fill a gap to make the layout tidy.
+
+Write plain HTML and inline CSS. Style variables are available and should be used instead of hard-coded colours: var(--ink), var(--muted), var(--faint), var(--paper), var(--surface), var(--hairline), var(--accent), var(--good), var(--bad), var(--warn). Numbers should carry class="n" for aligned tabular figures. Keep it to the width of a column, roughly 640px. No scripts, no images, no external anything. SVG is fine and is the way to draw a chart.`,
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          title: {
+            type: 'string',
+            description: 'Short label for the top of the panel, e.g. "NVDA, broken down"',
+          },
+          subtitle: {
+            type: 'string',
+            description: 'Optional one-phrase qualifier, e.g. "as of today" or "2026"',
+          },
+          html: {
+            type: 'string',
+            description:
+              'Self-contained HTML fragment. No <html>, <head> or <body> wrapper, no scripts.',
+          },
+        },
+        required: ['title', 'html'],
+      },
+    },
+    execute: async (input, _ctx) => {
+      const html = typeof input.html === 'string' ? input.html : '';
+      if (html.length === 0) {
+        return { available: false, reason: 'No markup supplied.' };
+      }
+      if (html.length > MAX_PANEL_HTML) {
+        return {
+          available: false,
+          reason: `That layout is too large (${html.length} characters). Keep it under ${MAX_PANEL_HTML}.`,
+        };
+      }
+      // The client renders this sandboxed; the server's job is only to carry it
+      return {
+        available: true,
+        title: typeof input.title === 'string' ? input.title : 'Answer',
+        subtitle: typeof input.subtitle === 'string' ? input.subtitle : null,
+        html,
+      };
+    },
+  },
+
+  // 15. prepare_export
   {
     definition: {
       name: 'prepare_export',

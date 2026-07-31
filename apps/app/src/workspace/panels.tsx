@@ -1,5 +1,6 @@
 import { useTRPC } from '@/lib/trpc';
 import { useSpaceId } from '@/surfaces/layout';
+import { GeneratedPanel } from '@/workspace/generated';
 import type { Panel } from '@/workspace/panel';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Download, ExternalLink, Pin, X } from 'lucide-react';
@@ -775,6 +776,9 @@ export function PanelCard({
       {panel.kind === 'search' && <SearchPanel d={panel.data} />}
       {panel.kind === 'document' && <DocumentPanel d={panel.data} />}
       {panel.kind === 'export' && <ExportPanel d={panel.data} />}
+      {panel.kind === 'generated' && typeof panel.data.html === 'string' && (
+        <GeneratedPanel id={panel.id} html={panel.data.html} />
+      )}
       {panel.kind === 'comparison' && <ComparisonPanel />}
       {panel.kind === 'gains' && <GainsPanel taxYear={taxYear} />}
       {panel.kind === 'approaching' && <ApproachingPanel />}
