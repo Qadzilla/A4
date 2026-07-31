@@ -9,6 +9,20 @@ import type Database from 'better-sqlite3';
  * gap for volumes that predate the Basis pivot.
  */
 export function ensureLaunchSchema(sqlite: Database.Database): void {
+  // P8: panels moved from conversation-scoped to desk-scoped (workspace + tax
+  // year). The old shape carried a NOT NULL conversation_id that the new one
+  // has no use for, and SQLite can't drop a constraint in place. The table is
+  // days old and has never reached production, so rebuilding it is the honest
+  // migration — carrying a dead required column would be worse.
+  const panelColumns = new Set(
+    (sqlite.prepare('PRAGMA table_info(workspace_panels)').all() as Array<{ name: string }>).map(
+      (c) => c.name,
+    ),
+  );
+  if (panelColumns.size > 0 && !panelColumns.has('tax_year')) {
+    sqlite.exec('DROP TABLE workspace_panels');
+  }
+
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS snaptrade_users (
       id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE, st_user_id TEXT NOT NULL,
@@ -38,13 +52,13 @@ export function ensureLaunchSchema(sqlite: Database.Database): void {
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS workspace_panels (
-      id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, workspace_id TEXT NOT NULL,
+      id TEXT PRIMARY KEY, tax_year INTEGER NOT NULL, workspace_id TEXT NOT NULL,
       user_id TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL, subtitle TEXT,
       payload TEXT NOT NULL, payload_version INTEGER NOT NULL DEFAULT 1,
       position REAL NOT NULL DEFAULT 0, pinned INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS idx_panels_conversation ON workspace_panels(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_panels_desk ON workspace_panels(workspace_id, tax_year);
     CREATE TABLE IF NOT EXISTS tax_1099s (
       id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
       file_id TEXT NOT NULL UNIQUE, tax_year INTEGER NOT NULL, broker TEXT,

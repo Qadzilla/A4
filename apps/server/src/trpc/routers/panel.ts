@@ -1,19 +1,18 @@
-import { TRPCError } from '@trpc/server';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import type { DB } from '../../db';
-import { conversations, workspacePanels } from '../../db/schema';
+import { workspacePanels } from '../../db/schema';
 import { protectedProcedure, router } from '../trpc';
 
 /**
- * The workspace's memory. Panels belong to a conversation, so returning to a
- * thread returns to the desk you left. Ownership is always checked through
- * the conversation — a panel id alone is never enough to read or write one.
+ * The desk's memory. Panels belong to a workspace and a tax year, not to the
+ * conversation that produced them — the work of assembling a year happens
+ * across many sittings, and each one should find the desk as it was left.
+ * Every query is scoped by userId, so a panel id alone is never enough.
  */
 
 const panelInput = z.object({
   id: z.string().min(1),
-  conversationId: z.string().uuid(),
+  taxYear: z.number().int().min(2000).max(2100),
   workspaceId: z.string().uuid(),
   kind: z.enum([
     'lots',
@@ -33,24 +32,22 @@ const panelInput = z.object({
   payloadVersion: z.number().int().min(1).default(1),
 });
 
-async function assertOwnsConversation(db: DB, userId: string, conversationId: string) {
-  const [row] = await db
-    .select({ id: conversations.id })
-    .from(conversations)
-    .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)));
-  if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: 'Conversation not found' });
-}
-
 export const panelRouter = router({
   list: protectedProcedure
-    .input(z.object({ conversationId: z.string().uuid() }))
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        taxYear: z.number().int().min(2000).max(2100),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const rows = await ctx.db
         .select()
         .from(workspacePanels)
         .where(
           and(
-            eq(workspacePanels.conversationId, input.conversationId),
+            eq(workspacePanels.workspaceId, input.workspaceId),
+            eq(workspacePanels.taxYear, input.taxYear),
             eq(workspacePanels.userId, ctx.userId),
           ),
         )
@@ -72,7 +69,6 @@ export const panelRouter = router({
 
   /** Insert or replace — the id is the tool call, so a rerun overwrites. */
   upsert: protectedProcedure.input(panelInput).mutation(async ({ ctx, input }) => {
-    await assertOwnsConversation(ctx.db, ctx.userId, input.conversationId);
     const now = new Date();
 
     const [existing] = await ctx.db
@@ -98,14 +94,20 @@ export const panelRouter = router({
     const [top] = await ctx.db
       .select({ position: workspacePanels.position })
       .from(workspacePanels)
-      .where(eq(workspacePanels.conversationId, input.conversationId))
+      .where(
+        and(
+          eq(workspacePanels.workspaceId, input.workspaceId),
+          eq(workspacePanels.taxYear, input.taxYear),
+          eq(workspacePanels.userId, ctx.userId),
+        ),
+      )
       .orderBy(asc(workspacePanels.position))
       .limit(1);
     const position = (top?.position ?? 0) - 1;
 
     await ctx.db.insert(workspacePanels).values({
       id: input.id,
-      conversationId: input.conversationId,
+      taxYear: input.taxYear,
       workspaceId: input.workspaceId,
       userId: ctx.userId,
       kind: input.kind,

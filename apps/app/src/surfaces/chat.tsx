@@ -26,8 +26,12 @@ const SUGGESTIONS = [
   'How much long-term gain could I realize at 0% tax this year?',
 ];
 
+/** Years you can have a desk for. The tax pillar's data stops at 2025. */
+const DESK_YEARS = [2026, 2025] as const;
+
 export function ChatSurface() {
   const spaceId = useSpaceId();
+  const [taxYear, setTaxYear] = useState<number>(DESK_YEARS[0]);
   const {
     messages,
     sendMessage,
@@ -39,11 +43,10 @@ export function ChatSurface() {
     panels,
     openDocument,
     summon,
-    isResuming,
     dismissPanel,
     togglePinned,
     startNewConversation,
-  } = useChat({ spaceId });
+  } = useChat({ spaceId, taxYear });
   const [draft, setDraft] = useState('');
   /** Below md only one pane fits; this is which one you're looking at. */
   const [mobilePane, setMobilePane] = useState<'chat' | 'workspace'>('chat');
@@ -68,20 +71,18 @@ export function ChatSurface() {
   const openedDocRef = useRef<string | null>(null);
   const summonedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isResuming) return; // wait, or this lands in a conversation of its own
     if (!requestedDoc || openedDocRef.current === requestedDoc) return;
     openedDocRef.current = requestedDoc;
     void openDocument(requestedDoc);
     setSearchParams({}, { replace: true });
-  }, [isResuming, requestedDoc, openDocument, setSearchParams]);
+  }, [requestedDoc, openDocument, setSearchParams]);
   useEffect(() => {
-    if (isResuming) return;
     if (!requestedPanel || summonedRef.current === requestedPanel) return;
     if (!isSummonKind(requestedPanel)) return;
     summonedRef.current = requestedPanel;
-    void summon(requestedPanel);
+    summon(requestedPanel);
     setSearchParams({}, { replace: true });
-  }, [isResuming, requestedPanel, summon, setSearchParams]);
+  }, [requestedPanel, summon, setSearchParams]);
 
   const submit = () => {
     const content = draft.trim();
@@ -219,12 +220,30 @@ export function ChatSurface() {
         }`}
       >
         <div className="mx-auto max-w-2xl px-5 py-6">
+          {/* The desk is a tax year. Switching years switches desks. */}
+          <div className="mb-5 flex items-baseline justify-between gap-3">
+            <p className="eyebrow">Desk</p>
+            <label className="flex items-center gap-2">
+              <span className="eyebrow">Tax year</span>
+              <select
+                value={taxYear}
+                onChange={(e) => setTaxYear(Number(e.target.value))}
+                className="tnum rounded-card border border-hairline bg-surface px-2 py-1 font-mono text-xs outline-none transition-colors focus:border-accent"
+              >
+                {DESK_YEARS.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           {panels.length === 0 ? (
-            <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-              <p className="eyebrow mb-2">Workspace</p>
+            <div className="flex min-h-[55vh] flex-col items-center justify-center text-center">
               <p className="max-w-xs text-sm text-muted">
-                Ask about a position, your taxes or a document, and what {AI_NAME} reads to answer
-                lands here.
+                Nothing on the {taxYear} desk yet. Ask about a position, your taxes or a document,
+                and what {AI_NAME} reads to answer lands here.
               </p>
             </div>
           ) : (

@@ -287,7 +287,10 @@ export const categorizationRules = sqliteTable('categorization_rules', {
  */
 export const workspacePanels = sqliteTable('workspace_panels', {
   id: text('id').primaryKey(),
-  conversationId: text('conversation_id').notNull(),
+  // Panels belong to a desk — a workspace and a tax year — not to whichever
+  // conversation happened to produce them. Someone assembling a year over
+  // weeks should come back to the desk they left, not an empty canvas.
+  taxYear: integer('tax_year').notNull(),
   workspaceId: text('workspace_id').notNull(),
   userId: text('user_id').notNull(),
   kind: text('kind').notNull(),

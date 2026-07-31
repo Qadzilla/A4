@@ -31,7 +31,7 @@ export interface ChatError {
   retryable: boolean;
 }
 
-export function useChat({ spaceId }: { spaceId: string }) {
+export function useChat({ spaceId, taxYear }: { spaceId: string; taxYear: number }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const getToken = useAuthToken();
@@ -45,8 +45,8 @@ export function useChat({ spaceId }: { spaceId: string }) {
   // appear the instant a tool returns, and mirrored to the server so the desk
   // is still set when you come back to the thread.
   const [panels, setPanels] = useState<Panel[]>([]);
-  /** The conversation the local panels belong to, so a switch can't leak. */
-  const panelsForRef = useRef<string | null>(null);
+  /** The tax year the local panels belong to, so a year switch can't leak. */
+  const panelsForRef = useRef<number | null>(null);
   /** Set by "New" — stops the resume effect dragging the old thread back. */
   const startedFreshRef = useRef(false);
 
@@ -72,36 +72,34 @@ export function useChat({ spaceId }: { spaceId: string }) {
     setConversationId(latestConversationId);
   }, [conversationId, latestConversationId]);
 
-  /**
-   * True while we still might adopt an existing thread. Anything that places a
-   * panel must wait for this: on a cold load the resume query is still in
-   * flight, so acting immediately creates a fresh conversation and strands the
-   * panel in a desk of its own.
-   */
-  const isResuming =
-    !conversationId &&
-    !startedFreshRef.current &&
-    (!conversationList.isFetched || !!latestConversationId);
-
   const createConversation = useMutation(trpc.chat.createConversation.mutationOptions());
   const persistMessage = useMutation(trpc.chat.sendMessage.mutationOptions());
 
-  const panelQuery = useQuery({
-    ...trpc.panel.list.queryOptions({ conversationId: conversationId ?? '' }),
-    enabled: !!conversationId,
-  });
+  // The desk is a workspace and a tax year. It loads on its own — a panel no
+  // longer needs a conversation to belong to, which removes the whole class of
+  // ordering bugs that came from having to create one before placing anything.
+  const panelQuery = useQuery(trpc.panel.list.queryOptions({ workspaceId: spaceId, taxYear }));
   const upsertPanel = useMutation(trpc.panel.upsert.mutationOptions());
   const removePanel = useMutation(trpc.panel.remove.mutationOptions());
   const setPinnedPanel = useMutation(trpc.panel.setPinned.mutationOptions());
 
-  // Hydrate the desk when a conversation loads or changes. Local state is the
-  // render source — the server list only seeds it, so a panel that just
-  // arrived over the stream is never clobbered by a stale fetch.
+  // Switching years switches desks, so the old year's panels have to go
+  // immediately. Without this the merge below — which exists to protect a
+  // panel placed while a fetch was in flight — would happily carry last
+  // year's work onto this year's desk.
+  useEffect(() => {
+    setPanels([]);
+    panelsForRef.current = null;
+  }, [taxYear]);
+
+  // Hydrate the desk once its panels arrive. Local state is the render source
+  // — the server list only seeds it, so a panel that just arrived over the
+  // stream is never clobbered by a stale fetch.
   const storedPanels = panelQuery.data;
   useEffect(() => {
-    if (!conversationId || !storedPanels) return;
-    if (panelsForRef.current === conversationId) return;
-    panelsForRef.current = conversationId;
+    if (!storedPanels) return;
+    if (panelsForRef.current === taxYear) return;
+    panelsForRef.current = taxYear;
     const stored: Panel[] = storedPanels.map((p) => ({
       id: p.id,
       kind: p.kind as PanelKind,
@@ -119,7 +117,7 @@ export function useChat({ spaceId }: { spaceId: string }) {
       const localOnly = prev.filter((p) => !storedIds.has(p.id));
       return sortPanels([...localOnly, ...stored]);
     });
-  }, [conversationId, storedPanels]);
+  }, [taxYear, storedPanels]);
 
   // Tool-result rows (role 'tool') and empty intermediate assistant turns are
   // plumbing for the model, not conversation — never render them.
@@ -247,7 +245,7 @@ export function useChat({ spaceId }: { spaceId: string }) {
                 // the panel on reload, not the panel you're looking at.
                 upsertPanel.mutate({
                   id: panel.id,
-                  conversationId: convId,
+                  taxYear,
                   workspaceId: spaceId,
                   kind: panel.kind,
                   title: panel.title,
@@ -297,25 +295,17 @@ export function useChat({ spaceId }: { spaceId: string }) {
   );
 
   /**
-   * Put a panel on the workspace by hand rather than via a tool call. Needs a
-   * conversation to belong to, so it starts one if none is open yet.
+   * Put a panel on the desk by hand rather than via a tool call. The desk is
+   * addressed by workspace and year, so this needs no conversation at all —
+   * which is what removed the ordering bugs the conversation-scoped version
+   * kept producing.
    */
   const placePanel = useCallback(
-    async (panel: Panel) => {
-      let convId = conversationId;
-      if (!convId) {
-        const created = await createConversation.mutateAsync({ workspaceId: spaceId });
-        convId = created.id;
-        setConversationId(convId);
-        // Claim the hydration slot: this panel is the desk's contents now, so
-        // the panel-list fetch that follows must not overwrite it.
-        panelsForRef.current = convId;
-      }
-
+    (panel: Panel) => {
       setPanels((prev) => mergePanel(prev, panel));
       upsertPanel.mutate({
         id: panel.id,
-        conversationId: convId,
+        taxYear,
         workspaceId: spaceId,
         kind: panel.kind,
         title: panel.title,
@@ -324,23 +314,23 @@ export function useChat({ spaceId }: { spaceId: string }) {
         payloadVersion: PANEL_PAYLOAD_VERSION,
       });
     },
-    [conversationId, spaceId, createConversation, upsertPanel.mutate],
+    [spaceId, taxYear, upsertPanel.mutate],
   );
 
-  /** Open a document beside the conversation — the other way in. */
+  /** Open a document on the desk — the other way in. */
   const openDocument = useCallback(
     async (fileId: string) => {
       const file = await queryClient.fetchQuery(trpc.file.info.queryOptions({ fileId }));
       if (!file) return;
-      await placePanel(documentPanel(file));
+      placePanel(documentPanel(file));
     },
     [placePanel, queryClient, trpc],
   );
 
-  /** Pull a dashboard onto the workspace. Reads live; carries no snapshot. */
+  /** Pull a dashboard onto the desk. Reads live; carries no snapshot. */
   const summon = useCallback(
-    async (kind: SummonKind) => {
-      await placePanel(summonedPanel(kind));
+    (kind: SummonKind) => {
+      placePanel(summonedPanel(kind));
     },
     [placePanel],
   );
@@ -364,7 +354,6 @@ export function useChat({ spaceId }: { spaceId: string }) {
     panels,
     openDocument,
     summon,
-    isResuming,
     dismissPanel: (id: string) => {
       setPanels((prev) => prev.filter((p) => p.id !== id));
       removePanel.mutate({ id });
@@ -377,12 +366,16 @@ export function useChat({ spaceId }: { spaceId: string }) {
       setPanels((prev) => sortPanels(prev.map((p) => (p.id === id ? { ...p, pinned: next } : p))));
       setPinnedPanel.mutate({ id, pinned: next });
     },
+    /**
+     * A fresh conversation, not a fresh desk. The panels are the year's work
+     * and outlive any one thread — clearing them here is what the old
+     * conversation-scoped model did, and it's exactly the behaviour the desk
+     * exists to stop.
+     */
     startNewConversation: () => {
       startedFreshRef.current = true;
       setConversationId(null);
       setError(null);
-      setPanels([]);
-      panelsForRef.current = null;
     },
   };
 }

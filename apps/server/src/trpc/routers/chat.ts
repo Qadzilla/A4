@@ -2,7 +2,7 @@ import { createConversationSchema, sendMessageSchema } from '@a4/shared-schemas'
 import { TRPCError } from '@trpc/server';
 import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import { aiUsage, conversations, messages, workspacePanels } from '../../db/schema';
+import { aiUsage, conversations, messages } from '../../db/schema';
 import { protectedProcedure, router } from '../trpc';
 
 function sumUsageRows(
@@ -138,7 +138,9 @@ export const chatRouter = router({
       }
 
       await ctx.db.delete(messages).where(eq(messages.conversationId, input.id));
-      await ctx.db.delete(workspacePanels).where(eq(workspacePanels.conversationId, input.id));
+      // Panels are not deleted with the conversation. They belong to the desk
+      // now — throwing away a year's assembled work because a chat was tidied
+      // up would be the wrong trade.
       await ctx.db.delete(conversations).where(eq(conversations.id, input.id));
 
       return { success: true };
