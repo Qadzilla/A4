@@ -30,6 +30,19 @@ Three things already exist and are unused:
   there.
 - **Creation is in v1**: the workspace can produce a document you can download.
 
+## Status
+
+All five slices shipped. S1 the frame, S2 persistence, S3 documents, S4
+summoning the dashboards, S5 creation and export.
+
+Three bugs worth remembering, all the same family: a write that reached the
+server with the wrong value, or never reached it, while the screen looked
+correct. The pin read its next value out of a setState updater; opening a
+document on a cold load created a conversation of its own; the hydration
+fetch replaced local state and swallowed a panel placed while it was in
+flight. **Anything that writes through to the server gets a database check,
+not a screenshot.**
+
 ## Slices
 
 **S1 — The frame.** Two panes on `/chat`: workspace left, conversation right,
