@@ -1,10 +1,18 @@
 import { BasisMark } from '@/brand-mark';
 import { useChat } from '@/chat/useChat';
 import { useSpaceId } from '@/surfaces/layout';
-import { ArrowUp, Loader2, Plus } from 'lucide-react';
+import { PanelCard } from '@/workspace/panels';
+import { ArrowUp, Loader2, MessageSquare, Plus, Table2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+/**
+ * The workspace. Conversation on the right, and on the left whatever the
+ * conversation was actually about — the lots, the tax picture, the benchmark,
+ * the documents. Bip's tools already return this data; here it stops being
+ * prose and becomes something you can look at.
+ */
 
 /** The persona's name — server-side twin lives in ai-context.ts (AI_NAME). */
 const AI_NAME = 'Bip';
@@ -26,14 +34,24 @@ export function ChatSurface() {
     error,
     retry,
     toolActivity,
+    panels,
+    dismissPanel,
     startNewConversation,
   } = useChat({ spaceId });
   const [draft, setDraft] = useState('');
+  /** Below md only one pane fits; this is which one you're looking at. */
+  const [mobilePane, setMobilePane] = useState<'chat' | 'workspace'>('chat');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, []);
+
+  // A new panel is the answer arriving — on mobile, go look at it
+  const panelCount = panels.length;
+  useEffect(() => {
+    if (panelCount > 0) setMobilePane('workspace');
+  }, [panelCount]);
 
   const submit = () => {
     const content = draft.trim();
@@ -43,39 +61,42 @@ export function ChatSurface() {
   };
 
   return (
-    <div className="flex h-dvh flex-col md:h-screen">
-      <header className="flex items-center justify-between border-b border-hairline bg-surface px-5 py-3">
-        <p className="eyebrow flex items-center gap-1.5">
-          <BasisMark size={13} /> Chat with {AI_NAME}
-        </p>
-        <button
-          type="button"
-          onClick={startNewConversation}
-          className="flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-ink"
-        >
-          <Plus size={14} /> New conversation
-        </button>
-      </header>
+    <div className="flex h-dvh flex-col md:h-screen md:flex-row-reverse">
+      {/* Conversation */}
+      <section
+        className={`flex min-h-0 flex-1 flex-col border-hairline md:max-w-[420px] md:border-l ${
+          mobilePane === 'chat' ? 'flex' : 'hidden md:flex'
+        }`}
+      >
+        <header className="flex items-center justify-between border-b border-hairline px-5 py-3">
+          <p className="eyebrow flex items-center gap-1.5">
+            <BasisMark size={13} /> {AI_NAME}
+          </p>
+          <button
+            type="button"
+            onClick={startNewConversation}
+            className="flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-ink"
+          >
+            <Plus size={14} /> New
+          </button>
+        </header>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6">
-        <div className="mx-auto max-w-2xl">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
           {isLoadingConversation && messages.length === 0 && (
             <div className="mt-8 animate-pulse space-y-4">
               <div className="ml-auto h-9 w-1/2 rounded-card bg-hairline/50" />
               <div className="h-4 w-4/5 rounded-card bg-hairline/40" />
-              <div className="h-4 w-3/5 rounded-card bg-hairline/40" />
             </div>
           )}
 
           {!isLoadingConversation && messages.length === 0 && (
-            <div className="rise mt-8">
-              <h1 className="mb-2 text-2xl font-bold tracking-tight">
+            <div className="rise">
+              <h1 className="mb-2 text-xl font-bold tracking-tight">
                 Ask {AI_NAME} about your actual money.
               </h1>
-              <p className="mb-6 max-w-md text-sm text-muted">
-                {AI_NAME} is named after the basis point — the small, precise numbers that compound.
-                Grounded in your real holdings, trades, and documents; taxes before trades; never
-                advice, always the full picture.
+              <p className="mb-6 text-sm leading-relaxed text-muted">
+                Grounded in your real holdings, trades and documents. What {AI_NAME} looks at
+                appears on the left.
               </p>
               <div className="grid gap-2">
                 {SUGGESTIONS.map((s) => (
@@ -99,7 +120,7 @@ export function ChatSurface() {
                   {m.content}
                 </div>
               ) : (
-                <div className="prose prose-sm max-w-none text-sm leading-relaxed [&_table]:tnum [&_code]:font-mono">
+                <div className="prose prose-sm max-w-none text-sm leading-relaxed [&_code]:font-mono [&_table]:block [&_table]:overflow-x-auto [&_table]:tnum">
                   <Markdown remarkPlugins={[remarkGfm]}>{m.content}</Markdown>
                 </div>
               )}
@@ -133,32 +154,76 @@ export function ChatSurface() {
             </div>
           )}
         </div>
-      </div>
 
-      <div className="border-t border-hairline bg-surface px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="mx-auto flex max-w-2xl items-end gap-2">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                submit();
-              }
-            }}
-            rows={1}
-            placeholder="Ask anything about your money…"
-            className="max-h-32 flex-1 resize-none rounded-card border border-hairline bg-paper px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-accent"
-          />
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!draft.trim() || isStreaming}
-            className="flex h-10 w-10 items-center justify-center rounded-card bg-accent text-white transition-opacity disabled:opacity-30"
-          >
-            {isStreaming ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={16} />}
-          </button>
+        <div className="border-t border-hairline px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="flex items-end gap-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
+              rows={1}
+              placeholder="Ask anything about your money…"
+              className="max-h-32 flex-1 resize-none rounded-card border border-hairline bg-paper px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-accent"
+            />
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!draft.trim() || isStreaming}
+              className="flex h-10 w-10 items-center justify-center rounded-card bg-accent text-white transition-opacity disabled:opacity-30"
+            >
+              {isStreaming ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={16} />}
+            </button>
+          </div>
         </div>
+      </section>
+
+      {/* Workspace */}
+      <section
+        className={`min-h-0 flex-1 overflow-y-auto ${
+          mobilePane === 'workspace' ? 'block' : 'hidden md:block'
+        }`}
+      >
+        <div className="mx-auto max-w-2xl px-5 py-6">
+          {panels.length === 0 ? (
+            <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+              <p className="eyebrow mb-2">Workspace</p>
+              <p className="max-w-xs text-sm text-muted">
+                Ask about a position, your taxes or a document, and what {AI_NAME} reads to answer
+                lands here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {panels.map((p) => (
+                <PanelCard key={p.id} panel={p} onDismiss={dismissPanel} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Pane switch — small screens only */}
+      <div className="fixed bottom-20 left-1/2 z-10 -translate-x-1/2 md:hidden">
+        <button
+          type="button"
+          onClick={() => setMobilePane((p) => (p === 'chat' ? 'workspace' : 'chat'))}
+          className="flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-medium text-white shadow-card"
+        >
+          {mobilePane === 'chat' ? (
+            <>
+              <Table2 size={13} /> Workspace{panels.length > 0 ? ` (${panels.length})` : ''}
+            </>
+          ) : (
+            <>
+              <MessageSquare size={13} /> Conversation
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

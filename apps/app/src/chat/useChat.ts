@@ -1,5 +1,6 @@
 import { useAuthToken } from '@/auth/useAuthToken';
 import { useTRPC } from '@/lib/trpc';
+import { type Panel, mergePanel, panelFromToolResult } from '@/workspace/panel';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -30,6 +31,9 @@ export function useChat({ spaceId }: { spaceId: string }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<ChatError | null>(null);
   const [toolActivity, setToolActivity] = useState<ToolActivity[]>([]);
+  // What the conversation leaves on the workspace. Panels outlive the turn
+  // that produced them — clearing them is the user's call, not the stream's.
+  const [panels, setPanels] = useState<Panel[]>([]);
 
   const abortRef = useRef<AbortController | null>(null);
   const lastFailedRef = useRef<string | null>(null);
@@ -156,6 +160,16 @@ export function useChat({ spaceId }: { spaceId: string }) {
                   ),
                 );
                 break;
+              case 'tool_result': {
+                if (event.isError) break;
+                const panel = panelFromToolResult(
+                  event.toolName as string,
+                  event.toolCallId as string,
+                  event.result,
+                );
+                if (panel) setPanels((prev) => mergePanel(prev, panel));
+                break;
+              }
               case 'error':
                 lastFailedRef.current = content;
                 setError({
@@ -210,9 +224,12 @@ export function useChat({ spaceId }: { spaceId: string }) {
     error,
     retry,
     toolActivity,
+    panels,
+    dismissPanel: (id: string) => setPanels((prev) => prev.filter((p) => p.id !== id)),
     startNewConversation: () => {
       setConversationId(null);
       setError(null);
+      setPanels([]);
     },
   };
 }
