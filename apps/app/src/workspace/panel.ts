@@ -15,7 +15,35 @@ export type PanelKind =
   | 'ledger'
   | 'holdings'
   | 'search'
-  | 'document';
+  | 'document'
+  // Summoned from a dashboard rather than produced by a tool. These carry no
+  // payload: a tool panel is evidence from the moment Bip looked, a summoned
+  // panel is the dashboard itself and reads live every time it renders.
+  | 'portfolio'
+  | 'taxes';
+
+export const SUMMONABLE = {
+  portfolio: { title: 'Portfolio', subtitle: 'live' },
+  taxes: { title: 'Taxes', subtitle: 'live' },
+} as const;
+
+export type SummonKind = keyof typeof SUMMONABLE;
+
+export function isSummonKind(value: string): value is SummonKind {
+  return value in SUMMONABLE;
+}
+
+/** Keyed by kind, so summoning twice moves it up rather than stacking. */
+export function summonedPanel(kind: SummonKind): Panel {
+  return {
+    id: `live:${kind}`,
+    kind,
+    title: SUMMONABLE[kind].title,
+    subtitle: SUMMONABLE[kind].subtitle,
+    data: {},
+    createdAt: Date.now(),
+  };
+}
 
 /**
  * Bumped when the stored payload shape changes in a way readers must know

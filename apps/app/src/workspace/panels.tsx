@@ -1,6 +1,10 @@
+import { useTRPC } from '@/lib/trpc';
+import { useSpaceId } from '@/surfaces/layout';
 import type { Panel } from '@/workspace/panel';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, ExternalLink, Pin, X } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router';
 
 /**
  * Panel renderers. Every payload here arrives as untyped JSON off the chat
@@ -341,6 +345,85 @@ function DocumentPanel({ d }: { d: Record<string, unknown> }) {
   );
 }
 
+/**
+ * Summoned dashboards. Unlike the tool panels these hold no payload — they
+ * read the same routers Portfolio and Taxes do, so what sits on the workspace
+ * is the current number rather than a snapshot of one.
+ */
+function LivePortfolioPanel() {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const { data: holdings, isLoading } = useQuery(
+    trpc.holding.list.queryOptions({ workspaceId: spaceId }),
+  );
+
+  if (isLoading) return <p className="text-xs text-muted">Reading your positions…</p>;
+  if (!holdings || holdings.length === 0)
+    return <p className="text-xs text-muted">No positions yet.</p>;
+
+  const total = holdings.reduce((s, h) => s + h.value, 0);
+  return (
+    <div className="space-y-4">
+      <Figure label="Invested" value={usd(total)} />
+      <div className="overflow-hidden rounded-card border border-hairline">
+        {holdings.slice(0, 12).map((h, i) => (
+          <Row key={h.id} first={i === 0}>
+            <span className="text-xs">
+              <span className="font-mono font-semibold">{h.symbol}</span>
+              <span className="ml-2 text-muted">{h.name}</span>
+            </span>
+            <span className="tnum font-mono text-xs">{usd(h.value)}</span>
+          </Row>
+        ))}
+      </div>
+      <Link
+        to="/portfolio"
+        className="inline-block text-xs font-medium text-accent hover:underline"
+      >
+        Open Portfolio
+      </Link>
+    </div>
+  );
+}
+
+function LiveTaxPanel() {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const { data: picture, isLoading } = useQuery(
+    trpc.tax.picture.queryOptions({ workspaceId: spaceId }),
+  );
+
+  if (isLoading) return <p className="text-xs text-muted">Running the numbers…</p>;
+  if (!picture) return <p className="text-xs text-muted">No tax picture yet.</p>;
+
+  const { result } = picture;
+  const owed = result.refundOrOwed;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <Figure
+          label={owed < 0 ? "You'd owe" : "You'd get back"}
+          value={usdWhole(Math.abs(owed))}
+          tone={owed < 0 ? 'bad' : 'good'}
+        />
+        <Figure label="Total tax" value={usdWhole(result.totalTax)} />
+      </div>
+      {result.ltcgZeroBracketRoom > 0 && (
+        <div className="rounded-card border border-accent/30 bg-accent-soft p-3">
+          <p className="eyebrow mb-1 text-accent">Tax-free gains window</p>
+          <p className="text-xs">
+            <span className="tnum font-mono font-bold">{usdWhole(result.ltcgZeroBracketRoom)}</span>{' '}
+            of long-term gains realizable at 0% federal tax.
+          </p>
+        </div>
+      )}
+      <Link to="/taxes" className="inline-block text-xs font-medium text-accent hover:underline">
+        Open Taxes
+      </Link>
+    </div>
+  );
+}
+
 export function PanelCard({
   panel,
   onDismiss,
@@ -387,6 +470,8 @@ export function PanelCard({
       {panel.kind === 'holdings' && <HoldingsPanel d={panel.data} />}
       {panel.kind === 'search' && <SearchPanel d={panel.data} />}
       {panel.kind === 'document' && <DocumentPanel d={panel.data} />}
+      {panel.kind === 'portfolio' && <LivePortfolioPanel />}
+      {panel.kind === 'taxes' && <LiveTaxPanel />}
     </section>
   );
 }

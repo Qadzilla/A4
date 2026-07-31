@@ -133,7 +133,15 @@ export function PortfolioSurface() {
 
   return (
     <div className="rise mx-auto max-w-3xl px-5 py-8 md:py-12">
-      <p className="eyebrow mb-1.5">Portfolio</p>
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+        <p className="eyebrow">Portfolio</p>
+        <Link
+          to="/chat?panel=portfolio"
+          className="text-xs font-medium text-accent hover:underline"
+        >
+          Open in workspace
+        </Link>
+      </div>
 
       {isEmpty ? (
         <EmptyPortfolio

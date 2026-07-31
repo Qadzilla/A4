@@ -4,6 +4,7 @@ import { useSpaceId } from '@/surfaces/layout';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Upload } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router';
 
 const usd = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -236,7 +237,12 @@ export function TaxesSurface() {
 
   return (
     <div className="rise mx-auto max-w-3xl px-5 py-8 md:py-12">
-      <p className="eyebrow mb-1.5">Taxes</p>
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+        <p className="eyebrow">Taxes</p>
+        <Link to="/chat?panel=taxes" className="text-xs font-medium text-accent hover:underline">
+          Open in workspace
+        </Link>
+      </div>
 
       {/* ── The meter ── */}
       <h1 className="mb-1 text-lg font-semibold tracking-tight text-muted">

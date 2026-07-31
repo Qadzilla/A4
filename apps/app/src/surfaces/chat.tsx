@@ -1,6 +1,7 @@
 import { BasisMark } from '@/brand-mark';
 import { useChat } from '@/chat/useChat';
 import { useSpaceId } from '@/surfaces/layout';
+import { isSummonKind } from '@/workspace/panel';
 import { PanelCard } from '@/workspace/panels';
 import { ArrowUp, Loader2, MessageSquare, Plus, Table2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -37,6 +38,8 @@ export function ChatSurface() {
     toolActivity,
     panels,
     openDocument,
+    summon,
+    isResuming,
     dismissPanel,
     togglePinned,
     startNewConversation,
@@ -56,18 +59,29 @@ export function ChatSurface() {
     if (panelCount > 0) setMobilePane('workspace');
   }, [panelCount]);
 
-  // Arriving from Documents with ?doc=<id>: put it on the workspace, then drop
-  // the param so a reload doesn't keep re-opening it. The ref guards against
-  // the effect firing twice before the URL settles.
+  // Arriving with ?doc=<id> from Documents, or ?panel=<kind> from a dashboard:
+  // place it, then drop the param so a reload doesn't keep re-opening it. The
+  // refs guard against the effect firing twice before the URL settles.
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedDoc = searchParams.get('doc');
+  const requestedPanel = searchParams.get('panel');
   const openedDocRef = useRef<string | null>(null);
+  const summonedRef = useRef<string | null>(null);
   useEffect(() => {
+    if (isResuming) return; // wait, or this lands in a conversation of its own
     if (!requestedDoc || openedDocRef.current === requestedDoc) return;
     openedDocRef.current = requestedDoc;
     void openDocument(requestedDoc);
     setSearchParams({}, { replace: true });
-  }, [requestedDoc, openDocument, setSearchParams]);
+  }, [isResuming, requestedDoc, openDocument, setSearchParams]);
+  useEffect(() => {
+    if (isResuming) return;
+    if (!requestedPanel || summonedRef.current === requestedPanel) return;
+    if (!isSummonKind(requestedPanel)) return;
+    summonedRef.current = requestedPanel;
+    void summon(requestedPanel);
+    setSearchParams({}, { replace: true });
+  }, [isResuming, requestedPanel, summon, setSearchParams]);
 
   const submit = () => {
     const content = draft.trim();

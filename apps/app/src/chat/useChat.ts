@@ -4,10 +4,12 @@ import {
   PANEL_PAYLOAD_VERSION,
   type Panel,
   type PanelKind,
+  type SummonKind,
   documentPanel,
   mergePanel,
   panelFromToolResult,
   sortPanels,
+  summonedPanel,
 } from '@/workspace/panel';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -70,6 +72,17 @@ export function useChat({ spaceId }: { spaceId: string }) {
     setConversationId(latestConversationId);
   }, [conversationId, latestConversationId]);
 
+  /**
+   * True while we still might adopt an existing thread. Anything that places a
+   * panel must wait for this: on a cold load the resume query is still in
+   * flight, so acting immediately creates a fresh conversation and strands the
+   * panel in a desk of its own.
+   */
+  const isResuming =
+    !conversationId &&
+    !startedFreshRef.current &&
+    (!conversationList.isFetched || !!latestConversationId);
+
   const createConversation = useMutation(trpc.chat.createConversation.mutationOptions());
   const persistMessage = useMutation(trpc.chat.sendMessage.mutationOptions());
 
@@ -89,19 +102,23 @@ export function useChat({ spaceId }: { spaceId: string }) {
     if (!conversationId || !storedPanels) return;
     if (panelsForRef.current === conversationId) return;
     panelsForRef.current = conversationId;
-    setPanels(
-      sortPanels(
-        storedPanels.map((p) => ({
-          id: p.id,
-          kind: p.kind as PanelKind,
-          title: p.title,
-          subtitle: p.subtitle,
-          data: p.data as Record<string, unknown>,
-          createdAt: p.createdAt,
-          pinned: p.pinned,
-        })),
-      ),
-    );
+    const stored: Panel[] = storedPanels.map((p) => ({
+      id: p.id,
+      kind: p.kind as PanelKind,
+      title: p.title,
+      subtitle: p.subtitle,
+      data: p.data as Record<string, unknown>,
+      createdAt: p.createdAt,
+      pinned: p.pinned,
+    }));
+    // Merge rather than replace. A panel placed while this fetch was in flight
+    // is already on the desk and not yet in the response — overwriting would
+    // make it vanish from view while sitting happily in the database.
+    setPanels((prev) => {
+      const storedIds = new Set(stored.map((s) => s.id));
+      const localOnly = prev.filter((p) => !storedIds.has(p.id));
+      return sortPanels([...localOnly, ...stored]);
+    });
   }, [conversationId, storedPanels]);
 
   // Tool-result rows (role 'tool') and empty intermediate assistant turns are
@@ -280,26 +297,21 @@ export function useChat({ spaceId }: { spaceId: string }) {
   );
 
   /**
-   * Put a document on the workspace directly — the other way in, for when you
-   * want to look at a statement before you have a question about it. Needs a
+   * Put a panel on the workspace by hand rather than via a tool call. Needs a
    * conversation to belong to, so it starts one if none is open yet.
    */
-  const openDocument = useCallback(
-    async (fileId: string) => {
-      const file = await queryClient.fetchQuery(trpc.file.info.queryOptions({ fileId }));
-      if (!file) return;
-
+  const placePanel = useCallback(
+    async (panel: Panel) => {
       let convId = conversationId;
       if (!convId) {
         const created = await createConversation.mutateAsync({ workspaceId: spaceId });
         convId = created.id;
         setConversationId(convId);
-        // Claim the hydration slot: the panel below is the desk's contents now,
-        // so a later fetch for this conversation must not overwrite it.
+        // Claim the hydration slot: this panel is the desk's contents now, so
+        // the panel-list fetch that follows must not overwrite it.
         panelsForRef.current = convId;
       }
 
-      const panel = documentPanel(file);
       setPanels((prev) => mergePanel(prev, panel));
       upsertPanel.mutate({
         id: panel.id,
@@ -312,7 +324,25 @@ export function useChat({ spaceId }: { spaceId: string }) {
         payloadVersion: PANEL_PAYLOAD_VERSION,
       });
     },
-    [conversationId, spaceId, createConversation, queryClient, trpc, upsertPanel.mutate],
+    [conversationId, spaceId, createConversation, upsertPanel.mutate],
+  );
+
+  /** Open a document beside the conversation — the other way in. */
+  const openDocument = useCallback(
+    async (fileId: string) => {
+      const file = await queryClient.fetchQuery(trpc.file.info.queryOptions({ fileId }));
+      if (!file) return;
+      await placePanel(documentPanel(file));
+    },
+    [placePanel, queryClient, trpc],
+  );
+
+  /** Pull a dashboard onto the workspace. Reads live; carries no snapshot. */
+  const summon = useCallback(
+    async (kind: SummonKind) => {
+      await placePanel(summonedPanel(kind));
+    },
+    [placePanel],
   );
 
   const retry = useCallback(() => {
@@ -333,6 +363,8 @@ export function useChat({ spaceId }: { spaceId: string }) {
     toolActivity,
     panels,
     openDocument,
+    summon,
+    isResuming,
     dismissPanel: (id: string) => {
       setPanels((prev) => prev.filter((p) => p.id !== id));
       removePanel.mutate({ id });
