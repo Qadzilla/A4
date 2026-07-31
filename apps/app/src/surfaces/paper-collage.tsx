@@ -223,16 +223,14 @@ export function PaperCollage() {
         </div>
       ))}
 
-      {/* Calm the middle so the hero has ground to stand on. Two requirements
-          pull against each other: it has to reach zero, or the whole pile sits
-          under a haze; and it has to fall off slowly over a large radius, or
-          the falloff has a visible edge and reads as a blob. Hence the wide
-          ellipse and the long tail of stops. */}
+      {/* Calm the middle so the hero has ground to stand on. Wide and gradual,
+          and never falling to zero — a tighter gradient reads as a blob of fog
+          sitting on the paper instead of the paper simply being lighter here. */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(120% 108% at 50% 46%, rgba(241,233,219,0.9) 0%, rgba(241,233,219,0.82) 24%, rgba(241,233,219,0.64) 44%, rgba(241,233,219,0.4) 62%, rgba(241,233,219,0.18) 80%, rgba(241,233,219,0) 100%)',
+            'radial-gradient(125% 115% at 50% 45%, rgba(236,230,215,0.86) 0%, rgba(236,230,215,0.79) 20%, rgba(236,230,215,0.66) 40%, rgba(236,230,215,0.5) 60%, rgba(236,230,215,0.34) 80%, rgba(236,230,215,0.24) 100%)',
         }}
       />
       {/* Settle the edges into the page */}

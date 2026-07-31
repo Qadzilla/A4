@@ -7,12 +7,11 @@
  * an explicit toggle, not an OS default — the product leads light.
  */
 @theme {
-  /* The ground is the paper stock the landing collage is printed on, sampled
-     from the bare areas of both source sheets (#f1e9db in each). The neutrals
-     are warmed to match; a cool grey ramp on this ground reads blue and
-     broken. */
-  --color-paper: #f1e9db;
-  --color-surface: #faf6ee;
+  /* The ground is the paper the landing collage is printed on — a warm
+     cream, carried through the whole product. The neutrals are warmed to
+     match; a cool grey ramp on this ground reads blue and broken. */
+  --color-paper: #ece6d7;
+  --color-surface: #f7f3ea;
   --color-ink: #1b1a16;
   --color-muted: #655d4e;
   --color-faint: #9a9181;
