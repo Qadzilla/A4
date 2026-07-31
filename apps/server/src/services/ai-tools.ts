@@ -857,6 +857,14 @@ The classes:
   recon        their figure against yours: a <div class="recon head"> row of labels, then <div class="recon"><span class="tick">NVDA</span><span>$317.92</span><span>$353.96</span><span class="d neg">-$36.04</span></div> per line.
   unknown      when the honest answer is that we can't say: <div class="unknown"><h4>..</h4><p>..</p><span class="fix">what would fix it →</span></div>. Reach for this instead of writing 0 or leaving a figure out silently.
 
+The panel responds to a pointer. Use these to keep a layout calm at rest while still carrying the detail — put the secondary figure behind an interaction rather than dropping it or giving it a whole row:
+
+  work         the arithmetic, folded away: <details class="work"><summary>Show the working</summary><div class="body"><div class="l"><span>Gross pay</span><span class="num">$42,425</span></div>..<div class="l total"><span>Total</span><span class="num">$7,046</span></div></div></details>. Add this whenever a headline figure is the result of a calculation — it is how someone checks you rather than trusts you.
+  hint         a label that appears on hover. Put class="hint" on the thing and <span class="tip">Federal · $2,956</span> inside it. Good on split segments, donut legends and chips.
+  peek         a detail that fades in when its row is pointed at: <span class="peek">· since 15 Jan</span> inside a table row, band or status row.
+  pt           a readable point on a price line: <div class="pt hint" style="left:45%;top:44%"><span class="tip">Nov 2025 · $147.80</span></div> inside .plot.
+  swap         the same figures two ways — dollars or share. <div class="swap"><input type="radio" name="X" id="a" checked><input type="radio" name="X" id="b"><div class="tabs"><label for="a">Dollars</label><label for="b">Share</label></div><div class="view-a">..</div><div class="view-b">..</div></div>. The first input drives .view-a and the second .view-b; give every swap in the panel its own radio name and its own pair of ids.
+
 Put class="num" on every element containing figures so they align. Colour meaning with class pos / neg / hold / muted / faint, never a hard-coded hex. Colour is never the only signal a number is up or down: add class "up" or "down" for an arrow, or write the sign. Mark a figure you calculated rather than read with <span class="est">estimate</span>. If you need a colour, use var(--accent), var(--pos), var(--neg), var(--hold), var(--ink-3), var(--line). Keep it to about 640px wide. No scripts, no images, no external anything. SVG is fine and is the way to draw a chart — a line chart is an area path at 0.18 opacity under a 2px stroke in var(--accent).`,
       input_schema: {
         type: 'object' as const,

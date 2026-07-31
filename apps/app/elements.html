@@ -42,6 +42,20 @@
       <span class="num">$7,046</span> total tax, of which <span class="num">$3,800</span>
       has already come out of your pay.
     </div>
+    <details class="work">
+      <summary>Show the working</summary>
+      <div class="body">
+        <div class="l"><span>Gross pay</span><span class="num">$42,425</span></div>
+        <div class="l"><span>Less the standard deduction</span><span class="num">−$15,750</span></div>
+        <div class="l"><span>Taxed on</span><span class="num">$26,675</span></div>
+        <div class="l"><span>Federal income tax</span><span class="num">$2,956</span></div>
+        <div class="l"><span>Social Security and Medicare</span><span class="num">$3,213</span></div>
+        <div class="l"><span>California</span><span class="num">$878</span></div>
+        <div class="l total"><span>Total</span><span class="num">$7,046</span></div>
+        <div class="l"><span>Already withheld</span><span class="num">−$3,800</span></div>
+        <div class="l total"><span>Still to pay</span><span class="num">$3,246</span></div>
+      </div>
+    </details>
   </div>
 
   <div class="spec"><h2>Figures</h2><span>numbers that belong together, with their direction</span></div>
@@ -67,8 +81,8 @@
     <div class="label" style="margin-bottom:14px">Federal income tax · single · 2026</div>
     <div class="band"><div class="r">24%</div><div class="t"></div><div class="g num">$106,250 – $202,850</div></div>
     <div class="band"><div class="r">22%</div><div class="t"></div><div class="g num">$49,825 – $106,250</div></div>
-    <div class="band on"><div class="r">12%</div><div class="t"><i style="width:79%"></i></div><div class="g num">$12,250 – $49,825</div></div>
-    <div class="band"><div class="r">10%</div><div class="t"><i style="width:100%"></i></div><div class="g num">$0 – $12,250</div></div>
+    <div class="band on"><div class="r">12%</div><div class="t"><i style="width:79%"></i></div><div class="g num">$12,250 – $49,825 <span class="peek">· $14,425 here</span></div></div>
+    <div class="band"><div class="r">10%</div><div class="t"><i style="width:100%"></i></div><div class="g num">$0 – $12,250 <span class="peek">· $12,250 here</span></div></div>
     <p class="sub" style="margin:16px 0 0">
       Only the money inside a band is taxed at that band's rate — moving up a
       bracket never costs you money overall. Your next dollar is taxed at 12%.
@@ -248,17 +262,29 @@
   <div class="card">
     <div class="label" style="margin-bottom:14px">Your $7,046 of tax</div>
     <div class="split">
-      <i style="width:42%;background:var(--accent)"></i>
-      <i style="width:46%;background:var(--accent-2)"></i>
-      <i style="width:12%;background:var(--accent-3)"></i>
+      <i class="hint" style="width:42%;background:var(--accent)"><span class="tip">Federal · $2,956</span></i>
+      <i class="hint" style="width:46%;background:var(--accent-2)"><span class="tip">Social Security and Medicare · $3,213</span></i>
+      <i class="hint" style="width:12%;background:var(--accent-3)"><span class="tip">California · $878</span></i>
     </div>
-    <div class="legend">
-      <div><b style="background:var(--accent)"></b><span>Federal income tax</span>
-        <span class="pct num">42%</span><span class="amt num">$2,956</span></div>
-      <div><b style="background:var(--accent-2)"></b><span>Social Security and Medicare</span>
-        <span class="pct num">46%</span><span class="amt num">$3,213</span></div>
-      <div><b style="background:var(--accent-3)"></b><span>California</span>
-        <span class="pct num">12%</span><span class="amt num">$878</span></div>
+    <div class="swap" style="margin-top:16px">
+      <input type="radio" name="split-view" id="split-d" checked><input type="radio" name="split-view" id="split-p">
+      <div class="tabs"><label for="split-d">Dollars</label><label for="split-p">Share of your pay</label></div>
+      <div class="legend view-a">
+        <div><b style="background:var(--accent)"></b><span>Federal income tax</span>
+          <span class="pct num">42%</span><span class="amt num">$2,956</span></div>
+        <div><b style="background:var(--accent-2)"></b><span>Social Security and Medicare</span>
+          <span class="pct num">46%</span><span class="amt num">$3,213</span></div>
+        <div><b style="background:var(--accent-3)"></b><span>California</span>
+          <span class="pct num">12%</span><span class="amt num">$878</span></div>
+      </div>
+      <div class="legend view-b">
+        <div><b style="background:var(--accent)"></b><span>Federal income tax</span>
+          <span class="pct num"></span><span class="amt num">7.0%</span></div>
+        <div><b style="background:var(--accent-2)"></b><span>Social Security and Medicare</span>
+          <span class="pct num"></span><span class="amt num">7.6%</span></div>
+        <div><b style="background:var(--accent-3)"></b><span>California</span>
+          <span class="pct num"></span><span class="amt num">2.1%</span></div>
+      </div>
     </div>
   </div>
 
@@ -270,7 +296,7 @@
       <tbody>
         <tr><td class="tick">NVDA</td>
           <td><svg class="spark p" viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="0,22 25,17 50,12 75,9 100,3"/></svg></td>
-          <td class="sub">9 months</td><td class="r num">$1,620</td><td class="r num pos">+$438</td><td class="r num">$53</td></tr>
+          <td class="sub">9 months <span class="peek">· since 15 Jan</span></td><td class="r num">$1,620</td><td class="r num pos">+$438</td><td class="r num">$53</td></tr>
         <tr><td class="tick">VOO</td>
           <td><svg class="spark p" viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="0,18 25,15 50,16 75,11 100,9"/></svg></td>
           <td class="sub">5 months</td><td class="r num">$1,688</td><td class="r num pos">+$173</td><td class="r num">$21</td></tr>
@@ -348,6 +374,9 @@
       </svg>
       <div class="mark buy" style="left:22%;top:64%"></div>
       <div class="tag" style="left:22%;top:74%">You bought · 8 units</div>
+      <div class="pt hint" style="left:45%;top:44%"><span class="tip">Nov 2025 · $147.80</span></div>
+      <div class="pt hint" style="left:70%;top:33%"><span class="tip">Mar 2026 · $171.20</span></div>
+      <div class="pt hint" style="left:99%;top:9%"><span class="tip">Today · $198.32</span></div>
     </div>
     <div class="axis"><span>1 Aug 2025</span><span>today</span></div>
   </div>

@@ -32,7 +32,13 @@
   --neg: #d8453c;  --neg-tint: #fdeceb;
   --hold: #b7791f; --hold-tint: #fdf5e6;
   --r-sm: 6px; --r: 10px; --r-lg: 14px;
+  /* Two layers: a tight contact shadow that seats the card, and a wide soft
+     one that lifts it. One layer alone reads either flat or muddy. */
   --shadow: 0 1px 2px rgba(13,17,23,.04), 0 4px 14px -6px rgba(13,17,23,.10);
+  --shadow-lift: 0 1px 2px rgba(13,17,23,.05), 0 10px 28px -10px rgba(13,17,23,.16);
+  /* Short and eased-out. Motion here reveals a figure; it never performs. */
+  --ease: cubic-bezier(.2,.6,.2,1);
+  --quick: 120ms var(--ease);
 
   /* Panels generated before this palette wrote their own CSS against the old
      names. They're stored, so they still have to render. */
@@ -56,6 +62,16 @@ body.panel-frame {
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 14px; line-height: 1.6; letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
+  /* Elements size themselves against the panel, not the window, so the same
+     answer reads in a 255px column and across a full canvas. */
+  container-type: inline-size;
+}
+
+/* Nothing animates for anyone who has asked the OS for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .panel-root *, .panel-root *::before, .panel-root *::after {
+    transition-duration: 1ms !important; animation-duration: 1ms !important;
+  }
 }
 
 .num { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1; }
@@ -66,7 +82,8 @@ body.panel-frame {
 .stack > * + * { margin-top: 20px; }
 
 .card { background: var(--surface); border: 1px solid var(--line);
-        border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 24px; }
+        border-radius: var(--r-lg); box-shadow: var(--shadow);
+        padding: clamp(16px, 4cqi, 24px); }
 .label { font-size: 12px; font-weight: 500; color: var(--ink-3); }
 .sub { font-size: 13px; color: var(--ink-3); }
 .pos { color: var(--pos); } .neg { color: var(--neg); } .hold { color: var(--hold); }
@@ -90,14 +107,14 @@ body.panel-frame {
        vertical-align: 2px; }
 
 /* ── Headline ─────────────────────────────────────────── */
-.lead { font-size: 44px; font-weight: 600; letter-spacing: -0.035em; line-height: 1.05; }
+.lead { font-size: clamp(30px, 9cqi, 44px); font-weight: 600; letter-spacing: -0.035em; line-height: 1.05; }
 .lead-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 
 /* ── Figures, with a trend and a sparkline ────────────── */
 .figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px;
         background: var(--line); border-radius: var(--r); overflow: hidden; }
 .figs > div { background: var(--surface); padding: 16px 18px; }
-.figs .v { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-top: 4px; }
+.figs .v { font-size: clamp(18px, 5cqi, 22px); font-weight: 600; letter-spacing: -0.02em; margin-top: 4px; }
 .figs .d { font-size: 12px; font-weight: 500; margin-top: 2px; }
 .spark { display: block; height: 26px; width: 100%; margin-top: 8px; overflow: visible; }
 .spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.75;
@@ -219,7 +236,7 @@ td .spark { height: 20px; width: 74px; margin: 0; }
 
 /* ── Countdown ────────────────────────────────────────── */
 .cd { display: flex; align-items: baseline; gap: 8px; }
-.cd b { font-size: 48px; font-weight: 600; letter-spacing: -0.04em; line-height: 1; }
+.cd b { font-size: clamp(34px, 10cqi, 48px); font-weight: 600; letter-spacing: -0.04em; line-height: 1; }
 .cd span { font-size: 15px; color: var(--ink-3); }
 
 /* ── Breakdown ────────────────────────────────────────── */
@@ -260,7 +277,7 @@ td .spark { height: 20px; width: 74px; margin: 0; }
 .callout { background: linear-gradient(180deg, var(--accent-tint), #fff);
            border: 1px solid #dbe3ff; border-radius: var(--r-lg); padding: 22px 24px; }
 .callout .label { color: var(--accent); }
-.callout .v { font-size: 32px; font-weight: 600; letter-spacing: -0.03em; color: var(--accent); margin: 6px 0; }
+.callout .v { font-size: clamp(24px, 7cqi, 32px); font-weight: 600; letter-spacing: -0.03em; color: var(--accent); margin: 6px 0; }
 
 /* ── Steps ────────────────────────────────────────────── */
 .step { display: grid; grid-template-columns: 26px 1fr; gap: 14px; padding: 0 0 20px; }
@@ -274,7 +291,7 @@ td .spark { height: 20px; width: 74px; margin: 0; }
 /* ── Quote ────────────────────────────────────────────── */
 .quote { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .quote .t { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
-.quote .p { font-size: 30px; font-weight: 600; letter-spacing: -0.03em; }
+.quote .p { font-size: clamp(22px, 6cqi, 30px); font-weight: 600; letter-spacing: -0.03em; }
 
 /* ── Price line, with the things that happened on it ───── */
 .plot { position: relative; margin-top: 18px; }
@@ -329,3 +346,122 @@ td .spark { height: 20px; width: 74px; margin: 0; }
 .row:first-child { border-top: 0; }
 .row i { width: 7px; height: 7px; border-radius: 50%; }
 .row .v { font-size: 13px; color: var(--ink-3); }
+
+/* ══════════════════════════════════════════════════════════
+   Interaction
+
+   The panel renders in a sandboxed frame, so it can respond to
+   a pointer. Every interaction below earns it by revealing a
+   figure that would otherwise need its own row: the dollars in
+   a bracket, the value at a point on a line, the arithmetic
+   behind a total. Nothing here animates for its own sake, and
+   all of it is CSS — no script in a generated answer.
+   ══════════════════════════════════════════════════════════ */
+
+.card { transition: box-shadow 160ms var(--ease); }
+.card:hover { box-shadow: var(--shadow-lift); }
+
+/* Keyboard users get the same affordances as pointer users. */
+.panel-root :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* A row you can point at. Peek holds the detail that only
+   appears on hover, so the table stays scannable at rest. */
+.panel-root tbody tr { transition: background-color var(--quick); }
+.panel-root tbody tr:hover { background: var(--surface-2); }
+.peek { color: var(--ink-4); opacity: 0; transition: opacity var(--quick); }
+tr:hover .peek, .band:hover .peek, .m:hover .peek, .row:hover .peek { opacity: 1; }
+
+/* Bracket rungs answer "how much of my money is in here?" on hover
+   rather than spending a column on it. */
+.band, .mek .m { border-radius: var(--r-sm); transition: background-color var(--quick); }
+.band:hover, .mek .m:hover { background: var(--surface-2); }
+.band .t i, .mek .m .bar > i { transition: opacity var(--quick), filter var(--quick); }
+.band:hover .t i { opacity: .3; }
+.mek .m:hover .bar .tax { filter: brightness(.9); }
+
+/* Segments of a breakdown lift out when pointed at. */
+.split i, .legend div { transition: transform var(--quick), opacity var(--quick); }
+.split i:hover { transform: translateY(-3px); }
+.legend div:hover { opacity: .7; }
+
+/* A tooltip that belongs to whatever it is anchored on. Put it
+   inside any element with class "hint" and it appears on hover
+   or focus, above and centred. */
+.hint { position: relative; }
+.hint > .tip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translate(-50%, 3px);
+  background: var(--ink); color: #fff; font-size: 12px; font-weight: 500; line-height: 1.45;
+  /* Segments of a breakdown are <i> elements, which would otherwise italicise
+     the label sitting inside them. */
+  font-style: normal;
+  padding: 6px 9px; border-radius: var(--r-sm); white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity var(--quick), transform var(--quick); z-index: 5;
+  box-shadow: 0 6px 20px -6px rgba(13,17,23,.35);
+}
+.hint > .tip::after {
+  content: ""; position: absolute; top: 100%; left: 50%; margin-left: -4px;
+  border: 4px solid transparent; border-top-color: var(--ink);
+}
+.hint:hover > .tip, .hint:focus-visible > .tip { opacity: 1; transform: translate(-50%, 0); }
+
+/* Points on a line chart. Sit them inside .plot with left/top
+   percentages; each reads out its own value on hover. */
+.plot .pt {
+  position: absolute; width: 22px; height: 22px; transform: translate(-50%, -50%);
+  border-radius: 50%; cursor: default;
+}
+.plot .pt::before {
+  content: ""; position: absolute; inset: 7px; border-radius: 50%;
+  background: var(--accent); opacity: 0; transition: opacity var(--quick);
+}
+.plot .pt:hover::before { opacity: 1; }
+
+/* The working, folded away. An answer can show its arithmetic
+   without the arithmetic being the first thing you read. */
+.work { border-top: 1px solid var(--line); margin-top: 16px; }
+.work > summary {
+  list-style: none; cursor: pointer; padding: 12px 0 0; font-size: 13px; font-weight: 500;
+  color: var(--accent); display: flex; align-items: center; gap: 6px;
+}
+.work > summary::-webkit-details-marker { display: none; }
+.work > summary::before {
+  content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); margin-right: 2px;
+  transition: transform var(--quick);
+}
+.work[open] > summary::before { transform: rotate(45deg); }
+.work > .body { padding-top: 12px; font-size: 13px; color: var(--ink-3); }
+.work > .body .l { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; }
+.work > .body .l span:last-child { color: var(--ink); font-weight: 500; }
+.work > .body .l.total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 9px; }
+
+/* Two ways of reading the same figures, switched without a
+   round trip: dollars or share of the total. */
+.swap > input { position: absolute; opacity: 0; pointer-events: none; }
+.swap > .tabs { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line);
+                border-radius: 99px; padding: 2px; gap: 2px; margin-bottom: 16px; }
+.swap > .tabs label {
+  font-size: 12px; font-weight: 500; color: var(--ink-3); padding: 4px 12px;
+  border-radius: 99px; cursor: pointer; transition: background-color var(--quick), color var(--quick);
+}
+.swap > .tabs label:hover { color: var(--ink); }
+/* Matched by position rather than by id, so a panel can carry two switches
+   without their ids colliding. */
+.swap > input:first-of-type:checked ~ .tabs label:first-child,
+.swap > input:last-of-type:checked ~ .tabs label:last-child {
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
+}
+.swap > input:first-of-type:checked ~ .view-b,
+.swap > input:last-of-type:checked ~ .view-a { display: none; }
+
+/* ── Narrow panels ────────────────────────────────────────
+   Side-by-side comparisons stack rather than shrink below the
+   width where their labels stop being readable. */
+@container (max-width: 460px) {
+  .ba { grid-template-columns: 1fr; }
+  .ba .mid { justify-content: center; transform: rotate(90deg); }
+  .alloc { gap: 18px; }
+  /* Narrow enough to fit, so it stops needing the horizontal scroll. */
+  .recon { grid-template-columns: 1fr 76px 76px 72px; gap: 8px; font-size: 12.5px; min-width: 0; }
+  .ev { grid-template-columns: 74px 20px 1fr; }
+}
