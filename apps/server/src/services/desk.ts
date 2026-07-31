@@ -1,9 +1,132 @@
-import { and, count, eq } from 'drizzle-orm';
+import { and, count, eq, gte } from 'drizzle-orm';
 import type { DB } from '../db';
 import { files, holdings, tax1099s, trades } from '../db/schema';
 import { computeDeskStatus, computeRealizedGains, reconcile1099 } from '../lib/calc';
 import type { DeskStatus, Extracted1099 } from '../lib/calc';
 import { buildTaxPicture } from './tax-picture';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const LONG_TERM_DAYS = 365;
+const WASH_WINDOW_DAYS = 30;
+const LTCG_RATE_ABOVE_ZERO_BRACKET = 0.15;
+
+export interface DeskPosition {
+  id: string;
+  symbol: string;
+  name: string;
+  value: number;
+  quantity: number | null;
+  costBasis: number | null;
+  acquiredAt: string | null;
+  unrealized: number | null;
+  term: 'short' | 'long' | null;
+  daysToLongTerm: number | null;
+}
+
+/**
+ * Every position with the things a decision turns on. One place for the
+ * arithmetic, so the panels that slice it differently can't drift apart.
+ *
+ * Null rather than zero wherever the basis or date is missing — the
+ * difference between "no gain" and "we don't know" is the whole product.
+ */
+export async function getDeskPositions(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+  today = new Date(),
+): Promise<DeskPosition[]> {
+  const rows = await db
+    .select()
+    .from(holdings)
+    .where(and(eq(holdings.workspaceId, workspaceId), eq(holdings.userId, userId)))
+    .orderBy(holdings.symbol);
+
+  return rows.map((h) => {
+    const basisKnown = h.costBasis !== null && h.costBasis > 0;
+    const heldDays = h.acquiredAt
+      ? Math.floor((today.getTime() - new Date(`${h.acquiredAt}T00:00:00Z`).getTime()) / DAY_MS)
+      : null;
+    const isLong = heldDays !== null && heldDays > LONG_TERM_DAYS;
+    return {
+      id: h.id,
+      symbol: h.symbol,
+      name: h.name,
+      value: h.value,
+      quantity: h.quantity,
+      costBasis: basisKnown ? h.costBasis : null,
+      acquiredAt: h.acquiredAt,
+      unrealized: basisKnown ? h.value - (h.costBasis as number) : null,
+      term: heldDays === null ? null : isLong ? ('long' as const) : ('short' as const),
+      daysToLongTerm: heldDays === null || isLong ? null : LONG_TERM_DAYS + 1 - heldDays,
+    };
+  });
+}
+
+/**
+ * The sell decision, laid out side by side: every position against the
+ * questions that decide it.
+ *
+ * Each row answers "if this were the only thing you sold" — the 0% bracket is
+ * a shared allowance, so applying it to every row independently is a
+ * simplification, and the panel says so rather than quietly compounding it.
+ */
+export async function getDeskComparison(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+  today = new Date(),
+) {
+  const positions = await getDeskPositions(db, userId, workspaceId, today);
+
+  const picture = await buildTaxPicture(db, userId, workspaceId);
+  const marginalRate = picture.hasProfile ? picture.result.marginalFederalRate : null;
+  const zeroBracketRoom = picture.hasProfile ? picture.result.ltcgZeroBracketRoom : 0;
+
+  // A buy of the same symbol inside the window means selling at a loss now
+  // would have that loss disallowed.
+  const cutoff = new Date(today.getTime() - WASH_WINDOW_DAYS * DAY_MS).toISOString().slice(0, 10);
+  const recentBuys = await db
+    .select({ symbol: trades.symbol })
+    .from(trades)
+    .where(
+      and(
+        eq(trades.workspaceId, workspaceId),
+        eq(trades.userId, userId),
+        eq(trades.side, 'buy'),
+        gte(trades.tradeDate, cutoff),
+      ),
+    );
+  const boughtRecently = new Set(recentBuys.map((t) => t.symbol.toUpperCase()));
+
+  return {
+    context: {
+      hasTaxProfile: picture.hasProfile,
+      marginalFederalRatePct: marginalRate,
+      ltcgZeroBracketRoom: zeroBracketRoom,
+    },
+    positions: positions.map((p) => {
+      let estimatedTaxIfSoldToday: number | null = null;
+      if (p.unrealized !== null && p.term !== null && marginalRate !== null) {
+        if (p.unrealized <= 0) {
+          estimatedTaxIfSoldToday = 0;
+        } else if (p.term === 'short') {
+          estimatedTaxIfSoldToday = p.unrealized * (marginalRate / 100);
+        } else {
+          const taxable = Math.max(0, p.unrealized - zeroBracketRoom);
+          estimatedTaxIfSoldToday = taxable * LTCG_RATE_ABOVE_ZERO_BRACKET;
+        }
+      }
+      return {
+        ...p,
+        estimatedTaxIfSoldToday,
+        // Only a loss can be disallowed, so the flag is about losses only
+        washRisk:
+          p.unrealized !== null && p.unrealized < 0 && boughtRecently.has(p.symbol.toUpperCase()),
+      };
+    }),
+  };
+}
 
 /**
  * Gathers everything the desk's standing status needs and hands it to the

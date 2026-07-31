@@ -641,6 +641,90 @@ function ReconciliationPanel({ taxYear }: { taxYear: number }) {
   );
 }
 
+/**
+ * The sell decision, side by side. Every position against the things that
+ * decide it, so the choice is made by comparison rather than by asking about
+ * one holding at a time and trying to hold the rest in your head.
+ */
+function ComparisonPanel() {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const { data, isLoading } = useQuery(trpc.desk.comparison.queryOptions({ workspaceId: spaceId }));
+
+  if (isLoading) return <p className="text-xs text-muted">Working through your positions…</p>;
+  if (!data || data.positions.length === 0)
+    return <p className="text-xs text-muted">No positions yet.</p>;
+
+  const { context, positions } = data;
+  return (
+    <div className="space-y-3">
+      {/* The table is wider than the panel on a narrow screen; it scrolls
+          rather than wrapping, because a wrapped comparison isn't one. */}
+      <div className="-mx-1 overflow-x-auto">
+        <table className="w-full min-w-[520px] border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-hairline text-left">
+              <th className="eyebrow py-2 pr-3 font-normal">Position</th>
+              <th className="eyebrow py-2 pr-3 font-normal">Term</th>
+              <th className="eyebrow py-2 pr-3 text-right font-normal">To long-term</th>
+              <th className="eyebrow py-2 pr-3 text-right font-normal">Unrealized</th>
+              <th className="eyebrow py-2 pr-3 text-right font-normal">Tax if sold</th>
+              <th className="eyebrow py-2 text-right font-normal">Wash</th>
+            </tr>
+          </thead>
+          <tbody>
+            {positions.map((p) => (
+              <tr key={p.id} className="border-b border-hairline last:border-0">
+                <td className="py-2 pr-3">
+                  <span className="font-mono font-semibold">{p.symbol}</span>
+                </td>
+                <td className="py-2 pr-3 text-muted">{p.term ?? '—'}</td>
+                <td className="tnum py-2 pr-3 text-right font-mono">
+                  {p.daysToLongTerm === null ? (
+                    <span className="text-faint">—</span>
+                  ) : (
+                    <span className="text-accent">{p.daysToLongTerm}d</span>
+                  )}
+                </td>
+                <td className="tnum py-2 pr-3 text-right font-mono">
+                  {p.unrealized === null ? (
+                    <span className="text-faint">not known</span>
+                  ) : (
+                    <span className={p.unrealized >= 0 ? 'text-good' : 'text-bad'}>
+                      {p.unrealized >= 0 ? '+' : ''}
+                      {usd(p.unrealized)}
+                    </span>
+                  )}
+                </td>
+                <td className="tnum py-2 pr-3 text-right font-mono">
+                  {p.estimatedTaxIfSoldToday === null ? (
+                    <span className="text-faint">—</span>
+                  ) : (
+                    usd(p.estimatedTaxIfSoldToday)
+                  )}
+                </td>
+                <td className="py-2 text-right">
+                  {p.washRisk ? (
+                    <span className="text-warn">at risk</span>
+                  ) : (
+                    <span className="text-faint">—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-[11px] leading-relaxed text-faint">
+        {context.hasTaxProfile
+          ? `Each row assumes it's the only thing you sell: the ${usdWhole(context.ltcgZeroBracketRoom)} of 0% long-term room is a single allowance, not one per position. Short-term gains use your ${context.marginalFederalRatePct?.toFixed(0)}% marginal rate; long-term above the window uses 15%. Federal only, and an estimate.`
+          : 'Tax columns need your income before they can be worked out — the Taxes surface fills them in.'}
+      </p>
+    </div>
+  );
+}
+
 export function PanelCard({
   panel,
   taxYear,
@@ -691,6 +775,7 @@ export function PanelCard({
       {panel.kind === 'search' && <SearchPanel d={panel.data} />}
       {panel.kind === 'document' && <DocumentPanel d={panel.data} />}
       {panel.kind === 'export' && <ExportPanel d={panel.data} />}
+      {panel.kind === 'comparison' && <ComparisonPanel />}
       {panel.kind === 'gains' && <GainsPanel taxYear={taxYear} />}
       {panel.kind === 'approaching' && <ApproachingPanel />}
       {panel.kind === 'losses' && <LossesPanel />}

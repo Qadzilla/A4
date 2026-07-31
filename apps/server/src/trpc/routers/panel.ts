@@ -30,6 +30,7 @@ const panelInput = z.object({
     'approaching',
     'losses',
     'reconciliation',
+    'comparison',
   ]),
   title: z.string().min(1),
   subtitle: z.string().nullable(),

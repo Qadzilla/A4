@@ -223,7 +223,16 @@ export function ChatSurface() {
         <div className="mx-auto max-w-2xl px-5 py-6">
           {/* The desk is a tax year. Switching years switches desks. */}
           <div className="mb-5 flex items-baseline justify-between gap-3">
-            <p className="eyebrow">Desk</p>
+            <div className="flex items-baseline gap-3">
+              <p className="eyebrow">Desk</p>
+              <button
+                type="button"
+                onClick={() => summon('comparison')}
+                className="text-xs font-medium text-accent transition-colors hover:underline"
+              >
+                Compare positions
+              </button>
+            </div>
             <label className="flex items-center gap-2">
               <span className="eyebrow">Tax year</span>
               <select
