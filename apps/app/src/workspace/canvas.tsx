@@ -369,11 +369,13 @@ export function Canvas({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      {/* One tab per thing on the desk. Selecting one doesn't open a separate
-          view of it — it moves the desk so that panel is what you're looking
-          at. The desk stays the only place anything lives. */}
+      {/* One tab per thing on the desk, and the desk itself first.
+          The bar sits above the surface rather than merely before it: the two
+          are siblings inside one clipped box, so without a stacking order of
+          its own the later sibling wins and panels slide over the tabs as you
+          pan. */}
       {panels.length > 1 && (
-        <div className="flex shrink-0 items-stretch gap-px overflow-x-auto border-hairline border-b bg-paper">
+        <div className="relative z-30 flex shrink-0 items-stretch gap-px overflow-x-auto border-hairline border-b bg-paper">
           <PanelTab
             active={focused === null}
             onSelect={() => setFocused(null)}
