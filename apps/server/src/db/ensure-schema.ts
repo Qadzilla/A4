@@ -83,6 +83,21 @@ export function ensureLaunchSchema(sqlite: Database.Database): void {
     }
   }
 
+  // B2: the kiddie-guard facts on the tax profile — nullable, unknown-aware.
+  const profileCols = new Set(
+    (sqlite.prepare('PRAGMA table_info(tax_profiles)').all() as Array<{ name: string }>).map(
+      (c) => c.name,
+    ),
+  );
+  if (profileCols.size > 0) {
+    if (!profileCols.has('birth_date')) {
+      sqlite.exec('ALTER TABLE tax_profiles ADD COLUMN birth_date TEXT');
+    }
+    if (!profileCols.has('full_time_student')) {
+      sqlite.exec('ALTER TABLE tax_profiles ADD COLUMN full_time_student INTEGER');
+    }
+  }
+
   // P9: panels gained a position on the canvas. Nullable, so every panel that
   // predates the canvas simply reads as unplaced and gets packed on first sight.
   const canvasColumns = new Set(

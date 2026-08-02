@@ -61,6 +61,11 @@ export interface DeskStatusInput {
   } | null;
   hasTaxProfile: boolean;
   ltcgZeroBracketRoom: number;
+  /**
+   * B2: the kiddie-tax guard's verdict on the window. 'exposed' rewrites
+   * the line, 'unknown' cautions it, 'clear' leaves it alone.
+   */
+  kiddie: { status: 'exposed' | 'clear' | 'unknown'; note: string | null };
   quarterly: QuarterlyPlan | null;
 }
 
@@ -196,6 +201,27 @@ function windowLine(input: DeskStatusInput): DeskLine {
       label: '0% gains window',
       status: 'resolved',
       detail: 'Income sits above the 0% long-term bracket this year.',
+      panel: 'taxes',
+    };
+  }
+  // B2: a student under 24 mostly can't use the window — the parents' rate
+  // (Form 8615) reaches their investment income whether or not anyone
+  // claims them. The flagship line never advertises what the rule takes.
+  if (input.kiddie.status === 'exposed') {
+    return {
+      id: 'window',
+      label: '0% gains window',
+      status: 'attention',
+      detail: `${usd(input.ltcgZeroBracketRoom)} of 0% federal room on paper — but the parents'-rate rule (Form 8615) applies to a student under 24, so most of it isn't usable.`,
+      panel: 'taxes',
+    };
+  }
+  if (input.kiddie.status === 'unknown') {
+    return {
+      id: 'window',
+      label: '0% gains window',
+      status: 'attention',
+      detail: `${usd(input.ltcgZeroBracketRoom)} of long-term gains could be realized at 0% federal tax — one check first: for a student under 24 the parents'-rate rule (Form 8615) can take most of it. A birth date on the tax profile settles this.`,
       panel: 'taxes',
     };
   }

@@ -16,6 +16,7 @@ function input(overrides: Partial<DeskStatusInput> = {}): DeskStatusInput {
     reconciliation: null,
     hasTaxProfile: false,
     ltcgZeroBracketRoom: 0,
+    kiddie: { status: 'clear' as const, note: null },
     quarterly: null,
     ...overrides,
   };
@@ -230,5 +231,51 @@ describe('counts', () => {
     const status = computeDeskStatus(input({ documentCount: 3, hasTrades: true }));
     const total = Object.values(status.counts).reduce((a, b) => a + b, 0);
     expect(total).toBe(status.lines.length);
+  });
+});
+
+describe('the kiddie guard on the window line (B2)', () => {
+  it('rewrites the window when a student under 24 is exposed', () => {
+    const lines = computeDeskStatus(
+      input({
+        hasTaxProfile: true,
+        ltcgZeroBracketRoom: 22425,
+        kiddie: {
+          status: 'exposed',
+          note: 'Form 8615 applies.',
+        },
+      }),
+    ).lines;
+    const window = lines.find((l) => l.id === 'window');
+    expect(window?.detail).toContain('Form 8615');
+    expect(window?.detail).toContain("isn't usable");
+    expect(window?.detail).not.toBe(
+      '$22,425 of long-term gains could be realized at 0% federal tax.',
+    );
+  });
+
+  it('cautions an unknown rather than advertising or hiding the window', () => {
+    const lines = computeDeskStatus(
+      input({
+        hasTaxProfile: true,
+        ltcgZeroBracketRoom: 22425,
+        kiddie: { status: 'unknown', note: 'check first' },
+      }),
+    ).lines;
+    const window = lines.find((l) => l.id === 'window');
+    expect(window?.detail).toContain('one check first');
+    expect(window?.detail).toContain('$22,425');
+  });
+
+  it('leaves the clear case exactly as it always read', () => {
+    const lines = computeDeskStatus(
+      input({
+        hasTaxProfile: true,
+        ltcgZeroBracketRoom: 22425,
+        kiddie: { status: 'clear', note: null },
+      }),
+    ).lines;
+    const window = lines.find((l) => l.id === 'window');
+    expect(window?.detail).toBe('$22,425 of long-term gains could be realized at 0% federal tax.');
   });
 });

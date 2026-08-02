@@ -239,6 +239,7 @@ export async function getDeskStatus(
     reconciliation,
     hasTaxProfile: profileCoversYear,
     ltcgZeroBracketRoom: profileCoversYear ? picture.result.ltcgZeroBracketRoom : 0,
+    kiddie: picture.kiddie,
     quarterly: profileCoversYear ? picture.quarterly : null,
   });
 }

@@ -42,6 +42,14 @@ const profileUpdateSchema = z.object({
   estimatedPayments: z.number().min(0).optional(),
   priorYearTax: z.number().min(0).nullable().optional(),
   priorYearAgi: z.number().min(0).nullable().optional(),
+  // B2: the kiddie-guard facts. Nullable — clearing the field is a real
+  // answer ("don't know"), not a zero.
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  fullTimeStudent: z.boolean().nullable().optional(),
 });
 
 /** One 1099, reconciled against the ledger for its own tax year. */

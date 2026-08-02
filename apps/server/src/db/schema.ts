@@ -235,6 +235,10 @@ export const taxProfiles = sqliteTable('tax_profiles', {
   estimatedPayments: real('estimated_payments').notNull().default(0),
   priorYearTax: real('prior_year_tax'),
   priorYearAgi: real('prior_year_agi'),
+  // B2: the two facts the kiddie-tax guard turns on. Nullable — unknown is
+  // a state the guard handles, never a default.
+  birthDate: text('birth_date'),
+  fullTimeStudent: integer('full_time_student', { mode: 'boolean' }),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),

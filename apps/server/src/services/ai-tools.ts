@@ -208,7 +208,9 @@ async function preTradeCheck(
             estimatedFederalTax: estimatedTax,
             note:
               ltcgRoom > 0
-                ? `Long-term gains up to $${Math.round(ltcgRoom)} fall in the 0% federal bracket this year.`
+                ? picture.kiddie.note !== null
+                  ? `Long-term gains up to $${Math.round(ltcgRoom)} fall in the 0% federal bracket this year. ${picture.kiddie.note}`
+                  : `Long-term gains up to $${Math.round(ltcgRoom)} fall in the 0% federal bracket this year.`
                 : null,
           }
         : {

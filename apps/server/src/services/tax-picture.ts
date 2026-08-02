@@ -7,6 +7,7 @@ import {
   createDefaultTaxEstimatorData,
 } from '../lib/calc';
 import type { TaxEstimatorData } from '../lib/calc';
+import { kiddieGuard } from '../lib/calc/kiddie-guard';
 
 /**
  * The year-round tax picture, shared by the tax tRPC router and Bip's
@@ -101,6 +102,15 @@ export async function buildTaxPicture(db: DB, userId: string, workspaceId: strin
     hasProfile: profile !== null,
     inputs: data,
     result,
+    // B2: every consumer of ltcgZeroBracketRoom consults this before
+    // presenting the window as usable.
+    kiddie: kiddieGuard(
+      {
+        birthDate: profile?.birthDate ?? null,
+        fullTimeStudent: profile?.fullTimeStudent ?? null,
+      },
+      data.taxYear,
+    ),
     quarterly,
     unrealized: {
       total: basisKnownCount > 0 ? unrealizedTotal : null,

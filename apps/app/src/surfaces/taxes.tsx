@@ -101,6 +101,10 @@ interface FormState {
   stateCode: string;
   deductionType: 'standard' | 'itemized';
   numbers: Record<NumericField, string>;
+  // B2: the two facts the kiddie guard turns on. Empty/unset means
+  // "don't know" — a real answer the guard treats as a caution.
+  birthDate: string;
+  fullTimeStudent: '' | 'yes' | 'no';
 }
 
 const SAVE_DEBOUNCE_MS = 700;
@@ -147,6 +151,9 @@ export function TaxesSurface() {
       stateCode: profile?.stateCode ?? '',
       deductionType: (profile?.deductionType as FormState['deductionType']) ?? 'standard',
       numbers,
+      birthDate: profile?.birthDate ?? '',
+      fullTimeStudent:
+        profile?.fullTimeStudent === true ? 'yes' : profile?.fullTimeStudent === false ? 'no' : '',
     });
   }, [profileLoading, profile, form]);
 
@@ -168,6 +175,8 @@ export function TaxesSurface() {
           filingStatus: next.filingStatus,
           stateCode: next.stateCode,
           deductionType: next.deductionType,
+          birthDate: next.birthDate || null,
+          fullTimeStudent: next.fullTimeStudent === '' ? null : next.fullTimeStudent === 'yes',
           w2Wages: num('w2Wages'),
           selfEmploymentIncome: num('selfEmploymentIncome'),
           investmentIncome: num('investmentIncome'),
@@ -286,6 +295,9 @@ export function TaxesSurface() {
         <section className="mb-10">
           <div className="rounded-card border border-accent/30 bg-accent-soft p-5">
             <p className="eyebrow mb-1 text-accent">Tax-free gains window</p>
+            {picture.kiddie.note && (
+              <p className="mb-2 text-xs leading-relaxed text-warn">{picture.kiddie.note}</p>
+            )}
             <p className="text-sm">
               You can realize up to{' '}
               <span className="tnum font-mono font-bold">
@@ -489,6 +501,30 @@ export function TaxesSurface() {
               value={form.stateCode}
               onChange={(v) => update({ stateCode: v })}
               options={US_STATES.map((s) => ({ value: s.code, label: s.label }))}
+            />
+          </div>
+
+          {/* B2: two life questions that decide whether the 0% window is
+              really usable — a student under 24 mostly can't use it. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="grid gap-1">
+              <span className="text-xs text-muted">Date of birth</span>
+              <input
+                type="date"
+                value={form.birthDate}
+                onChange={(e) => update({ birthDate: e.target.value })}
+                className="tnum rounded-card border border-hairline bg-paper px-3 py-2 font-mono text-sm outline-none transition-colors focus:border-accent"
+              />
+            </label>
+            <SelectField
+              label="Enrolled as a full-time student this year?"
+              value={form.fullTimeStudent}
+              onChange={(v) => update({ fullTimeStudent: v as FormState['fullTimeStudent'] })}
+              options={[
+                { value: '', label: 'Not sure yet' },
+                { value: 'yes', label: 'Yes' },
+                { value: 'no', label: 'No' },
+              ]}
             />
           </div>
 
