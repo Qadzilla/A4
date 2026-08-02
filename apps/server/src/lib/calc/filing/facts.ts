@@ -103,6 +103,47 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Number of employers that paid wages during the year',
   },
+  'permanently-disabled': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Permanently and totally disabled at any time during the year',
+  },
+  'months-away-at-school': {
+    kind: 'number',
+    scope: 'year',
+    label:
+      'Months living away from the family home for school (a temporary absence counts as time at home)',
+  },
+  'filing-jointly': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Filing a joint return with a spouse for the year',
+  },
+  'joint-refund-only': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'The joint return exists only to get withheld tax back — neither spouse owes any tax',
+  },
+  'gross-income': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Gross income for the year, before anything is taken out',
+  },
+  'paid-over-half-home-costs': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Paid more than half the cost of keeping up the home',
+  },
+  'own-dependent-lived-with-months': {
+    kind: 'number',
+    scope: 'year',
+    label: "Months the person's own child or dependent lived with them",
+  },
+  'widowed-within-two-prior-years': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Spouse died in one of the two preceding years, and no remarriage since',
+  },
 
   // Determinations recorded as facts — rule-sourced only. The rule that
   // asserts one carries what it consumed, which is what `dependents` walks.
@@ -117,6 +158,13 @@ export const FACT_REGISTRY = {
     scope: 'year',
     derived: true,
     label: 'Whether someone is able to claim the person as a dependent',
+  },
+  'filing-status': {
+    kind: 'string',
+    scope: 'year',
+    derived: true,
+    label:
+      'Filing status the facts support (single, joint, separate, head of household, surviving spouse)',
   },
 } as const satisfies Record<string, RegistryEntry>;
 

@@ -23,6 +23,11 @@ export interface FixtureFact {
   /** Defaults to the fixture's taxYear. Prior years matter for residency. */
   taxYear?: number;
   value: FactValue;
+  /**
+   * Derived facts are rule-sourced only, so a fixture asserting one names
+   * the rule — e.g. a dependency fixture standing on residency's output.
+   */
+  rule?: { ruleId: string; consumed: FactId[] };
 }
 
 export interface FilingFixture<TExpected> {
