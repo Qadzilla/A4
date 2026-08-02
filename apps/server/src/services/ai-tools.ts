@@ -25,6 +25,7 @@ import {
 } from '../lib/calc';
 import type { LotTrade, ProjectionCardData, TaxEstimatorData } from '../lib/calc';
 import { buildForm8949Rows } from '../lib/calc/exports';
+import { stateTaxOnGains } from '../lib/calc/state-gains';
 import { getPolygonService } from '../trpc/context';
 import { computeBenchmark } from './benchmark';
 import { buildTaxPicture } from './tax-picture';
@@ -174,6 +175,16 @@ async function preTradeCheck(
 
   // Tax context: marginal rates + 0% LTCG headroom
   const picture = await buildTaxPicture(ctx.db, ctx.userId, ctx.workspaceId);
+  // B1: the state layer, alongside federal and never blended into it — MA's
+  // 8.5% short-term rate is bigger than most users' federal bracket, and a
+  // sale shown federal-only understates the bill for the state we claim.
+  const stateTax =
+    picture.hasProfile && estimatedGainShort !== null && estimatedGainLong !== null
+      ? stateTaxOnGains(picture.inputs.stateCode, picture.inputs.taxYear, {
+          shortTerm: estimatedGainShort,
+          longTerm: estimatedGainLong,
+        })
+      : null;
   const ltcgRoom = picture.result.ltcgZeroBracketRoom;
   const estimatedTax =
     estimatedGainShort !== null && estimatedGainLong !== null
@@ -203,6 +214,7 @@ async function preTradeCheck(
         : {
             note: 'Gain cannot be estimated — lot history or share quantity is missing. Import statements or connect a brokerage for lot-level data.',
           },
+    stateTax,
     washSaleRisk,
     marginalFederalRatePct: picture.result.marginalFederalRate,
     basedOn: lots.length > 0 ? 'lot history' : 'holding record only',

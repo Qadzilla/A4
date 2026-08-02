@@ -3,6 +3,7 @@ import type { DB } from '../db';
 import { files, holdings, tax1099s, trades } from '../db/schema';
 import { computeDeskStatus, computeRealizedGains, reconcile1099 } from '../lib/calc';
 import type { DeskStatus, Extracted1099 } from '../lib/calc';
+import { stateTaxOnGains } from '../lib/calc/state-gains';
 import { buildTaxPicture } from './tax-picture';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -99,11 +100,16 @@ export async function getDeskComparison(
     );
   const boughtRecently = new Set(recentBuys.map((t) => t.symbol.toUpperCase()));
 
+  const stateCode = picture.hasProfile ? picture.inputs.stateCode : null;
+  const taxYear = picture.hasProfile ? picture.inputs.taxYear : new Date().getFullYear();
+
   return {
     context: {
       hasTaxProfile: picture.hasProfile,
       marginalFederalRatePct: marginalRate,
       ltcgZeroBracketRoom: zeroBracketRoom,
+      // B1: which state layer, if any, the rows below carry.
+      stateCode,
     },
     positions: positions.map((p) => {
       let estimatedTaxIfSoldToday: number | null = null;
@@ -117,9 +123,21 @@ export async function getDeskComparison(
           estimatedTaxIfSoldToday = taxable * LTCG_RATE_ABOVE_ZERO_BRACKET;
         }
       }
+      // B1: the MA layer on the same per-row estimate. Positive gains only —
+      // the loss clamp matches the federal line above, and MA's own netting
+      // rules are F3's to apply.
+      let estimatedStateTaxIfSoldToday: number | null = null;
+      if (p.unrealized !== null && p.term !== null) {
+        const state = stateTaxOnGains(stateCode, taxYear, {
+          shortTerm: p.term === 'short' ? Math.max(0, p.unrealized) : 0,
+          longTerm: p.term === 'long' ? Math.max(0, p.unrealized) : 0,
+        });
+        if (state.status === 'applies') estimatedStateTaxIfSoldToday = state.estimatedTotalTax;
+      }
       return {
         ...p,
         estimatedTaxIfSoldToday,
+        estimatedStateTaxIfSoldToday,
         // Only a loss can be disallowed, so the flag is about losses only
         washRisk:
           p.unrealized !== null && p.unrealized < 0 && boughtRecently.has(p.symbol.toUpperCase()),

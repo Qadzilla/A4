@@ -71,15 +71,26 @@ function LotsPanel({ d }: { d: Record<string, unknown> }) {
   const tax = num(gain.estimatedFederalTax);
   const wash = str(d.washSaleRisk);
   const note = str(gain.note);
+  // B1: the state layer rides beside federal, never blended into it.
+  const state = (d.stateTax ?? {}) as Record<string, unknown>;
+  const stateApplies = str(state.status) === 'applies';
+  const stateTaxTotal = stateApplies ? num(state.estimatedTotalTax) : null;
+  const stateNote = str(state.note);
 
   return (
     <div className="space-y-4">
       {(total !== null || tax !== null) && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className={`grid gap-4 ${stateTaxTotal !== null ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {total !== null && (
             <Figure label="Estimated gain" value={usd(total)} tone={total >= 0 ? 'good' : 'bad'} />
           )}
           {tax !== null && <Figure label="Estimated federal tax" value={usd(tax)} />}
+          {stateTaxTotal !== null && (
+            <Figure
+              label={`Estimated ${str(state.stateCode) ?? 'state'} tax`}
+              value={usd(stateTaxTotal)}
+            />
+          )}
         </div>
       )}
 
@@ -109,6 +120,7 @@ function LotsPanel({ d }: { d: Record<string, unknown> }) {
 
       {wash && <p className="text-xs text-warn">{wash}</p>}
       {note && <p className="text-xs text-muted">{note}</p>}
+      {stateNote && <p className="text-xs text-muted">{stateNote}</p>}
     </div>
   );
 }
@@ -670,6 +682,9 @@ function ComparisonPanel() {
               <th className="eyebrow py-2 pr-3 text-right font-normal">To long-term</th>
               <th className="eyebrow py-2 pr-3 text-right font-normal">Unrealized</th>
               <th className="eyebrow py-2 pr-3 text-right font-normal">Tax if sold</th>
+              {context.stateCode === 'MA' && (
+                <th className="eyebrow py-2 pr-3 text-right font-normal">MA tax</th>
+              )}
               <th className="eyebrow py-2 text-right font-normal">Wash</th>
             </tr>
           </thead>
@@ -704,6 +719,15 @@ function ComparisonPanel() {
                     usd(p.estimatedTaxIfSoldToday)
                   )}
                 </td>
+                {context.stateCode === 'MA' && (
+                  <td className="tnum py-2 pr-3 text-right font-mono">
+                    {p.estimatedStateTaxIfSoldToday === null ? (
+                      <span className="text-faint">—</span>
+                    ) : (
+                      usd(p.estimatedStateTaxIfSoldToday)
+                    )}
+                  </td>
+                )}
                 <td className="py-2 text-right">
                   {p.washRisk ? (
                     <span className="text-warn">at risk</span>
