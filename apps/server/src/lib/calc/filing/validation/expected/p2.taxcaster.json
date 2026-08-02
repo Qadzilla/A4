@@ -1,0 +1,21 @@
+{
+  "persona": "P2",
+  "taxYear": 2025,
+  "tool": "taxcaster",
+  "toolVersion": "TurboTax TaxCaster, estimating tax year 2025, accessed 2026-08-02",
+  "recordedOn": "2026-08-02",
+  "recordedBy": "Zaid (entries), refund summary pasted verbatim",
+  "assumptions": [
+    "Age 20; 'can someone claim you' answered Yes",
+    "Earned income 8,000; federal withholding 0",
+    "Other Income → Investments: long-term gains 3,100; all other investment fields 0"
+  ],
+  "lines": [
+    { "id": "1040:11", "label": "Income", "amount": 11100 },
+    { "id": "1040:12", "label": "Deductions", "amount": 8500 },
+    { "id": "1040:15", "label": "Taxable income", "amount": 2600 },
+    { "id": "1040:16", "label": "Total Federal tax", "amount": 0 },
+    { "id": "1040:24", "label": "Total Federal tax (no credits or additional taxes)", "amount": 0 }
+  ],
+  "notes": "Refund summary: Income 11,100; Deductions 8,500; Taxable 2,600; Total Federal tax 0; bracket 10%; effective 0%. Deduction and taxable diverge $50 from the statutory dependent limitation (greater of $1,350 or earned + $450 = 8,450, Rev. Proc. 2024-40) — triaged as their simplification; Dinkytown's line-accurate run agreed with 8,450 exactly. Tool does not compute Form 8615."
+}

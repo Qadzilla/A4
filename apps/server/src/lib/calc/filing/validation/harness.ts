@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { evaluateYear } from '../evaluation';
 import { PERSONA_FIXTURES } from '../fixtures/personas';
 import { assertionsOf } from '../fixtures/types';
+import { DIVERGENCE_TRIAGE } from './triage';
 
 /**
  * The comparable surface: 1040 lines by their real numbers, so a recording
@@ -173,6 +174,30 @@ export interface ValidationStatus {
   detail: string;
 }
 
+/**
+ * Divergences with no written triage — the ones that keep the gate closed.
+ * A triaged divergence is a recorded disagreement with a reason and an
+ * authority; it counts as coverage, not as a defect.
+ */
+export function untriagedDivergences(
+  runs: RecordedRun[],
+): Array<{ persona: string; tool: string; lineId: string; delta: number | null }> {
+  const out: Array<{ persona: string; tool: string; lineId: string; delta: number | null }> = [];
+  for (const run of runs) {
+    const comparison = compareRun(run);
+    for (const line of comparison.lines) {
+      if (line.verdict !== 'divergence') continue;
+      const triaged = DIVERGENCE_TRIAGE.some(
+        (t) => t.persona === run.persona && t.tool === run.tool && t.lineId === line.id,
+      );
+      if (!triaged) {
+        out.push({ persona: run.persona, tool: run.tool, lineId: line.id, delta: line.delta });
+      }
+    }
+  }
+  return out;
+}
+
 export function validationStatus(runs: RecordedRun[]): ValidationStatus {
   const required = ['P1', 'P2'];
   const recordedTools: Record<string, string[]> = {};
@@ -182,7 +207,7 @@ export function validationStatus(runs: RecordedRun[]): ValidationStatus {
     recordedTools[run.persona] = tools;
   }
 
-  const divergences = runs.map((run) => compareRun(run)).reduce((sum, c) => sum + c.divergences, 0);
+  const divergences = untriagedDivergences(runs).length;
 
   const satisfied = required.every((p) => (recordedTools[p] ?? []).length >= 2);
   const gateOpen = satisfied && divergences === 0;
@@ -201,7 +226,7 @@ export function validationStatus(runs: RecordedRun[]): ValidationStatus {
     detail: gateOpen
       ? 'P1 and P2 validated against two tools each, no untriaged divergences — C-phase may merge.'
       : satisfied
-        ? `Recordings exist but ${divergences} divergence(s) need triage in writing before C-phase merges.`
+        ? `Recordings exist but ${divergences} untriaged divergence(s) need a written verdict before C-phase merges.`
         : `C-phase is gated: ${required
             .filter((p) => (recordedTools[p] ?? []).length < 2)
             .map((p) => `${p} has ${(recordedTools[p] ?? []).length}/2 tool recordings`)

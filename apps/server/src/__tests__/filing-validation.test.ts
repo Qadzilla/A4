@@ -7,6 +7,7 @@ import {
   compareRun,
   engineLines,
   recordedRunSchema,
+  untriagedDivergences,
   validationStatus,
 } from '../lib/calc/filing/validation/harness';
 
@@ -126,14 +127,36 @@ describe('the C-phase gate', () => {
     expect(status.deferred.some((d) => d.persona === 'P3' && d.until === 'E1')).toBe(true);
 
     const satisfied = status.required.every((p) => (status.recordedTools[p] ?? []).length >= 2);
-    const divergences = runs.reduce((sum, r) => sum + compareRun(r).divergences, 0);
     // The gate is exactly its definition — this test passes before the
     // recordings exist (gate closed, and it says which are missing) and
     // after (gate open only with zero untriaged divergences).
-    expect(status.gateOpen).toBe(satisfied && divergences === 0);
+    expect(status.gateOpen).toBe(satisfied && untriagedDivergences(runs).length === 0);
     if (!status.gateOpen) {
       expect(status.detail.length).toBeGreaterThan(10);
     }
+  });
+
+  it('a triaged divergence counts as coverage; an untriaged one blocks', () => {
+    // The real P2/TaxCaster $50 deduction divergence carries a written
+    // triage, so it must not appear untriaged.
+    const runs = loadRecordings();
+    const p2tc = runs.find((r) => r.persona === 'P2' && r.tool === 'taxcaster');
+    if (p2tc) {
+      expect(compareRun(p2tc).divergences).toBeGreaterThan(0); // it IS a divergence
+      expect(untriagedDivergences([p2tc]).filter((d) => d.lineId === '1040:12')).toEqual([]); // and it IS triaged
+    }
+    // A synthetic disagreement nobody has triaged must block.
+    const rogue: RecordedRun = {
+      persona: 'P1',
+      taxYear: 2026,
+      tool: 'synthetic-rogue',
+      toolVersion: 'test',
+      recordedOn: '2027-02-01',
+      recordedBy: 'test',
+      assumptions: [],
+      lines: [{ id: '1040:11', label: 'AGI', amount: 999 }],
+    };
+    expect(untriagedDivergences([rogue])).toHaveLength(1);
   });
 
   it('rejects a malformed recording loudly', () => {

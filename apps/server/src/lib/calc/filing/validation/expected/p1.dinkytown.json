@@ -10,7 +10,11 @@
     "EIC age question answered No (age 23); lived in US 6+ months Yes; qualifying child of someone else No"
   ],
   "lines": [
-    { "id": "1040:11", "label": "Adjusted gross income (total income, no adjustments)", "amount": 42000 },
+    {
+      "id": "1040:11",
+      "label": "Adjusted gross income (total income, no adjustments)",
+      "amount": 42000
+    },
     { "id": "1040:12", "label": "Standard deduction", "amount": 16100 },
     { "id": "1040:15", "label": "Taxable income", "amount": 25900 },
     { "id": "1040:16", "label": "Income tax", "amount": 2863 },

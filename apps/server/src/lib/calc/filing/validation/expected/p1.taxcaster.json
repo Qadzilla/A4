@@ -15,7 +15,11 @@
     { "id": "1040:12", "label": "Deductions", "amount": 15750 },
     { "id": "1040:15", "label": "Taxable income", "amount": 26250 },
     { "id": "1040:16", "label": "Total Federal tax", "amount": 2912 },
-    { "id": "1040:24", "label": "Total Federal tax (no credits or additional taxes)", "amount": 2912 }
+    {
+      "id": "1040:24",
+      "label": "Total Federal tax (no credits or additional taxes)",
+      "amount": 2912
+    }
   ],
   "notes": "Refund summary: Income 42,000; Deductions 15,750; Taxable income 26,250; Total Federal tax 2,912; Credits 0; Payments 0; Additional taxes 0; bracket 12%; effective 11.09%. Engine computes 2,911.50 — within the $1 rounding tolerance."
 }
