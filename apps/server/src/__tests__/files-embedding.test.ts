@@ -69,6 +69,18 @@ function createTestDb() {
       user_id TEXT NOT NULL, page INTEGER NOT NULL, embedding BLOB NOT NULL,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE w2_forms (
+      id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
+      file_id TEXT NOT NULL UNIQUE, tax_year INTEGER NOT NULL,
+      employer_name TEXT, employer_ein TEXT, corrected INTEGER NOT NULL DEFAULT 0,
+      payload TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE fact_assertions (
+      assertion_id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
+      fact_id TEXT NOT NULL, tax_year INTEGER NOT NULL, value TEXT NOT NULL,
+      source TEXT NOT NULL, asserted_at TEXT NOT NULL, supersedes TEXT,
+      created_at INTEGER NOT NULL
+    );
     CREATE TABLE tax_1099s (
       id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
       file_id TEXT NOT NULL UNIQUE, tax_year INTEGER NOT NULL, broker TEXT,

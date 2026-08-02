@@ -108,6 +108,36 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Wages paid through employers for the year (W-2 box 1 total)',
   },
+  'w2-federal-withheld': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Federal income tax already taken out of pay (W-2 box 2 total)',
+  },
+  'w2-ss-tax-withheld': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Social Security tax taken out of pay (W-2 box 4 total)',
+  },
+  'w2-medicare-tax-withheld': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Medicare tax taken out of pay (W-2 box 6 total)',
+  },
+  'w2-retirement-contributions': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Retirement plan contributions through work (W-2 box 12 codes D, E, F, G, S, AA, BB)',
+  },
+  'w2-hsa-contributions': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Health savings account money through work (W-2 box 12 code W)',
+  },
+  'w2-state-tax-withheld': {
+    kind: 'number',
+    scope: 'year',
+    label: 'State income tax taken out of pay (W-2 box 17 total)',
+  },
   'realized-long-gains': {
     kind: 'number',
     scope: 'year',

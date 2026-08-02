@@ -322,6 +322,45 @@ export const workspacePanels = sqliteTable('workspace_panels', {
     .$defaultFn(() => new Date()),
 });
 
+/**
+ * One extracted W-2 per uploaded file. The payload is every box as printed —
+ * extraction never reconciles box 1 against box 3 or fills a blank. Facts
+ * are asserted from the LIVE set of these rows (a W-2c replaces its
+ * predecessor by employer EIN + year; duplicates surface as contradictions).
+ */
+export const w2Forms = sqliteTable('w2_forms', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  fileId: text('file_id').notNull().unique(),
+  taxYear: integer('tax_year').notNull(),
+  employerName: text('employer_name'),
+  employerEin: text('employer_ein'),
+  corrected: integer('corrected', { mode: 'boolean' }).notNull().default(false),
+  payload: text('payload').notNull(), // JSON: ExtractedW2
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
+
+/**
+ * The A1 fact model, persisted: append-only assertions with provenance and
+ * supersession. C1 brings the table forward (G1 adds the router and intake
+ * on top); the shape mirrors lib/calc/filing/facts.ts exactly, and every
+ * read goes back through that module's algebra.
+ */
+export const factAssertions = sqliteTable('fact_assertions', {
+  assertionId: text('assertion_id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  factId: text('fact_id').notNull(),
+  taxYear: integer('tax_year').notNull(),
+  value: text('value').notNull(), // JSON: FactValue
+  source: text('source').notNull(), // JSON: FactSource
+  assertedAt: text('asserted_at').notNull(),
+  supersedes: text('supersedes'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
 export const conversations = sqliteTable('conversations', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull(),

@@ -12,6 +12,7 @@ export const JOB_TYPES = {
   embedPages: 'embed-pages',
   importStatement: 'import-statement',
   reconcile1099: 'reconcile-1099',
+  extractW2: 'extract-w2',
 } as const;
 
 export type ProcessOutcome = 'idle' | 'done' | 'retried' | 'failed';

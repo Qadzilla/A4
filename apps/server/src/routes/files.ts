@@ -2,12 +2,22 @@ import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { eq } from 'drizzle-orm';
+import { and, inArray } from 'drizzle-orm';
 import { Router, type Router as RouterType } from 'express';
 import multer from 'multer';
 import { db } from '../db';
-import { documentChunks, files, pageEmbeddings, tax1099s } from '../db/schema';
+import {
+  documentChunks,
+  factAssertions,
+  files,
+  pageEmbeddings,
+  tax1099s,
+  w2Forms,
+} from '../db/schema';
 import { DEV_AUTH_BYPASS, USE_R2 } from '../env';
+import { replanW2Facts } from '../services/extract-w2';
 import { storage } from '../services/storage';
+import { W2_FACT_IDS } from '../services/w2-facts';
 // Lazy import to avoid loading OpenAI SDK at server startup
 const lazyEmbedFile = () => import('../services/embedding-pipeline').then((m) => m.embedFile);
 
@@ -157,6 +167,13 @@ filesRouter.post('/upload', (req, res, next) => {
           console.error(`[1099] Failed to enqueue for ${fileId}:`, err),
         );
       }
+      // Optional W-2 extraction — boxes become facts with document provenance
+      if (req.body.w2 === '1') {
+        const { enqueueJob, JOB_TYPES } = await import('../services/job-queue');
+        await enqueueJob(JOB_TYPES.extractW2, { fileId }, { db, maxAttempts: 2 }).catch(
+          (err: unknown) => console.error(`[W-2] Failed to enqueue for ${fileId}:`, err),
+        );
+      }
 
       // Fire-and-forget background embedding for text-extractable files
       if (EMBEDDABLE_MIME_TYPES.has(file.mimetype)) {
@@ -278,6 +295,27 @@ filesRouter.delete('/:fileId', async (req, res) => {
   await db.delete(documentChunks).where(eq(documentChunks.fileId, req.params.fileId));
   await db.delete(pageEmbeddings).where(eq(pageEmbeddings.fileId, req.params.fileId));
   await db.delete(tax1099s).where(eq(tax1099s.fileId, req.params.fileId));
+  // C1: a deleted W-2 takes its extraction with it, and the year's W-2
+  // facts are wiped and re-planned from the remaining rows — leaving the
+  // old chain in place would let a superseded total come back to life.
+  const [w2Row] = await db
+    .select({ workspaceId: w2Forms.workspaceId, userId: w2Forms.userId, taxYear: w2Forms.taxYear })
+    .from(w2Forms)
+    .where(eq(w2Forms.fileId, req.params.fileId));
+  if (w2Row) {
+    await db.delete(w2Forms).where(eq(w2Forms.fileId, req.params.fileId));
+    await db
+      .delete(factAssertions)
+      .where(
+        and(
+          eq(factAssertions.workspaceId, w2Row.workspaceId),
+          eq(factAssertions.userId, w2Row.userId),
+          eq(factAssertions.taxYear, w2Row.taxYear),
+          inArray(factAssertions.factId, W2_FACT_IDS as string[]),
+        ),
+      );
+    await replanW2Facts(db, w2Row.workspaceId, w2Row.userId, w2Row.taxYear, req.params.fileId);
+  }
   await db.delete(files).where(eq(files.id, req.params.fileId));
 
   if (chunkRows.length > 0) {
