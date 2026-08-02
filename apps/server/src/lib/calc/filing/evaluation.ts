@@ -39,8 +39,14 @@ export interface YearEvaluation {
   filingStatus: FilingStatusDetermination;
   /** Null when a blocked item prevents a single number. */
   liability: {
+    /** Income tax including the LTCG worksheet — the 1040's tax line. */
+    incomeTax: number;
+    /** Income tax plus NIIT — with SE tax to join when D4 lands. */
     federalTax: number;
     totalTax: number;
+    agi: number;
+    deduction: number;
+    taxableIncome: number;
     ltcgZeroBracketRoom: number;
   } | null;
   blocked: BlockedItem[];
@@ -194,8 +200,12 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     dependency,
     filingStatus,
     liability: {
+      incomeTax: result.federalTax + result.ltcgTax,
       federalTax: result.federalTax + result.ltcgTax + result.niit,
       totalTax: result.totalTax,
+      agi: result.agi,
+      deduction: result.deduction,
+      taxableIncome: result.taxableIncome,
       ltcgZeroBracketRoom: result.ltcgZeroBracketRoom,
     },
     blocked,

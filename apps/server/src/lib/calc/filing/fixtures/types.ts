@@ -8,7 +8,7 @@
 // Fixtures are frozen artifacts: once right, never deleted — superseded
 // with a note if the law moves (Doctrine 8 applied to ourselves).
 
-import type { FactId, FactValue } from '../facts';
+import { type FactAssertion, type FactId, type FactValue, makeAssertion } from '../facts';
 
 export type FixtureSource =
   /** Transcribed from a publication, instruction or statute — verbatim numbers. */
@@ -37,4 +37,21 @@ export interface FilingFixture<TExpected> {
   facts: FixtureFact[];
   expected: TExpected;
   note?: string;
+}
+
+/** Build the assertion list a fixture describes — the one way in. */
+export function assertionsOf(fixture: FilingFixture<unknown>): FactAssertion[] {
+  return fixture.facts.map((f, i) =>
+    makeAssertion({
+      assertionId: `${fixture.id}#${i}`,
+      factId: f.factId,
+      taxYear: f.taxYear ?? fixture.taxYear,
+      value: f.value,
+      source: f.rule
+        ? { kind: 'rule', ruleId: f.rule.ruleId, consumed: f.rule.consumed }
+        : { kind: 'person', conversationId: null },
+      assertedAt: `2026-01-01T00:00:${String(i % 60).padStart(2, '0')}Z`,
+      supersedes: null,
+    } as Parameters<typeof makeAssertion>[0]),
+  );
 }
