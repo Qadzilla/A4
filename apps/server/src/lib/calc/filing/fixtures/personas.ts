@@ -55,6 +55,13 @@ export const PERSONA_FIXTURES: PersonaFixture[] = [
       { factId: 'gross-income', value: num(42000) },
       { factId: 'w2-employer-count', value: num(1) },
       { factId: 'w2-wages', value: num(42000) },
+      // The same year, one year earlier — the external tools still on the
+      // 2025 season validate against these.
+      { factId: 'married', taxYear: 2025, value: bool(false) },
+      { factId: 'full-time-student-months', taxYear: 2025, value: num(0) },
+      { factId: 'gross-income', taxYear: 2025, value: num(42000) },
+      { factId: 'w2-employer-count', taxYear: 2025, value: num(1) },
+      { factId: 'w2-wages', taxYear: 2025, value: num(42000) },
     ],
     expected: {
       2026: {
@@ -63,6 +70,11 @@ export const PERSONA_FIXTURES: PersonaFixture[] = [
         canBeClaimed: 'no',
         formsRequired: ['form-1040'],
         expectationsInclude: ['W-2'],
+      },
+      2025: {
+        verdict: 'ready',
+        canBeClaimed: 'no',
+        formsRequired: ['form-1040'],
       },
     },
     note: 'The simplest possible year, and the whole stack agrees: one W-2, on file, everything decided, ready. The finding is the refund-or-owe picture — withholding facts arrive with C1.',
@@ -85,6 +97,14 @@ export const PERSONA_FIXTURES: PersonaFixture[] = [
       { factId: 'brokerage-account', value: bool(true) },
       { factId: 'sold-investments', value: bool(true) },
       { factId: 'realized-long-gains', value: num(3100) },
+      { factId: 'married', taxYear: 2025, value: bool(false) },
+      { factId: 'full-time-student-months', taxYear: 2025, value: num(9) },
+      { factId: 'lived-with-parents-months', taxYear: 2025, value: num(3) },
+      { factId: 'months-away-at-school', taxYear: 2025, value: num(9) },
+      { factId: 'self-support-share-pct', taxYear: 2025, value: num(20) },
+      { factId: 'gross-income', taxYear: 2025, value: num(11100) },
+      { factId: 'w2-wages', taxYear: 2025, value: num(8000) },
+      { factId: 'realized-long-gains', taxYear: 2025, value: num(3100) },
     ],
     expected: {
       2026: {

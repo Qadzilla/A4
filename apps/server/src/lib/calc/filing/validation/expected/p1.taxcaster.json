@@ -1,0 +1,21 @@
+{
+  "persona": "P1",
+  "taxYear": 2025,
+  "tool": "taxcaster",
+  "toolVersion": "TurboTax TaxCaster, estimating tax year 2025, accessed 2026-08-02",
+  "recordedOn": "2026-08-02",
+  "recordedBy": "Zaid (entries), refund summary pasted verbatim",
+  "assumptions": [
+    "Federal withholding entered as $0; state withholding blank",
+    "Age entered as 23; no expense/deduction categories selected",
+    "Tool estimates TY2025 — identified from the initial -$2,912, which equals the 2025 parameters exactly"
+  ],
+  "lines": [
+    { "id": "1040:11", "label": "Income", "amount": 42000 },
+    { "id": "1040:12", "label": "Deductions", "amount": 15750 },
+    { "id": "1040:15", "label": "Taxable income", "amount": 26250 },
+    { "id": "1040:16", "label": "Total Federal tax", "amount": 2912 },
+    { "id": "1040:24", "label": "Total Federal tax (no credits or additional taxes)", "amount": 2912 }
+  ],
+  "notes": "Refund summary: Income 42,000; Deductions 15,750; Taxable income 26,250; Total Federal tax 2,912; Credits 0; Payments 0; Additional taxes 0; bracket 12%; effective 11.09%. Engine computes 2,911.50 — within the $1 rounding tolerance."
+}
