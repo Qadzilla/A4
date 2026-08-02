@@ -153,9 +153,13 @@ describe('fork refusals', () => {
   });
 
   it('declines a numeric fact it has no representative points for', () => {
-    const facts = [...p2(), make('days-present', { kind: 'unknown' })];
-    const result = fork(facts, 2026, 'days-present');
-    expect(result).toEqual({ ok: false, at: 'days-present', reason: 'no-representative-points' });
+    const facts = [...p2(), make('w2-employer-count', { kind: 'unknown' })];
+    const result = fork(facts, 2026, 'w2-employer-count');
+    expect(result).toEqual({
+      ok: false,
+      at: 'w2-employer-count',
+      reason: 'no-representative-points',
+    });
   });
 });
 
@@ -226,6 +230,70 @@ describe('rankUnknowns', () => {
     ];
     const ranked = rankUnknowns(facts, 2026);
     expect(ranked.some((r) => r.at === 'married')).toBe(true);
+  });
+});
+
+describe('the root fork, wired through', () => {
+  /** P3's shape: an F-1 in year three, campus wages on file. */
+  const f1 = () => [
+    make('us-citizen', { kind: 'bool', value: false }),
+    make('green-card-holder', { kind: 'bool', value: false }),
+    make('visa-type', { kind: 'string', value: 'F' }),
+    make('visa-first-entry-year', { kind: 'number', value: 2024 }),
+    make('married', { kind: 'bool', value: false }),
+    make('birth-date', { kind: 'date', value: '2004-08-20' }),
+    make('full-time-student-months', { kind: 'number', value: 9 }),
+    make('w2-wages', { kind: 'number', value: 12000 }),
+  ];
+
+  it('blocks a nonresident year on the 1040-NR by name, never resident rates', () => {
+    const result = evaluateYear(f1(), 2026);
+    expect(result.residency.status).toBe('nonresident');
+    expect(result.liability).toBeNull();
+    expect(result.blocked).toContain('form-1040nr');
+    expect(JSON.stringify(result.notes)).toContain('1040-NR');
+  });
+
+  it('feeds residency into dependency without a hand-asserted fact', () => {
+    // The chain live: nonresident fails the citizen-or-resident test, so
+    // nobody can claim them — no fixture asserting the derived fact by hand.
+    const result = evaluateYear(f1(), 2026);
+    expect(result.dependency.canBeClaimed).toBe('no');
+    expect(result.dependency.failedTests).toContain('citizen-or-resident');
+  });
+
+  it('refuses to default an unanswered residency question to resident rates', () => {
+    const facts = [
+      make('married', { kind: 'bool', value: false }),
+      make('w2-wages', { kind: 'number', value: 42000 }),
+    ];
+    const result = evaluateYear(facts, 2026);
+    expect(result.residency.status).toBe('unknown');
+    expect(result.liability).toBeNull();
+    expect(result.blocked).toContain('residency-unknown');
+  });
+
+  it('prices the root fork itself: citizenship flips the whole return', () => {
+    const facts = [
+      ...f1().filter((a) => a.factId !== 'us-citizen'),
+      make('us-citizen', { kind: 'unknown' }),
+    ];
+    const result = fork(facts, 2026, 'us-citizen');
+    if (!result.ok) throw new Error('fork refused');
+
+    const citizen = result.branches.find(
+      (b) => b.assumed.kind === 'bool' && b.assumed.value === true,
+    );
+    const alien = result.branches.find(
+      (b) => b.assumed.kind === 'bool' && b.assumed.value === false,
+    );
+    if (!citizen || !alien) throw new Error('expected both branches');
+
+    expect(citizen.evaluation.liability).not.toBeNull();
+    expect(alien.evaluation.liability).toBeNull();
+    expect(alien.evaluation.blocked).toContain('form-1040nr');
+    expect(result.blockedDiffers.map((b) => b.item)).toContain('form-1040nr');
+    expect(result.alsoChanges).toContain('residency-status');
   });
 });
 

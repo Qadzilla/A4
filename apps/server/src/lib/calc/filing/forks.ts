@@ -54,6 +54,13 @@ const REPRESENTATIVE_POINTS: Partial<Record<FactId, { values: KnownFactValue[]; 
     ],
     why: 'Either side of the qualifying-relative income limit.',
   },
+  'days-present': {
+    values: [
+      { kind: 'number', value: 20 },
+      { kind: 'number', value: 200 },
+    ],
+    why: 'Below the 31-day floor and above the 183-day line of the substantial presence test.',
+  },
 };
 
 export interface ForkBranch {
@@ -145,6 +152,8 @@ export function fork(assertions: FactAssertion[], taxYear: number, at: FactId): 
   }
 
   const alsoChanges: FactId[] = [];
+  const residencies = new Set(branches.map((b) => b.evaluation.residency.status));
+  if (residencies.size > 1) alsoChanges.push('residency-status');
   const claims = new Set(branches.map((b) => b.evaluation.dependency.canBeClaimed));
   if (claims.size > 1) alsoChanges.push('can-be-claimed');
   const statuses = new Set(branches.map((b) => b.evaluation.filingStatus.status));

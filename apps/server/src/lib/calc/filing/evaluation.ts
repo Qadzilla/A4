@@ -19,17 +19,22 @@ import {
   createDefaultTaxEstimatorData,
 } from '../tax-estimator';
 import { type DependencyDetermination, determineDependency } from './dependency';
-import { type FactAssertion, type FactId, factSet, factState } from './facts';
+import { type FactAssertion, type FactId, factSet, factState, makeAssertion } from './facts';
 import { type FilingStatusDetermination, determineFilingStatus } from './filing-status';
+import { type ResidencyDetermination, determineResidency } from './residency';
 import { filingYearData } from './year-data';
 
 /** Things a branch could not compute, named. The fork reports these. */
 export type BlockedItem =
   | 'filing-status-election' // joint-or-separate not chosen — no single liability
   | 'form-8615' // kiddie tax applies and Basis doesn't compute it
+  | 'form-1040nr' // nonresident year — a different return, not computable until E1
+  | 'dual-status-year' // arrival/departure year — specialist return, E5's brief
+  | 'residency-unknown' // the root fork unanswered — resident rates would be a default in disguise
   | 'year-data'; // the year's figures aren't loaded
 
 export interface YearEvaluation {
+  residency: ResidencyDetermination;
   dependency: DependencyDetermination;
   filingStatus: FilingStatusDetermination;
   /** Null when a blocked item prevents a single number. */
@@ -47,10 +52,36 @@ const num = (state: ReturnType<typeof factState>): number | null =>
 
 export function evaluateYear(assertions: FactAssertion[], taxYear: number): YearEvaluation {
   const set = factSet(assertions, taxYear);
-  const dependency = determineDependency(assertions, taxYear);
-  const filingStatus = determineFilingStatus(assertions, taxYear);
   const blocked: BlockedItem[] = [];
   const notes: string[] = [];
+
+  // The root fork runs first — it selects the rule set everything else
+  // belongs to. Its determination is asserted back as a rule-sourced fact so
+  // downstream rules (dependency's citizen-or-resident test) consume it the
+  // same way they would any fact, and the provenance chain stays walkable.
+  const residency = determineResidency(assertions, taxYear);
+  const augmented =
+    residency.status === 'unknown'
+      ? assertions
+      : [
+          ...assertions,
+          makeAssertion({
+            assertionId: `eval:residency:${taxYear}`,
+            factId: 'residency-status',
+            taxYear,
+            value: { kind: 'string', value: residency.status },
+            source: {
+              kind: 'rule',
+              ruleId: residency.explanation.ruleId,
+              consumed: residency.consumed,
+            },
+            assertedAt: '9999-12-30T00:00:00Z',
+            supersedes: null,
+          } as Parameters<typeof makeAssertion>[0]),
+        ];
+
+  const dependency = determineDependency(augmented, taxYear);
+  const filingStatus = determineFilingStatus(augmented, taxYear);
 
   const wages = num(factState(set, 'w2-wages'));
   const longGains = num(factState(set, 'realized-long-gains'));
@@ -83,16 +114,42 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     }
   }
 
+  // The root fork gates everything: a nonresident files a different return,
+  // a dual-status year is specialist work, and an unanswered residency
+  // question can't quietly default to resident rates (Doctrine 7 and A2's
+  // fence, respectively).
+  if (residency.status === 'nonresident') {
+    blocked.push('form-1040nr');
+    notes.push(
+      'Nonresident for tax purposes: the return is Form 1040-NR, which Basis computes at E1 — resident rates would be the wrong arithmetic, so no liability is shown.',
+    );
+    return { residency, dependency, filingStatus, liability: null, blocked, notes };
+  }
+  if (residency.status === 'dual-status') {
+    blocked.push('dual-status-year');
+    notes.push(
+      'An arrival or departure year splits into resident and nonresident windows — genuinely specialist work, briefed at E5. No single liability exists.',
+    );
+    return { residency, dependency, filingStatus, liability: null, blocked, notes };
+  }
+  if (residency.status === 'unknown') {
+    blocked.push('residency-unknown');
+    notes.push(
+      'Residency for tax purposes is unresolved — computing at resident rates would be a default in disguise. Citizenship or visa facts settle it.',
+    );
+    return { residency, dependency, filingStatus, liability: null, blocked, notes };
+  }
+
   // No single liability without a filing status: joint-or-separate is an
   // election, and averaging two returns would be a fabrication.
   if (filingStatus.status === 'unknown') {
     blocked.push('filing-status-election');
     notes.push('No filing status is settled, so there is no single liability to report.');
-    return { dependency, filingStatus, liability: null, blocked, notes };
+    return { residency, dependency, filingStatus, liability: null, blocked, notes };
   }
 
   if (year === null) {
-    return { dependency, filingStatus, liability: null, blocked, notes };
+    return { residency, dependency, filingStatus, liability: null, blocked, notes };
   }
 
   const data: TaxEstimatorData = {
@@ -133,6 +190,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
 
   const result = computeTaxEstimate(data);
   return {
+    residency,
     dependency,
     filingStatus,
     liability: {
