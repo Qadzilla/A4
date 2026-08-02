@@ -160,6 +160,78 @@ export const FACT_REGISTRY = {
     label: 'Spouse died in one of the two preceding years, and no remarriage since',
   },
 
+  // How money arrived — the facts A5 turns into document expectations.
+  'brokerage-account': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Held a brokerage or investment account during the year',
+  },
+  'sold-investments': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Sold any investment during the year (holding alone produces no paperwork)',
+  },
+  'received-dividends': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Received dividends during the year',
+  },
+  'earned-bank-interest': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Earned interest on a bank or savings account',
+  },
+  'contract-income': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Money from freelance, contract or app work for the year (before expenses)',
+  },
+  'platform-income': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Gross receipts through payment apps or selling platforms for the year',
+  },
+  'unemployment-income': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Unemployment compensation received during the year',
+  },
+  'retirement-distribution': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Money taken out of a retirement account during the year',
+  },
+  'gambling-winnings': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Gambling or betting winnings for the year',
+  },
+  'paid-tuition': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Paid tuition or required fees to a school during the year',
+  },
+  'paid-student-loan-interest': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Paid interest on a student loan during the year',
+  },
+  'marketplace-health-insurance': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Health insurance bought through the marketplace (healthcare.gov or a state exchange)',
+  },
+  'scholarship-income': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Received a scholarship, fellowship or stipend during the year',
+  },
+  'digital-asset-activity': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Sold, traded or was paid in crypto or any digital asset during the year',
+  },
+
   // Determinations recorded as facts — rule-sourced only. The rule that
   // asserts one carries what it consumed, which is what `dependents` walks.
   'residency-status': {
