@@ -304,7 +304,8 @@ export function TaxesSurface() {
                 {usdWhole(result.ltcgZeroBracketRoom)}
               </span>{' '}
               of long-term gains this year at <span className="font-semibold">0% federal tax</span>{' '}
-              — your income sits in the 0% long-term capital gains bracket.
+              — your income sits in the 0% long-term capital gains bracket.{' '}
+              <span className="text-muted">{picture.stateTreatment.line}</span>
               {harvestable !== null && harvestable > 0 && (
                 <>
                   {' '}

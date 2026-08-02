@@ -8,6 +8,7 @@ import {
 } from '../lib/calc';
 import type { TaxEstimatorData } from '../lib/calc';
 import { kiddieGuard } from '../lib/calc/kiddie-guard';
+import { stateTreatment } from '../lib/calc/state-treatment';
 
 /**
  * The year-round tax picture, shared by the tax tRPC router and Bip's
@@ -111,6 +112,9 @@ export async function buildTaxPicture(db: DB, userId: string, workspaceId: strin
       },
       data.taxYear,
     ),
+    // B3: what the state does to the same gains, in one line — appended
+    // wherever the 0% window is described so federal-only can't read as 0%.
+    stateTreatment: stateTreatment(profile?.stateCode),
     quarterly,
     unrealized: {
       total: basisKnownCount > 0 ? unrealizedTotal : null,
