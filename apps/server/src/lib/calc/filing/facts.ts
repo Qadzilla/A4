@@ -103,6 +103,21 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Number of employers that paid wages during the year',
   },
+  'w2-wages': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Wages paid through employers for the year (W-2 box 1 total)',
+  },
+  'realized-long-gains': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Realized gains on things held over a year (long-term)',
+  },
+  'realized-short-gains': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Realized gains on things held under a year (short-term)',
+  },
   'permanently-disabled': {
     kind: 'bool',
     scope: 'year',

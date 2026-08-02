@@ -13,11 +13,32 @@ export interface FilingYearData {
    * $5,300 per the inflation adjustment. Verified 2026-08.
    */
   qrGrossIncomeLimit: number;
+  /**
+   * A dependent's standard deduction: the greater of the floor or earned
+   * income plus the add-on, capped at the regular standard deduction.
+   * Source: Topic 551 / Pub 501 figures — 2026 floor $1,350 + $450, floor
+   * unchanged from 2025. Verified 2026-08.
+   */
+  dependentStdFloor: number;
+  dependentStdAddon: number;
+  /**
+   * Form 8615 (kiddie tax) unearned-income threshold — above this, a
+   * covered child's unearned income is taxed at the parents' rate.
+   * Source: Form 8615 instructions; 2026 $2,700 verified 2026-08. The 2025
+   * figure is deliberately absent until verified — a missing field refuses
+   * by name rather than guessing.
+   */
+  kiddieUnearnedThreshold?: number;
 }
 
 const FILING_YEAR_DATA: Record<number, FilingYearData> = {
-  2025: { qrGrossIncomeLimit: 5200 },
-  2026: { qrGrossIncomeLimit: 5300 },
+  2025: { qrGrossIncomeLimit: 5200, dependentStdFloor: 1350, dependentStdAddon: 450 },
+  2026: {
+    qrGrossIncomeLimit: 5300,
+    dependentStdFloor: 1350,
+    dependentStdAddon: 450,
+    kiddieUnearnedThreshold: 2700,
+  },
 };
 
 /** Null means the year isn't loaded — callers refuse by name, never guess. */
