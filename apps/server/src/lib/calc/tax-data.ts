@@ -108,7 +108,9 @@ export const FEDERAL_TAX_DATA: Record<number, FederalYearData> = {
         { min: 626350, max: Number.POSITIVE_INFINITY, rate: 0.37 },
       ],
     },
-    standardDeduction: { single: 15000, mfj: 30000, mfs: 15000, hoh: 22500 },
+    // OBBBA (July 2025) figures, verified 2026-08 — the pre-OBBBA projections
+    // this table originally carried understated every 2025 deduction by ~$750.
+    standardDeduction: { single: 15750, mfj: 31500, mfs: 15750, hoh: 23625 },
     ssWageBase: 176100,
     ssRate: 0.062,
     medicareRate: 0.0145,
@@ -184,7 +186,10 @@ export const FEDERAL_TAX_DATA: Record<number, FederalYearData> = {
         { min: 644000, max: Number.POSITIVE_INFINITY, rate: 0.37 },
       ],
     },
-    standardDeduction: { single: 15400, mfj: 30800, mfs: 15400, hoh: 23150 },
+    // OBBBA figures, verified 2026-08. NOTE: the bracket thresholds and LTCG
+    // 0% tops in this file predate that verification pass and still need one
+    // (A8-grade, against the year's revenue procedure) before filing ships.
+    standardDeduction: { single: 16100, mfj: 32200, mfs: 16100, hoh: 24150 },
     ssWageBase: 181200,
     ssRate: 0.062,
     medicareRate: 0.0145,

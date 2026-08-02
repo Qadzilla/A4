@@ -9,29 +9,29 @@ function estimate(overrides: Partial<ReturnType<typeof createDefaultTaxEstimator
 describe('long-term capital gains brackets', () => {
   it('taxes LTCG at 0% when total income sits inside the 0% bracket', () => {
     // 2025 single: 0% LTCG bracket tops out at $48,350 of taxable income.
-    // $30k wages − $15k standard deduction = $15k ordinary TI; $10k LTCG
-    // stacks to $25k — all inside the 0% bracket.
+    // $30k wages − $15,750 standard deduction (OBBBA) = $14,250 ordinary TI;
+    // $10k LTCG stacks to $24,250 — all inside the 0% bracket.
     const r = estimate({ taxYear: 2025, w2Wages: 30000, capitalGainsLong: 10000 });
     expect(r.ltcgTax).toBe(0);
-    // Room left: 48,350 − 15,000 − 10,000 = 23,350
-    expect(r.ltcgZeroBracketRoom).toBeCloseTo(23350, 5);
+    // Room left: 48,350 − 14,250 − 10,000 = 24,100
+    expect(r.ltcgZeroBracketRoom).toBeCloseTo(24100, 5);
     // Ordinary tax must NOT include the LTCG
     const ordinaryOnly = estimate({ taxYear: 2025, w2Wages: 30000 });
     expect(r.federalTax).toBeCloseTo(ordinaryOnly.federalTax, 5);
   });
 
   it('taxes LTCG at 15% once stacked above the 0% bracket', () => {
-    // $100k wages − $15k = $85k ordinary TI (above 48,350) → all LTCG at 15%
+    // $100k wages − $15,750 = $84,250 ordinary TI (above 48,350) → all at 15%
     const r = estimate({ taxYear: 2025, w2Wages: 100000, capitalGainsLong: 10000 });
     expect(r.ltcgTax).toBeCloseTo(1500, 5);
     expect(r.ltcgZeroBracketRoom).toBe(0);
   });
 
   it('splits LTCG across the 0% and 15% brackets at the boundary', () => {
-    // $50k wages − $15k = $35k ordinary TI. 0% room = 13,350; $20k LTCG →
-    // 13,350 at 0% + 6,650 at 15% = $997.50
+    // $50k wages − $15,750 = $34,250 ordinary TI. 0% room = 14,100; $20k
+    // LTCG → 14,100 at 0% + 5,900 at 15% = $885
     const r = estimate({ taxYear: 2025, w2Wages: 50000, capitalGainsLong: 20000 });
-    expect(r.ltcgTax).toBeCloseTo(6650 * 0.15, 2);
+    expect(r.ltcgTax).toBeCloseTo(5900 * 0.15, 2);
   });
 
   it('treats short-term gains as ordinary income', () => {
