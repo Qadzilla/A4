@@ -71,6 +71,12 @@ export function ensureLaunchSchema(sqlite: Database.Database): void {
       payer_name TEXT, payer_tin TEXT, corrected INTEGER NOT NULL DEFAULT 0,
       payload TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS investment_forms (
+      id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
+      file_id TEXT NOT NULL UNIQUE, tax_year INTEGER NOT NULL,
+      broker TEXT, broker_tin TEXT, corrected INTEGER NOT NULL DEFAULT 0,
+      payload TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS fact_assertions (
       assertion_id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
       fact_id TEXT NOT NULL, tax_year INTEGER NOT NULL, value TEXT NOT NULL,

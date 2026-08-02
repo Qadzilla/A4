@@ -365,6 +365,28 @@ export const incomeForms = sqliteTable('income_forms', {
 });
 
 /**
+ * One extracted consolidated 1099 (or standalone 1099-B/-DIV/-INT) per
+ * uploaded file: dividend and interest totals as printed, plus lot-level
+ * sale rows with dates and the 8949 category, which flow into the trades
+ * table as document-sourced trades. Distinct from tax_1099s, which stores
+ * per-security TOTALS for the reconciliation check — this table is where
+ * the numbers themselves come from.
+ */
+export const investmentForms = sqliteTable('investment_forms', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  fileId: text('file_id').notNull().unique(),
+  taxYear: integer('tax_year').notNull(),
+  broker: text('broker'),
+  brokerTin: text('broker_tin'),
+  corrected: integer('corrected', { mode: 'boolean' }).notNull().default(false),
+  payload: text('payload').notNull(), // JSON: ExtractedInvestmentForms
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
+
+/**
  * The A1 fact model, persisted: append-only assertions with provenance and
  * supersession. C1 brings the table forward (G1 adds the router and intake
  * on top); the shape mirrors lib/calc/filing/facts.ts exactly, and every

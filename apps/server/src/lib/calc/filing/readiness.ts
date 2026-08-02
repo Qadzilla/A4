@@ -24,6 +24,7 @@ import {
   type FactAssertion,
   type FactId,
   factSet,
+  factState,
   liveAssertions,
   contradictions as liveContradictions,
 } from './facts';
@@ -51,7 +52,12 @@ export interface ReadinessLine {
 
 export interface Blocker {
   id: string;
-  from: 'contradiction' | 'mandatory-document' | 'unsupported-form' | 'computation';
+  from:
+    | 'contradiction'
+    | 'mandatory-document'
+    | 'unsupported-form'
+    | 'computation'
+    | 'unanswered-question';
   reason: string;
 }
 
@@ -167,6 +173,28 @@ export function assessReadiness(
       from: 'computation',
       reason:
         evaluation.notes.find((note) => note.length > 0) ?? `The year cannot be computed: ${item}.`,
+    });
+  }
+
+  // ── The digital-assets question ──
+  // On the 1040's face, answered under penalty of perjury, for everyone.
+  // A number can be amended later; a false "no" is a different kind of
+  // problem — so readiness never says ready while it stands unanswered.
+  const digitalAssets = factState(set, 'digital-asset-activity');
+  if (digitalAssets.status === 'unasserted' || digitalAssets.status === 'unknown') {
+    blockers.push({
+      id: 'question:digital-asset-activity',
+      from: 'unanswered-question',
+      reason:
+        'The return asks directly whether digital assets were sold, exchanged or received this year. It must be answered yes or no — it cannot be left blank.',
+    });
+    lines.push({
+      id: 'fact:digital-asset-activity',
+      kind: 'fact',
+      label: FACT_REGISTRY['digital-asset-activity'].label,
+      status: digitalAssets.status === 'unknown' ? 'unknown' : 'not-started',
+      detail: 'Asked on the front of the return, under penalty of perjury. Yes or no, never blank.',
+      action: 'Answer the digital-assets question either way.',
     });
   }
 

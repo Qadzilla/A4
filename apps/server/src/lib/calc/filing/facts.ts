@@ -241,6 +241,31 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Personal belongings sold through platforms (a couch at a loss is not income)',
   },
+  'interest-income': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Interest earned for the year (1099-INT box 1 total)',
+  },
+  'dividends-ordinary': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Total dividends for the year (1099-DIV box 1a — includes the qualified part)',
+  },
+  'dividends-qualified': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Qualified dividends (1099-DIV box 1b — taxed at the lower capital-gains rates)',
+  },
+  'crypto-proceeds': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Money received selling or trading crypto (usually no form exists — self-reported)',
+  },
+  'crypto-cost-basis': {
+    kind: 'number',
+    scope: 'year',
+    label: 'What the crypto that was sold originally cost',
+  },
   'nec-k-overlap': {
     kind: 'number',
     scope: 'year',

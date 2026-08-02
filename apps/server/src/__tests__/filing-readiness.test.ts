@@ -36,6 +36,7 @@ const p1 = () => [
   make('gross-income', { kind: 'number', value: 42000 }),
   make('w2-employer-count', { kind: 'number', value: 1 }),
   make('w2-wages', { kind: 'number', value: 42000 }),
+  make('digital-asset-activity', { kind: 'bool', value: false }),
 ];
 
 describe('the founding rule', () => {
@@ -150,6 +151,47 @@ describe('unknowns caution, cheap unknowns pass', () => {
     expect(result.unknowns.some((u) => u.at === 'self-support-share-pct' && u.delta === 0)).toBe(
       true,
     );
+  });
+});
+
+describe('the digital-assets question', () => {
+  it('blocks ready while unanswered — a 1040-face question is never left blank', () => {
+    const facts = p1().filter((a) => a.factId !== 'digital-asset-activity');
+    const result = assessReadiness(facts, [{ kind: 'W-2', fileId: 'f1' }], 2026, MARCH);
+    expect(result.verdict).toBe('blocked');
+    expect(result.blockers.some((b) => b.from === 'unanswered-question')).toBe(true);
+    const line = result.lines.find((l) => l.id === 'fact:digital-asset-activity');
+    expect(line?.status).toBe('not-started');
+  });
+
+  it('an explicit shrug is still unanswered — the question takes yes or no only', () => {
+    const facts = [
+      ...p1().filter((a) => a.factId !== 'digital-asset-activity'),
+      make('digital-asset-activity', { kind: 'unknown' }),
+    ];
+    const result = assessReadiness(facts, [{ kind: 'W-2', fileId: 'f1' }], 2026, MARCH);
+    expect(result.verdict).toBe('blocked');
+    expect(result.lines.find((l) => l.id === 'fact:digital-asset-activity')?.status).toBe(
+      'unknown',
+    );
+  });
+
+  it('either answer unblocks — yes simply brings the sale forms with it', () => {
+    const no = assessReadiness(p1(), [{ kind: 'W-2', fileId: 'f1' }], 2026, MARCH);
+    expect(no.verdict).toBe('ready');
+
+    const yes = assessReadiness(
+      [
+        ...p1().filter((a) => a.factId !== 'digital-asset-activity'),
+        make('digital-asset-activity', { kind: 'bool', value: true }),
+      ],
+      [{ kind: 'W-2', fileId: 'f1' }],
+      2026,
+      MARCH,
+    );
+    expect(yes.blockers.some((b) => b.from === 'unanswered-question')).toBe(false);
+    // Crypto disposals require the sale forms, honestly unsupported-or-not.
+    expect(yes.lines.some((l) => l.id === 'form:form-8949')).toBe(true);
   });
 });
 

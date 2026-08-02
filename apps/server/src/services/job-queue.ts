@@ -14,6 +14,7 @@ export const JOB_TYPES = {
   reconcile1099: 'reconcile-1099',
   extractW2: 'extract-w2',
   extractIncomeForm: 'extract-income-form',
+  extractInvestmentForms: 'extract-investment-forms',
 } as const;
 
 export type ProcessOutcome = 'idle' | 'done' | 'retried' | 'failed';

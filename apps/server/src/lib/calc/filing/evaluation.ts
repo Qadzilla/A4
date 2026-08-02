@@ -92,6 +92,9 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
   const wages = num(factState(set, 'w2-wages'));
   const longGains = num(factState(set, 'realized-long-gains'));
   const shortGains = num(factState(set, 'realized-short-gains'));
+  const interest = num(factState(set, 'interest-income'));
+  const ordinaryDiv = num(factState(set, 'dividends-ordinary'));
+  const qualifiedDiv = num(factState(set, 'dividends-qualified'));
 
   const year = filingYearData(taxYear);
   if (year === null) {
@@ -165,11 +168,24 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     // which is exactly what the status exists to provide.
     filingStatus: filingStatus.status === 'qss' ? 'mfj' : filingStatus.status,
     w2Wages: wages ?? 0,
-    capitalGainsLong: longGains ?? 0,
+    // Qualified dividends ride the capital-gains brackets (the estimator's
+    // capitalGainsLong is documented as LTCG + qualified dividends); the
+    // rest of box 1a is ordinary investment income. As printed, never
+    // clamped — a broker reporting qualified above ordinary produces a
+    // negative ordinary remainder here, which is the broker's error made
+    // visible rather than laundered.
+    capitalGainsLong: (longGains ?? 0) + (qualifiedDiv ?? 0),
     capitalGainsShort: shortGains ?? 0,
+    investmentIncome: (interest ?? 0) + (ordinaryDiv ?? 0) - (qualifiedDiv ?? 0),
   };
 
-  if (wages === null && longGains === null && shortGains === null) {
+  if (
+    wages === null &&
+    longGains === null &&
+    shortGains === null &&
+    interest === null &&
+    ordinaryDiv === null
+  ) {
     notes.push('No income facts yet — the liability is a floor, not an estimate.');
   }
 

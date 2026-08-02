@@ -11,14 +11,17 @@ import {
   factAssertions,
   files,
   incomeForms,
+  investmentForms,
   pageEmbeddings,
   tax1099s,
   w2Forms,
 } from '../db/schema';
 import { DEV_AUTH_BYPASS, USE_R2 } from '../env';
 import { replanIncomeFormFacts } from '../services/extract-income-form';
+import { replanInvestmentForms } from '../services/extract-investment-forms';
 import { replanW2Facts } from '../services/extract-w2';
 import { INCOME_FORM_FACT_IDS } from '../services/income-form-facts';
+import { INVESTMENT_FORM_FACT_IDS } from '../services/investment-form-facts';
 import { storage } from '../services/storage';
 import { W2_FACT_IDS } from '../services/w2-facts';
 // Lazy import to avoid loading OpenAI SDK at server startup
@@ -176,6 +179,16 @@ filesRouter.post('/upload', (req, res, next) => {
         await enqueueJob(JOB_TYPES.extractW2, { fileId }, { db, maxAttempts: 2 }).catch(
           (err: unknown) => console.error(`[W-2] Failed to enqueue for ${fileId}:`, err),
         );
+      }
+      // Optional consolidated-1099 extraction — dividends, interest and
+      // lot-level sale rows become facts and document trades (C3)
+      if (req.body.investmentForms === '1') {
+        const { enqueueJob, JOB_TYPES } = await import('../services/job-queue');
+        await enqueueJob(
+          JOB_TYPES.extractInvestmentForms,
+          { fileId },
+          { db, maxAttempts: 2 },
+        ).catch((err: unknown) => console.error(`[1099] Failed to enqueue for ${fileId}:`, err));
       }
       // Optional 1099-NEC / 1099-K extraction — income forms become facts,
       // and gross-vs-income stays a distinction, not a blur (C2)
@@ -364,6 +377,46 @@ filesRouter.delete('/:fileId', async (req, res) => {
       incomeRow.workspaceId,
       incomeRow.userId,
       incomeRow.taxYear,
+      req.params.fileId,
+    );
+  }
+
+  // C3: a deleted consolidated 1099 takes its DIV/INT facts and its
+  // document trades with it — sold-investments is shared with the person's
+  // own answer, so only the document-sourced side is wiped, and the replan
+  // sweeps the file's trades because it is no longer a live form.
+  const [invRow] = await db
+    .select({
+      workspaceId: investmentForms.workspaceId,
+      userId: investmentForms.userId,
+      taxYear: investmentForms.taxYear,
+    })
+    .from(investmentForms)
+    .where(eq(investmentForms.fileId, req.params.fileId));
+  if (invRow) {
+    await db.delete(investmentForms).where(eq(investmentForms.fileId, req.params.fileId));
+    const candidates = await db
+      .select({ assertionId: factAssertions.assertionId, source: factAssertions.source })
+      .from(factAssertions)
+      .where(
+        and(
+          eq(factAssertions.workspaceId, invRow.workspaceId),
+          eq(factAssertions.userId, invRow.userId),
+          eq(factAssertions.taxYear, invRow.taxYear),
+          inArray(factAssertions.factId, INVESTMENT_FORM_FACT_IDS as string[]),
+        ),
+      );
+    const documentSourced = candidates
+      .filter((r) => (JSON.parse(r.source) as { kind: string }).kind === 'document')
+      .map((r) => r.assertionId);
+    if (documentSourced.length > 0) {
+      await db.delete(factAssertions).where(inArray(factAssertions.assertionId, documentSourced));
+    }
+    await replanInvestmentForms(
+      db,
+      invRow.workspaceId,
+      invRow.userId,
+      invRow.taxYear,
       req.params.fileId,
     );
   }
