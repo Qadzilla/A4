@@ -7,6 +7,7 @@ import { Router, type Router as RouterType } from 'express';
 import multer from 'multer';
 import { db } from '../db';
 import {
+  benefitForms,
   documentChunks,
   educationHealthForms,
   factAssertions,
@@ -18,7 +19,9 @@ import {
   w2Forms,
 } from '../db/schema';
 import { DEV_AUTH_BYPASS, USE_R2 } from '../env';
+import { BENEFIT_FACT_IDS } from '../services/benefit-form-facts';
 import { EDU_HEALTH_FACT_IDS, TAXABLE_SCHOLARSHIP_RULE } from '../services/education-health-facts';
+import { replanBenefitFacts } from '../services/extract-benefit-forms';
 import { replanEducationHealthFacts } from '../services/extract-education-health';
 import { replanIncomeFormFacts } from '../services/extract-income-form';
 import { replanInvestmentForms } from '../services/extract-investment-forms';
@@ -192,6 +195,14 @@ filesRouter.post('/upload', (req, res, next) => {
           { fileId },
           { db, maxAttempts: 2 },
         ).catch((err: unknown) => console.error(`[1099] Failed to enqueue for ${fileId}:`, err));
+      }
+      // Optional 1099-R / 1099-G / W-2G extraction — the cashout, the
+      // unemployment, and the winnings that tax even a losing year (C5)
+      if (req.body.benefitForm === '1') {
+        const { enqueueJob, JOB_TYPES } = await import('../services/job-queue');
+        await enqueueJob(JOB_TYPES.extractBenefitForms, { fileId }, { db, maxAttempts: 2 }).catch(
+          (err: unknown) => console.error(`[benefit] Failed to enqueue for ${fileId}:`, err),
+        );
       }
       // Optional 1098-T / 1098-E / 1095-A extraction — the credit, the
       // deduction, and the blocker, with monthly fidelity for D3 (C4)
@@ -477,6 +488,44 @@ filesRouter.delete('/:fileId', async (req, res) => {
       eduRow.workspaceId,
       eduRow.userId,
       eduRow.taxYear,
+      req.params.fileId,
+    );
+  }
+
+  // C5: a deleted 1099-R/G or W-2G takes its document facts with it; the
+  // person's own estimates of the shared facts survive and revive.
+  const [benefitRow] = await db
+    .select({
+      workspaceId: benefitForms.workspaceId,
+      userId: benefitForms.userId,
+      taxYear: benefitForms.taxYear,
+    })
+    .from(benefitForms)
+    .where(eq(benefitForms.fileId, req.params.fileId));
+  if (benefitRow) {
+    await db.delete(benefitForms).where(eq(benefitForms.fileId, req.params.fileId));
+    const candidates = await db
+      .select({ assertionId: factAssertions.assertionId, source: factAssertions.source })
+      .from(factAssertions)
+      .where(
+        and(
+          eq(factAssertions.workspaceId, benefitRow.workspaceId),
+          eq(factAssertions.userId, benefitRow.userId),
+          eq(factAssertions.taxYear, benefitRow.taxYear),
+          inArray(factAssertions.factId, BENEFIT_FACT_IDS as string[]),
+        ),
+      );
+    const documentSourced = candidates
+      .filter((r) => (JSON.parse(r.source) as { kind: string }).kind === 'document')
+      .map((r) => r.assertionId);
+    if (documentSourced.length > 0) {
+      await db.delete(factAssertions).where(inArray(factAssertions.assertionId, documentSourced));
+    }
+    await replanBenefitFacts(
+      db,
+      benefitRow.workspaceId,
+      benefitRow.userId,
+      benefitRow.taxYear,
       req.params.fileId,
     );
   }

@@ -48,6 +48,10 @@ export interface YearEvaluation {
     deduction: number;
     taxableIncome: number;
     ltcgZeroBracketRoom: number;
+    /** What documents say was already paid in — W-2 box 2, 1099-R box 4. */
+    federalWithheld: number;
+    /** Negative: refund. Positive: still owed. The P6 shortfall lives here. */
+    refundOrOwed: number;
   } | null;
   blocked: BlockedItem[];
   notes: string[];
@@ -55,6 +59,8 @@ export interface YearEvaluation {
 
 const num = (state: ReturnType<typeof factState>): number | null =>
   state.status === 'known' && state.value.kind === 'number' ? state.value.value : null;
+const bool = (state: ReturnType<typeof factState>): boolean | null =>
+  state.status === 'known' && state.value.kind === 'bool' ? state.value.value : null;
 
 export function evaluateYear(assertions: FactAssertion[], taxYear: number): YearEvaluation {
   const set = factSet(assertions, taxYear);
@@ -96,6 +102,13 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
   const ordinaryDiv = num(factState(set, 'dividends-ordinary'));
   const qualifiedDiv = num(factState(set, 'dividends-qualified'));
   const taxableScholarship = num(factState(set, 'taxable-scholarship-income'));
+  const unemployment = num(factState(set, 'unemployment-income'));
+  const gambling = num(factState(set, 'gambling-winnings'));
+  const retirementTaxable = num(factState(set, 'retirement-distribution-taxable'));
+  const retirementGross = num(factState(set, 'retirement-distribution'));
+  const stateRefund = num(factState(set, 'state-refund-received'));
+  const w2Withheld = num(factState(set, 'w2-federal-withheld'));
+  const retirementWithheld = num(factState(set, 'retirement-federal-withheld'));
 
   const year = filingYearData(taxYear);
   if (year === null) {
@@ -181,7 +194,26 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     // Scholarship above tuition is income (Pub 970). It rides otherIncome
     // here; its earned-vs-unearned character (earned for the dependent
     // standard deduction, not for the kiddie tax) is D-phase's refinement.
-    otherIncome: taxableScholarship ?? 0,
+    //
+    // C5's streams ride along: unemployment is taxable in full; winnings
+    // are taxable even in a losing year (losses only net by itemizing —
+    // D-phase's asymmetry, never applied silently here); a retirement
+    // distribution uses the printed taxable amount when the form gave one,
+    // else the gross of its non-rollover part — basis in a first-job 401(k)
+    // is almost always zero, and gross-over-taxable errs toward honesty
+    // until D6 refines. Rollovers are already excluded at the fact layer.
+    //
+    // And the state-refund gate: a refund is income only if last year was
+    // itemized. Unknown defaults to NOT taxable — the audience's reality —
+    // and because the gate reads the fact here, forking
+    // itemized-prior-year prices exactly what finding out is worth.
+    otherIncome:
+      (taxableScholarship ?? 0) +
+      (unemployment ?? 0) +
+      (gambling ?? 0) +
+      (retirementTaxable ?? retirementGross ?? 0) +
+      (bool(factState(set, 'itemized-prior-year')) === true ? (stateRefund ?? 0) : 0),
+    federalWithheld: (w2Withheld ?? 0) + (retirementWithheld ?? 0),
   };
 
   if (
@@ -190,7 +222,10 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     shortGains === null &&
     interest === null &&
     ordinaryDiv === null &&
-    taxableScholarship === null
+    taxableScholarship === null &&
+    unemployment === null &&
+    gambling === null &&
+    retirementGross === null
   ) {
     notes.push('No income facts yet — the liability is a floor, not an estimate.');
   }
@@ -229,6 +264,8 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       deduction: result.deduction,
       taxableIncome: result.taxableIncome,
       ltcgZeroBracketRoom: result.ltcgZeroBracketRoom,
+      federalWithheld: data.federalWithheld,
+      refundOrOwed: result.federalTax + result.ltcgTax + result.niit - data.federalWithheld,
     },
     blocked,
     notes,

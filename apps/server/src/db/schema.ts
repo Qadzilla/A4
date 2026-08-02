@@ -408,6 +408,27 @@ export const educationHealthForms = sqliteTable('education_health_forms', {
 });
 
 /**
+ * One extracted 1099-R, 1099-G or W-2G per uploaded file — the three
+ * documents that ambush this audience: the job-change 401(k) cashout,
+ * taxable unemployment, and winnings that are taxable even in a losing
+ * year. The 1099-R's box 7 codes drive everything downstream.
+ */
+export const benefitForms = sqliteTable('benefit_forms', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  fileId: text('file_id').notNull().unique(),
+  kind: text('kind').notNull(), // '1099-R' | '1099-G' | 'W-2G'
+  taxYear: integer('tax_year').notNull(),
+  payerName: text('payer_name'),
+  payerTin: text('payer_tin'),
+  corrected: integer('corrected', { mode: 'boolean' }).notNull().default(false),
+  payload: text('payload').notNull(), // JSON: ExtractedBenefitForm
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
+
+/**
  * The A1 fact model, persisted: append-only assertions with provenance and
  * supersession. C1 brings the table forward (G1 adds the router and intake
  * on top); the shape mirrors lib/calc/filing/facts.ts exactly, and every

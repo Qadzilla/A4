@@ -306,6 +306,52 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Gambling or betting winnings for the year',
   },
+  'gambling-losses': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Gambling or betting losses for the year (only ever count if deductions are itemized)',
+  },
+  'retirement-distribution-taxable': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Taxable part of retirement money taken out (1099-R box 2a total)',
+  },
+  'retirement-early-distribution': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Retirement money taken out early — code 1, the 10% additional tax question (Form 5329)',
+  },
+  'retirement-rollover': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Retirement money moved directly to another plan (codes G/H) — not income at all',
+  },
+  'retirement-roth-distribution': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Money out of a Roth account (codes J/T/Q) — ordering rules not yet modelled',
+  },
+  'retirement-distribution-unclassified': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Retirement money taken out with no readable distribution code — treatment undecided',
+  },
+  'retirement-federal-withheld': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Federal tax already taken from retirement money (1099-R box 4 total)',
+  },
+  'state-refund-received': {
+    kind: 'number',
+    scope: 'year',
+    label: "Last year's state tax refund received this year (1099-G box 2)",
+  },
+  'itemized-prior-year': {
+    kind: 'bool',
+    scope: 'year',
+    label:
+      "Deductions were itemized on last year's return (decides whether a state refund is taxable)",
+  },
   'paid-tuition': {
     kind: 'bool',
     scope: 'year',

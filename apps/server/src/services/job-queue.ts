@@ -16,6 +16,7 @@ export const JOB_TYPES = {
   extractIncomeForm: 'extract-income-form',
   extractInvestmentForms: 'extract-investment-forms',
   extractEducationHealth: 'extract-education-health',
+  extractBenefitForms: 'extract-benefit-forms',
 } as const;
 
 export type ProcessOutcome = 'idle' | 'done' | 'retried' | 'failed';
