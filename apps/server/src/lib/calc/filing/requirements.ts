@@ -56,6 +56,12 @@ export interface Expectation {
 export interface ArrivedDoc {
   kind: DocumentKind;
   fileId: string;
+  /**
+   * The year the document reports on — a 2026 W-2 satisfies nothing about
+   * 2025. Optional only until C-phase reads it off the paper; unstated
+   * matches the year under assessment.
+   */
+  taxYear?: number;
 }
 
 // ─── Forms and scope ───────────────────────────────────────────────

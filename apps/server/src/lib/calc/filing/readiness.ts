@@ -171,7 +171,11 @@ export function assessReadiness(
   }
 
   // ── Expected documents ──
-  const arrivedKinds = new Set(docs.map((d) => d.kind));
+  // A document satisfies only its own year: P8's corpus case is a 2026 W-2
+  // that must not quiet 2025's expectation.
+  const arrivedKinds = new Set(
+    docs.filter((d) => d.taxYear === undefined || d.taxYear === taxYear).map((d) => d.kind),
+  );
   for (const exp of expected) {
     lines.push(documentLine(exp, arrivedKinds, today, blockers));
   }
