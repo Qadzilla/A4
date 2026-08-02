@@ -280,6 +280,7 @@ if (env.NODE_ENV !== 'test') {
   import('./services/extract-w2').then((m) => m.registerExtractW2Handler());
   import('./services/extract-income-form').then((m) => m.registerExtractIncomeFormHandler());
   import('./services/extract-investment-forms').then((m) => m.registerExtractInvestmentFormsHandler());
+  import('./services/extract-education-health').then((m) => m.registerExtractEducationHealthHandler());
   startJobWorker();
 }
 

@@ -15,6 +15,7 @@ export const JOB_TYPES = {
   extractW2: 'extract-w2',
   extractIncomeForm: 'extract-income-form',
   extractInvestmentForms: 'extract-investment-forms',
+  extractEducationHealth: 'extract-education-health',
 } as const;
 
 export type ProcessOutcome = 'idle' | 'done' | 'retried' | 'failed';

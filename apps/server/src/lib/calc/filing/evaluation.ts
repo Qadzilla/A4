@@ -95,6 +95,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
   const interest = num(factState(set, 'interest-income'));
   const ordinaryDiv = num(factState(set, 'dividends-ordinary'));
   const qualifiedDiv = num(factState(set, 'dividends-qualified'));
+  const taxableScholarship = num(factState(set, 'taxable-scholarship-income'));
 
   const year = filingYearData(taxYear);
   if (year === null) {
@@ -177,6 +178,10 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     capitalGainsLong: (longGains ?? 0) + (qualifiedDiv ?? 0),
     capitalGainsShort: shortGains ?? 0,
     investmentIncome: (interest ?? 0) + (ordinaryDiv ?? 0) - (qualifiedDiv ?? 0),
+    // Scholarship above tuition is income (Pub 970). It rides otherIncome
+    // here; its earned-vs-unearned character (earned for the dependent
+    // standard deduction, not for the kiddie tax) is D-phase's refinement.
+    otherIncome: taxableScholarship ?? 0,
   };
 
   if (
@@ -184,7 +189,8 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     longGains === null &&
     shortGains === null &&
     interest === null &&
-    ordinaryDiv === null
+    ordinaryDiv === null &&
+    taxableScholarship === null
   ) {
     notes.push('No income facts yet — the liability is a floor, not an estimate.');
   }

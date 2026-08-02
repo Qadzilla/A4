@@ -8,6 +8,7 @@ import multer from 'multer';
 import { db } from '../db';
 import {
   documentChunks,
+  educationHealthForms,
   factAssertions,
   files,
   incomeForms,
@@ -17,6 +18,8 @@ import {
   w2Forms,
 } from '../db/schema';
 import { DEV_AUTH_BYPASS, USE_R2 } from '../env';
+import { EDU_HEALTH_FACT_IDS, TAXABLE_SCHOLARSHIP_RULE } from '../services/education-health-facts';
+import { replanEducationHealthFacts } from '../services/extract-education-health';
 import { replanIncomeFormFacts } from '../services/extract-income-form';
 import { replanInvestmentForms } from '../services/extract-investment-forms';
 import { replanW2Facts } from '../services/extract-w2';
@@ -189,6 +192,18 @@ filesRouter.post('/upload', (req, res, next) => {
           { fileId },
           { db, maxAttempts: 2 },
         ).catch((err: unknown) => console.error(`[1099] Failed to enqueue for ${fileId}:`, err));
+      }
+      // Optional 1098-T / 1098-E / 1095-A extraction — the credit, the
+      // deduction, and the blocker, with monthly fidelity for D3 (C4)
+      if (req.body.eduHealthForm === '1') {
+        const { enqueueJob, JOB_TYPES } = await import('../services/job-queue');
+        await enqueueJob(
+          JOB_TYPES.extractEducationHealth,
+          { fileId },
+          { db, maxAttempts: 2 },
+        ).catch((err: unknown) =>
+          console.error(`[edu/health] Failed to enqueue for ${fileId}:`, err),
+        );
       }
       // Optional 1099-NEC / 1099-K extraction — income forms become facts,
       // and gross-vs-income stays a distinction, not a blur (C2)
@@ -417,6 +432,51 @@ filesRouter.delete('/:fileId', async (req, res) => {
       invRow.workspaceId,
       invRow.userId,
       invRow.taxYear,
+      req.params.fileId,
+    );
+  }
+
+  // C4: a deleted 1098-T/E or 1095-A takes its document facts and the
+  // taxable-scholarship derivation with it; the person's own answers to the
+  // shared bools survive, and the replan re-derives from what remains.
+  const [eduRow] = await db
+    .select({
+      workspaceId: educationHealthForms.workspaceId,
+      userId: educationHealthForms.userId,
+      taxYear: educationHealthForms.taxYear,
+    })
+    .from(educationHealthForms)
+    .where(eq(educationHealthForms.fileId, req.params.fileId));
+  if (eduRow) {
+    await db.delete(educationHealthForms).where(eq(educationHealthForms.fileId, req.params.fileId));
+    const candidates = await db
+      .select({ assertionId: factAssertions.assertionId, source: factAssertions.source })
+      .from(factAssertions)
+      .where(
+        and(
+          eq(factAssertions.workspaceId, eduRow.workspaceId),
+          eq(factAssertions.userId, eduRow.userId),
+          eq(factAssertions.taxYear, eduRow.taxYear),
+          inArray(factAssertions.factId, EDU_HEALTH_FACT_IDS as string[]),
+        ),
+      );
+    const ours = candidates
+      .filter((r) => {
+        const source = JSON.parse(r.source) as { kind: string; ruleId?: string };
+        return (
+          source.kind === 'document' ||
+          (source.kind === 'rule' && source.ruleId === TAXABLE_SCHOLARSHIP_RULE)
+        );
+      })
+      .map((r) => r.assertionId);
+    if (ours.length > 0) {
+      await db.delete(factAssertions).where(inArray(factAssertions.assertionId, ours));
+    }
+    await replanEducationHealthFacts(
+      db,
+      eduRow.workspaceId,
+      eduRow.userId,
+      eduRow.taxYear,
       req.params.fileId,
     );
   }

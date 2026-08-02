@@ -387,6 +387,27 @@ export const investmentForms = sqliteTable('investment_forms', {
 });
 
 /**
+ * One extracted 1098-T, 1098-E or 1095-A per uploaded file. The 1095-A
+ * payload keeps the monthly table with full fidelity — twelve rows of
+ * premium / SLCSP / advance credit, printed zeros distinct from blanks —
+ * because D3 reconciles month-wise, never from sums.
+ */
+export const educationHealthForms = sqliteTable('education_health_forms', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  fileId: text('file_id').notNull().unique(),
+  kind: text('kind').notNull(), // '1098-T' | '1098-E' | '1095-A'
+  taxYear: integer('tax_year').notNull(),
+  issuerName: text('issuer_name'),
+  issuerTin: text('issuer_tin'),
+  corrected: integer('corrected', { mode: 'boolean' }).notNull().default(false),
+  payload: text('payload').notNull(), // JSON: ExtractedEducationHealthForm
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
+
+/**
  * The A1 fact model, persisted: append-only assertions with provenance and
  * supersession. C1 brings the table forward (G1 adds the router and intake
  * on top); the shape mirrors lib/calc/filing/facts.ts exactly, and every

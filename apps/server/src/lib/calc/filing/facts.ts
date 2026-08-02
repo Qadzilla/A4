@@ -256,6 +256,26 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Qualified dividends (1099-DIV box 1b — taxed at the lower capital-gains rates)',
   },
+  'qualified-tuition-paid': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Tuition and required fees paid to schools (1098-T box 1 total)',
+  },
+  'tuition-billed-legacy': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Tuition amounts billed (the retired 1098-T box 2 — some schools still print it)',
+  },
+  'scholarships-received': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Scholarships and grants the school processed (1098-T box 5 total)',
+  },
+  'student-loan-interest-paid': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Student loan interest paid for the year (1098-E box 1 total)',
+  },
   'crypto-proceeds': {
     kind: 'number',
     scope: 'year',
@@ -325,6 +345,13 @@ export const FACT_REGISTRY = {
     scope: 'year',
     derived: true,
     label: 'Whether someone is able to claim the person as a dependent',
+  },
+  'taxable-scholarship-income': {
+    kind: 'number',
+    scope: 'year',
+    derived: true,
+    label:
+      'Scholarship money above tuition and required fees — taxable income almost nobody knows about',
   },
   'filing-status': {
     kind: 'string',
