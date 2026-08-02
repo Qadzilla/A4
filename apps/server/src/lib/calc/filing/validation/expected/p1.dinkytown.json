@@ -1,0 +1,20 @@
+{
+  "persona": "P1",
+  "taxYear": 2026,
+  "tool": "dinkytown",
+  "toolVersion": "1040 Tax Estimator for 2026, dinkytown.net, accessed 2026-08-02",
+  "recordedOn": "2026-08-02",
+  "recordedBy": "Zaid (entries), tool output pasted verbatim",
+  "assumptions": [
+    "Federal withholding entered as $0",
+    "EIC age question answered No (age 23); lived in US 6+ months Yes; qualifying child of someone else No"
+  ],
+  "lines": [
+    { "id": "1040:11", "label": "Adjusted gross income (total income, no adjustments)", "amount": 42000 },
+    { "id": "1040:12", "label": "Standard deduction", "amount": 16100 },
+    { "id": "1040:15", "label": "Taxable income", "amount": 25900 },
+    { "id": "1040:16", "label": "Income tax", "amount": 2863 },
+    { "id": "1040:24", "label": "Your taxes are estimated at", "amount": 2863 }
+  ],
+  "notes": "Summary read: 'Your taxes are estimated at $2,863.00. This is 6.82% of your total income of $42,000.00... 12% tax bracket.' Standard deduction $16,100 displayed on-form. Taxable income 25,900 is the page's computed field — pending a glance-confirm from the recorder."
+}

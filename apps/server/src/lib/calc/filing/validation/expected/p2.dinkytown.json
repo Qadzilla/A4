@@ -1,0 +1,21 @@
+{
+  "persona": "P2",
+  "taxYear": 2026,
+  "tool": "dinkytown",
+  "toolVersion": "1040 Tax Estimator for 2026, dinkytown.net, accessed 2026-08-02",
+  "recordedOn": "2026-08-02",
+  "recordedBy": "Zaid (entries), tool output pasted verbatim",
+  "assumptions": [
+    "Federal withholding entered as $0",
+    "Long-term gain entered as a single $3,100 amount (no lot detail fields on this tool)",
+    "'Are you someone's dependent' answered Yes; EIC qualifying-child-of-someone-else answered Yes"
+  ],
+  "lines": [
+    { "id": "1040:11", "label": "Adjusted gross income (total income)", "amount": 11100 },
+    { "id": "1040:12", "label": "Standard deduction (dependent-limited)", "amount": 8450 },
+    { "id": "1040:15", "label": "Taxable income", "amount": 2650 },
+    { "id": "1040:16", "label": "Income tax", "amount": 0 },
+    { "id": "1040:24", "label": "Your taxes are estimated at", "amount": 0 }
+  ],
+  "notes": "Recorder confirmed: total income 11,100, taxable income 2,650, total income tax 0. The 8,450 deduction is implied exactly by 11,100 − 2,650 (dependent limitation applied: 8,000 earned + 450). Summary read '0% tax bracket' — the long-term gain sits in the 0% LTCG bracket at her own rates. This tool does not compute Form 8615 (kiddie tax); that layer is the engine's declared known-gap until B2/D-phase."
+}
