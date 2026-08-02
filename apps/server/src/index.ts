@@ -278,6 +278,7 @@ if (env.NODE_ENV !== 'test') {
   import('./services/statement-import').then((m) => m.registerStatementImportHandler());
   import('./services/reconcile-1099').then((m) => m.registerReconcile1099Handler());
   import('./services/extract-w2').then((m) => m.registerExtractW2Handler());
+  import('./services/extract-income-form').then((m) => m.registerExtractIncomeFormHandler());
   startJobWorker();
 }
 

@@ -10,12 +10,15 @@ import {
   documentChunks,
   factAssertions,
   files,
+  incomeForms,
   pageEmbeddings,
   tax1099s,
   w2Forms,
 } from '../db/schema';
 import { DEV_AUTH_BYPASS, USE_R2 } from '../env';
+import { replanIncomeFormFacts } from '../services/extract-income-form';
 import { replanW2Facts } from '../services/extract-w2';
+import { INCOME_FORM_FACT_IDS } from '../services/income-form-facts';
 import { storage } from '../services/storage';
 import { W2_FACT_IDS } from '../services/w2-facts';
 // Lazy import to avoid loading OpenAI SDK at server startup
@@ -174,6 +177,14 @@ filesRouter.post('/upload', (req, res, next) => {
           (err: unknown) => console.error(`[W-2] Failed to enqueue for ${fileId}:`, err),
         );
       }
+      // Optional 1099-NEC / 1099-K extraction — income forms become facts,
+      // and gross-vs-income stays a distinction, not a blur (C2)
+      if (req.body.incomeForm === '1') {
+        const { enqueueJob, JOB_TYPES } = await import('../services/job-queue');
+        await enqueueJob(JOB_TYPES.extractIncomeForm, { fileId }, { db, maxAttempts: 2 }).catch(
+          (err: unknown) => console.error(`[1099] Failed to enqueue for ${fileId}:`, err),
+        );
+      }
 
       // Fire-and-forget background embedding for text-extractable files
       if (EMBEDDABLE_MIME_TYPES.has(file.mimetype)) {
@@ -315,6 +326,46 @@ filesRouter.delete('/:fileId', async (req, res) => {
         ),
       );
     await replanW2Facts(db, w2Row.workspaceId, w2Row.userId, w2Row.taxYear, req.params.fileId);
+  }
+
+  // C2: same discipline for 1099-NEC / 1099-K uploads — but only the
+  // DOCUMENT-sourced assertions are wiped. contract-income and
+  // platform-income are shared with the person's own estimates, and an
+  // estimate a form once superseded comes back to life when the form goes.
+  const [incomeRow] = await db
+    .select({
+      workspaceId: incomeForms.workspaceId,
+      userId: incomeForms.userId,
+      taxYear: incomeForms.taxYear,
+    })
+    .from(incomeForms)
+    .where(eq(incomeForms.fileId, req.params.fileId));
+  if (incomeRow) {
+    await db.delete(incomeForms).where(eq(incomeForms.fileId, req.params.fileId));
+    const candidates = await db
+      .select({ assertionId: factAssertions.assertionId, source: factAssertions.source })
+      .from(factAssertions)
+      .where(
+        and(
+          eq(factAssertions.workspaceId, incomeRow.workspaceId),
+          eq(factAssertions.userId, incomeRow.userId),
+          eq(factAssertions.taxYear, incomeRow.taxYear),
+          inArray(factAssertions.factId, INCOME_FORM_FACT_IDS as string[]),
+        ),
+      );
+    const documentSourced = candidates
+      .filter((r) => (JSON.parse(r.source) as { kind: string }).kind === 'document')
+      .map((r) => r.assertionId);
+    if (documentSourced.length > 0) {
+      await db.delete(factAssertions).where(inArray(factAssertions.assertionId, documentSourced));
+    }
+    await replanIncomeFormFacts(
+      db,
+      incomeRow.workspaceId,
+      incomeRow.userId,
+      incomeRow.taxYear,
+      req.params.fileId,
+    );
   }
   await db.delete(files).where(eq(files.id, req.params.fileId));
 

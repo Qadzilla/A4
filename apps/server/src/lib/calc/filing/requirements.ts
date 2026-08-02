@@ -18,7 +18,7 @@
 import { determineDependency } from './dependency';
 import { type FactAssertion, type FactId, type FactState, factSet, factState } from './facts';
 import { determineResidency } from './residency';
-import { filingYearData } from './year-data';
+import { filingYearData, informationReturnThresholds } from './year-data';
 
 // ─── Documents ─────────────────────────────────────────────────────
 
@@ -281,18 +281,19 @@ export function expectations(assertions: FactAssertion[], taxYear: number): Expe
 
   // The no-form path: below the year's threshold, nothing arrives and the
   // income is taxable anyway — that is a requirement, not an expectation.
+  const thresholds = informationReturnThresholds(taxYear);
   const contract = num(get('contract-income'));
-  if (contract !== null && year !== null && contract >= year.necThreshold) {
+  if (contract !== null && thresholds !== null && contract >= thresholds.nec) {
     out.push({
       document: '1099-NEC',
       because: ['contract-income'],
-      from: `each client that paid $${year.necThreshold} or more`,
+      from: `each client that paid $${thresholds?.nec} or more`,
       mandatory: false, // the threshold is per payer; the total can clear it while no payer does
       arrivesBy: jan31,
     });
   }
   const platform = num(get('platform-income'));
-  if (platform !== null && year !== null && platform >= year.kThreshold) {
+  if (platform !== null && thresholds !== null && platform >= thresholds.k) {
     out.push({
       document: '1099-K',
       because: ['platform-income'],

@@ -343,6 +343,28 @@ export const w2Forms = sqliteTable('w2_forms', {
 });
 
 /**
+ * One extracted 1099-NEC or 1099-K per uploaded file. Same discipline as
+ * w2_forms: the payload is every box as printed, a K form's box 1a is gross
+ * receipts and is never treated as income here, and facts are asserted from
+ * the LIVE set (corrected forms replace by payer TIN + kind + year;
+ * duplicates surface as contradictions).
+ */
+export const incomeForms = sqliteTable('income_forms', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  fileId: text('file_id').notNull().unique(),
+  kind: text('kind').notNull(), // '1099-NEC' | '1099-K'
+  taxYear: integer('tax_year').notNull(),
+  payerName: text('payer_name'),
+  payerTin: text('payer_tin'),
+  corrected: integer('corrected', { mode: 'boolean' }).notNull().default(false),
+  payload: text('payload').notNull(), // JSON: ExtractedIncomeForm
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
+
+/**
  * The A1 fact model, persisted: append-only assertions with provenance and
  * supersession. C1 brings the table forward (G1 adds the router and intake
  * on top); the shape mirrors lib/calc/filing/facts.ts exactly, and every

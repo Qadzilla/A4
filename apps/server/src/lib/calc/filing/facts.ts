@@ -221,6 +221,31 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Gross receipts through payment apps or selling platforms for the year',
   },
+  'nec-income': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Contract pay reported on 1099-NEC forms (total across payers)',
+  },
+  'platform-fees': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Fees and commissions the platform kept (included in gross, not income)',
+  },
+  'platform-refunds': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Refunds and chargebacks included in platform gross (not income)',
+  },
+  'personal-items-proceeds': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Personal belongings sold through platforms (a couch at a loss is not income)',
+  },
+  'nec-k-overlap': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Pay counted on both a 1099-NEC and a 1099-K (the same dollars, reported twice)',
+  },
   'unemployment-income': {
     kind: 'number',
     scope: 'year',

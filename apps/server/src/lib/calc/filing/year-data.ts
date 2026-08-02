@@ -66,3 +66,22 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
 export function filingYearData(taxYear: number): FilingYearData | null {
   return FILING_YEAR_DATA[taxYear] ?? null;
 }
+
+/**
+ * 1099-NEC / 1099-K issuance thresholds, kept for every year prior-year
+ * support can reach (H4): OBBBA made the $20,000/200 K threshold
+ * retroactive to 2022, and the NEC threshold was $600 through TY2025
+ * before OBBBA's $2,000 — both verified 2026-08. A year outside this
+ * table refuses by name like everything else.
+ */
+const INFORMATION_RETURN_THRESHOLDS: Record<number, { nec: number; k: number }> = {
+  2022: { nec: 600, k: 20000 },
+  2023: { nec: 600, k: 20000 },
+  2024: { nec: 600, k: 20000 },
+  2025: { nec: 600, k: 20000 },
+  2026: { nec: 2000, k: 20000 },
+};
+
+export function informationReturnThresholds(taxYear: number): { nec: number; k: number } | null {
+  return INFORMATION_RETURN_THRESHOLDS[taxYear] ?? null;
+}
