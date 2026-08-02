@@ -1,0 +1,275 @@
+// ─── A6 · Readiness ────────────────────────────────────────────────
+// The honest answer to "am I ready to file?". Grown from desk-status.ts and
+// keeping its founding rule: a line that reports resolved because it had
+// nothing to check is the worst thing this surface can do — so an empty year
+// is not-started, never ready.
+//
+// This module computes nothing itself. It aggregates the determinations
+// (A2–A3 via the evaluation), the priced unknowns (A4), and the two lists
+// (A5) into lines, blockers and cautions. Narration is the AI's job over
+// this structure; details stay about the data, never about the person.
+//
+// What blocks and what merely cautions, decided once, here:
+//   blocked   — contradictions; a mandatory document past due and absent; a
+//               required form Basis can't compute (out of scope or an
+//               evaluation block like an unmade election or a 1040-NR year)
+//   cautions  — unknowns with a price or a blocked branch (cheap unknowns
+//               never stop anyone — the $40-combined case files); documents
+//               not yet due (the calendar truth: "ready" before the papers
+//               can exist is a caution, not a green light)
+
+import { evaluateYear } from './evaluation';
+import {
+  FACT_REGISTRY,
+  type FactAssertion,
+  type FactId,
+  factSet,
+  liveAssertions,
+  contradictions as liveContradictions,
+} from './facts';
+import { type RankedUnknown, rankUnknowns } from './forks';
+import {
+  type ArrivedDoc,
+  type Expectation,
+  type FormRequirement,
+  expectations,
+  requiredForms,
+} from './requirements';
+
+export type LineStatus = 'resolved' | 'attention' | 'not-started' | 'unknown';
+
+export interface ReadinessLine {
+  id: string; // 'form:sch-c' | 'doc:1099-B' | 'fact:self-support-share-pct'
+  kind: 'form' | 'document' | 'fact';
+  label: string;
+  status: LineStatus;
+  /** One line, about the data: "due by Feb 15", never "you haven't uploaded". */
+  detail: string;
+  /** The concrete step, where one exists. */
+  action: string | null;
+}
+
+export interface Blocker {
+  id: string;
+  from: 'contradiction' | 'mandatory-document' | 'unsupported-form' | 'computation';
+  reason: string;
+}
+
+export interface Contradiction {
+  factId: FactId;
+  /** How many live assertions disagree — the sides, for narration. */
+  assertionCount: number;
+}
+
+export interface Readiness {
+  taxYear: number;
+  verdict: 'ready' | 'ready-with-cautions' | 'blocked' | 'not-started';
+  lines: ReadinessLine[];
+  contradictions: Contradiction[];
+  blockers: Blocker[];
+  /** Priced by A4 — the "worth $1,200 to find out" list, already sorted. */
+  unknowns: RankedUnknown[];
+  outOfScope: FormRequirement[];
+}
+
+/**
+ * Assess one tax year. `today` is injectable (the quarterly.ts precedent):
+ * document lateness is a fact about the calendar, not about the clock this
+ * happened to run on.
+ */
+export function assessReadiness(
+  assertions: FactAssertion[],
+  docs: ArrivedDoc[],
+  taxYear: number,
+  today: Date,
+): Readiness {
+  // Nothing asserted that touches this year — not-started, with nothing
+  // pretending otherwise. Timeless facts alone (a birth date on file from
+  // another year's intake) don't make a year started.
+  const relevant = liveAssertions(assertions).filter(
+    (a) => FACT_REGISTRY[a.factId].scope === 'year' && a.taxYear === taxYear,
+  );
+  if (relevant.length === 0) {
+    return {
+      taxYear,
+      verdict: 'not-started',
+      lines: [],
+      contradictions: [],
+      blockers: [],
+      unknowns: [],
+      outOfScope: [],
+    };
+  }
+
+  const set = factSet(assertions, taxYear);
+  const evaluation = evaluateYear(assertions, taxYear);
+  const expected = expectations(assertions, taxYear);
+  const required = requiredForms(assertions, docs, taxYear);
+  const unknowns = rankUnknowns(assertions, taxYear);
+
+  const lines: ReadinessLine[] = [];
+  const blockers: Blocker[] = [];
+
+  // ── Contradictions: never averaged, never picked between ──
+  const conflicts: Contradiction[] = liveContradictions(set).map((c) => ({
+    factId: c.factId,
+    assertionCount: c.assertions.length,
+  }));
+  for (const c of conflicts) {
+    blockers.push({
+      id: `contradiction:${c.factId}`,
+      from: 'contradiction',
+      reason: `Two live sources disagree about ${FACT_REGISTRY[c.factId].label.toLowerCase()} — one side has to be corrected before anything downstream is trustworthy.`,
+    });
+  }
+
+  // ── Required forms ──
+  const outOfScope: FormRequirement[] = [];
+  for (const req of required) {
+    if (req.supported) {
+      lines.push({
+        id: `form:${req.form}`,
+        kind: 'form',
+        label: req.form,
+        status: 'resolved',
+        detail: 'Required this year; Basis computes it.',
+        action: null,
+      });
+      continue;
+    }
+    outOfScope.push(req);
+    lines.push({
+      id: `form:${req.form}`,
+      kind: 'form',
+      label: req.form,
+      status: 'attention',
+      detail: req.ifUnsupported
+        ? `${req.ifUnsupported.whyItApplies} ${req.ifUnsupported.whatItMeans}`
+        : 'Required, and not yet computable.',
+      action: null,
+    });
+    blockers.push({
+      id: `form:${req.form}`,
+      from: 'unsupported-form',
+      reason: req.ifUnsupported
+        ? `${req.form} is required — ${req.ifUnsupported.whatItMeans}`
+        : `${req.form} is required and not yet computable.`,
+    });
+  }
+
+  // ── The evaluation's own blocks (unmade election, 1040-NR year, …) ──
+  // form-1040nr and form-8615 already surface through required forms; the
+  // rest are computation states only the evaluation knows.
+  for (const item of evaluation.blocked) {
+    if (item === 'form-1040nr' || item === 'form-8615') continue;
+    blockers.push({
+      id: `computation:${item}`,
+      from: 'computation',
+      reason:
+        evaluation.notes.find((note) => note.length > 0) ?? `The year cannot be computed: ${item}.`,
+    });
+  }
+
+  // ── Expected documents ──
+  const arrivedKinds = new Set(docs.map((d) => d.kind));
+  for (const exp of expected) {
+    lines.push(documentLine(exp, arrivedKinds, today, blockers));
+  }
+
+  // ── Priced unknowns ──
+  const worthAsking = unknowns.filter((u) => u.delta > 0 || u.blockedDiffers);
+  for (const u of worthAsking) {
+    lines.push({
+      id: `fact:${u.at}`,
+      kind: 'fact',
+      label: FACT_REGISTRY[u.at].label,
+      status: 'unknown',
+      detail:
+        u.delta > 0
+          ? `Unresolved; the two answers differ by $${u.delta}.`
+          : 'Unresolved; the answers lead to different forms.',
+      action: null,
+    });
+  }
+
+  // ── Verdict ──
+  const waiting = lines.some((l) => l.kind === 'document' && l.status === 'not-started');
+  const verdict =
+    blockers.length > 0
+      ? 'blocked'
+      : worthAsking.length > 0 || waiting
+        ? 'ready-with-cautions'
+        : 'ready';
+
+  return {
+    taxYear,
+    verdict,
+    lines,
+    contradictions: conflicts,
+    blockers,
+    unknowns,
+    outOfScope,
+  };
+}
+
+function documentLine(
+  exp: Expectation,
+  arrived: Set<string>,
+  today: Date,
+  blockers: Blocker[],
+): ReadinessLine {
+  const id = `doc:${exp.document}`;
+  if (arrived.has(exp.document)) {
+    return {
+      id,
+      kind: 'document',
+      label: exp.document,
+      status: 'resolved',
+      detail: `On file, from ${exp.from}.`,
+      action: null,
+    };
+  }
+
+  const due = exp.arrivesBy !== null ? new Date(`${exp.arrivesBy}T23:59:59Z`) : null;
+  const past = due !== null && today.getTime() > due.getTime();
+
+  if (!past) {
+    return {
+      id,
+      kind: 'document',
+      label: exp.document,
+      status: 'not-started',
+      detail:
+        exp.arrivesBy !== null
+          ? `Expected from ${exp.from} by ${exp.arrivesBy}.`
+          : `Expected from ${exp.from}.`,
+      action: null,
+    };
+  }
+
+  // Past due. Mandatory absence blocks; a threshold document that may
+  // legitimately never come only asks for a look.
+  if (exp.mandatory) {
+    blockers.push({
+      id,
+      from: 'mandatory-document',
+      reason: `The ${exp.document} from ${exp.from} was due by ${exp.arrivesBy} and isn't on file — the year can't be finished without it.`,
+    });
+    return {
+      id,
+      kind: 'document',
+      label: exp.document,
+      status: 'attention',
+      detail: `Due by ${exp.arrivesBy}; not on file.`,
+      action: `Ask ${exp.from} for it, or pull the IRS Wage & Income transcript — it lists every form they received.`,
+    };
+  }
+  return {
+    id,
+    kind: 'document',
+    label: exp.document,
+    status: 'attention',
+    detail: `Not on file past ${exp.arrivesBy} — for this document that can be normal (${exp.from}).`,
+    action: null,
+  };
+}
