@@ -158,8 +158,8 @@ export const SCOPE: { version: number; forms: Record<FormId, ScopeEntry> } = {
       whatItMeans: "The saver's credit — up to $1,000 for retirement contributions, through 2026.",
     },
     'form-8962': {
-      supported: false,
-      plannedAt: 'D3',
+      supported: true, // D3: the reconciliation engine ships
+      plannedAt: null,
       whatItMeans:
         'Reconciles marketplace insurance help with actual income. Skipping it freezes the whole refund.',
     },

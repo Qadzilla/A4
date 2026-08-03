@@ -86,4 +86,17 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'savers/ira-and-w2-compose' },
   { id: 'savers/nothing-contributed-yet' },
   { id: 'savers/2027-refuses-by-name' },
+  // D3 — premium tax credit (Form 8962; Rev. Proc. 2025-25; FS-2025-10)
+  { id: 'ptc/2026-at-200pct-repays' },
+  { id: 'ptc/2025-same-facts-gets-credit' },
+  { id: 'ptc/2025-cap-is-the-mercy' },
+  { id: 'ptc/2026-same-shape-uncapped' },
+  { id: 'ptc/2025-above-400-no-cliff' },
+  { id: 'ptc/2026-above-400-cliff' },
+  { id: 'ptc/below-100-with-aptc-refused' },
+  { id: 'ptc/below-100-nothing-advanced' },
+  { id: 'ptc/mfs-refused' },
+  { id: 'ptc/blank-slcsp-is-a-handoff' },
+  { id: 'ptc/partial-year-month-wise' },
+  { id: 'ptc/own-dependent-refused' },
 ];

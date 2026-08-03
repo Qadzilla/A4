@@ -251,12 +251,11 @@ export const PERSONA_FIXTURES: PersonaFixture[] = [
       2026: {
         verdict: 'blocked',
         formsRequired: ['form-8962', 'sch-c', 'sch-se'],
-        outOfScopeInclude: ['form-8962'],
         expectationsInclude: ['1095-A'],
-        blockersInclude: ['form:form-8962', 'doc:1095-A'],
+        blockersInclude: ['computation:form-8962', 'doc:1095-A'],
       },
     },
-    note: 'The blocking archetype: the 1095-A is mandatory (the return cannot finish without it) and the 8962 refusal names the refund freeze. D3 turns the block into a reconciliation.',
+    note: 'The blocking archetype: the 1095-A is mandatory (the return cannot finish without it) and the unreconciled 8962 blocks by name. D3 computes the reconciliation the moment the monthly table arrives.',
   },
   {
     id: 'persona/p8-three-years-behind',

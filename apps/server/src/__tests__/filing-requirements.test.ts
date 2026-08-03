@@ -185,14 +185,15 @@ describe('required forms', () => {
     expect(kiddie.ifUnsupported?.whatItMeans).toContain('kiddie');
   });
 
-  it('P7: marketplace insurance requires the 8962 with the freeze named', () => {
+  it('P7: marketplace insurance requires the 8962 — supported since D3, no refusal text', () => {
     const facts = [
       ...citizen(),
       make('marketplace-health-insurance', { kind: 'bool', value: true }),
     ];
     const forms = requiredForms(facts, [], 2026);
     const ptc = forms.find((f) => f.form === 'form-8962');
-    expect(ptc?.ifUnsupported?.whyItApplies).toContain('freezes');
+    expect(ptc?.supported).toBe(true);
+    expect(ptc?.ifUnsupported).toBeNull();
   });
 
   it('an arrived document can create a requirement the facts missed', () => {
@@ -234,7 +235,8 @@ describe('the scope object', () => {
       .map(([id]) => id)
       .sort();
     // The lot engine + exports build 8949/Sch D worksheets; the estimator
-    // computes the 1040 core. Nothing else has shipped — nothing else claims.
-    expect(supported).toEqual(['form-1040', 'form-8949', 'sch-d']);
+    // computes the 1040 core; D3 ships the 8962 reconciliation. Nothing
+    // else has shipped — nothing else claims.
+    expect(supported).toEqual(['form-1040', 'form-8949', 'form-8962', 'sch-d']);
   });
 });

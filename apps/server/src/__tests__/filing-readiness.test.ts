@@ -85,14 +85,15 @@ describe('P1 through the whole stack', () => {
 });
 
 describe('blockers', () => {
-  it('P7: marketplace insurance blocks on the 8962 with the freeze explained', () => {
+  it('P7: unreconciled marketplace coverage blocks on the 8962 with the freeze explained', () => {
     const facts = [...p1(), make('marketplace-health-insurance', { kind: 'bool', value: true })];
     const result = assessReadiness(facts, [], 2026, MARCH);
     expect(result.verdict).toBe('blocked');
     expect(
-      result.blockers.some((b) => b.from === 'unsupported-form' && b.reason.includes('freezes')),
+      result.blockers.some((b) => b.id === 'computation:form-8962' && b.reason.includes('freezes')),
     ).toBe(true);
-    expect(result.outOfScope.some((f) => f.form === 'form-8962')).toBe(true);
+    // Supported since D3 — it is a computation waiting on data, not a refusal.
+    expect(result.outOfScope.some((f) => f.form === 'form-8962')).toBe(false);
   });
 
   it('a contradiction blocks and is never picked between', () => {

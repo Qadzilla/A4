@@ -67,6 +67,28 @@ export interface FilingYearData {
     mfj: { maxRate50: number; maxRate20: number; maxRate10: number };
   };
   /**
+   * Premium tax credit (Form 8962). Structurally different across the
+   * boundary, which is why every piece lives here:
+   *  - TY2025: the ARPA/IRA curve (0% under 150% FPL, 8.5% from 400% up,
+   *    NO cliff) and the Table 5 repayment caps (8962 instructions,
+   *    verified 2026-08). FPL = 2024 HHS guidelines: $15,060 + $5,380.
+   *  - TY2026: the §36B curve from Rev. Proc. 2025-25 §3.01 (transcribed
+   *    from the primary source), the 400% cliff returns, and the
+   *    repayment caps are REMOVED by statute (IRS FS-2025-10) — the
+   *    mercy itself was year-gated. FPL = 2025 guidelines: $15,650 +
+   *    $5,500.
+   */
+  ptc: {
+    fplBase: number;
+    fplPerAdditional: number;
+    /** Bands in % of FPL; linear interpolation between initial and final. */
+    curve: Array<{ min: number; max: number; initial: number; final: number }>;
+    /** True: no credit at all above 400% FPL. */
+    cliffAt400: boolean;
+    /** Null: caps removed — full repayment at any income. */
+    repaymentCaps: Array<{ belowFplPct: number; single: number; other: number }> | null;
+  };
+  /**
    * 1099-NEC issuance threshold. $600 through TY2025; OBBBA raises it to
    * $2,000 for TY2026 (indexed after). Verified 2026-08. Below it, contract
    * income arrives with no form — and is taxable anyway.
@@ -106,6 +128,24 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
       hoh: { maxRate50: 35625, maxRate20: 38250, maxRate10: 59250 },
       mfj: { maxRate50: 47500, maxRate20: 51000, maxRate10: 79000 },
     },
+    ptc: {
+      fplBase: 15060,
+      fplPerAdditional: 5380,
+      curve: [
+        { min: 0, max: 150, initial: 0, final: 0 },
+        { min: 150, max: 200, initial: 0, final: 2 },
+        { min: 200, max: 250, initial: 2, final: 4 },
+        { min: 250, max: 300, initial: 4, final: 6 },
+        { min: 300, max: 400, initial: 6, final: 8.5 },
+        { min: 400, max: Number.POSITIVE_INFINITY, initial: 8.5, final: 8.5 },
+      ],
+      cliffAt400: false,
+      repaymentCaps: [
+        { belowFplPct: 200, single: 375, other: 750 },
+        { belowFplPct: 300, single: 975, other: 1950 },
+        { belowFplPct: 400, single: 1625, other: 3250 },
+      ],
+    },
   },
   2026: {
     qrGrossIncomeLimit: 5300,
@@ -131,6 +171,20 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
       other: { maxRate50: 24250, maxRate20: 26250, maxRate10: 40250 },
       hoh: { maxRate50: 36375, maxRate20: 39375, maxRate10: 60375 },
       mfj: { maxRate50: 48500, maxRate20: 52500, maxRate10: 80500 },
+    },
+    ptc: {
+      fplBase: 15650,
+      fplPerAdditional: 5500,
+      curve: [
+        { min: 0, max: 133, initial: 2.1, final: 2.1 },
+        { min: 133, max: 150, initial: 3.14, final: 4.19 },
+        { min: 150, max: 200, initial: 4.19, final: 6.6 },
+        { min: 200, max: 250, initial: 6.6, final: 8.44 },
+        { min: 250, max: 300, initial: 8.44, final: 9.96 },
+        { min: 300, max: 400, initial: 9.96, final: 9.96 },
+      ],
+      cliffAt400: true,
+      repaymentCaps: null,
     },
   },
 };

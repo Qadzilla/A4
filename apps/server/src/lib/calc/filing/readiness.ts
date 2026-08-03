@@ -18,7 +18,7 @@
 //               not yet due (the calendar truth: "ready" before the papers
 //               can exist is a caution, not a green light)
 
-import { evaluateYear } from './evaluation';
+import { type EvaluationExtras, evaluateYear } from './evaluation';
 import {
   FACT_REGISTRY,
   type FactAssertion,
@@ -88,6 +88,7 @@ export function assessReadiness(
   docs: ArrivedDoc[],
   taxYear: number,
   today: Date,
+  extras?: EvaluationExtras,
 ): Readiness {
   // Nothing asserted that touches this year — not-started, with nothing
   // pretending otherwise. Timeless facts alone (a birth date on file from
@@ -108,7 +109,7 @@ export function assessReadiness(
   }
 
   const set = factSet(assertions, taxYear);
-  const evaluation = evaluateYear(assertions, taxYear);
+  const evaluation = evaluateYear(assertions, taxYear, extras);
   const expected = expectations(assertions, taxYear);
   const required = requiredForms(assertions, docs, taxYear);
   const unknowns = rankUnknowns(assertions, taxYear);
@@ -172,7 +173,10 @@ export function assessReadiness(
       id: `computation:${item}`,
       from: 'computation',
       reason:
-        evaluation.notes.find((note) => note.length > 0) ?? `The year cannot be computed: ${item}.`,
+        item === 'form-8962'
+          ? 'Marketplace coverage is unreconciled: filing without Form 8962 freezes the entire refund — the 1095-A monthly table completes it.'
+          : (evaluation.notes.find((note) => note.length > 0) ??
+            `The year cannot be computed: ${item}.`),
     });
   }
 

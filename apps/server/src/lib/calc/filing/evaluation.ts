@@ -23,6 +23,7 @@ import { type EducationDetermination, determineEducation } from './education';
 import { type FactAssertion, type FactId, factSet, factState, makeAssertion } from './facts';
 import { type FilingStatusDetermination, determineFilingStatus } from './filing-status';
 import { type PenaltyDetermination, determinePenalty } from './penalty';
+import { type PtcDetermination, type PtcMonth, determinePtc } from './ptc';
 import { type ResidencyDetermination, determineResidency } from './residency';
 import { type SaversCreditDetermination, determineSaversCredit } from './savers-credit';
 import { filingYearData } from './year-data';
@@ -31,6 +32,7 @@ import { filingYearData } from './year-data';
 export type BlockedItem =
   | 'filing-status-election' // joint-or-separate not chosen — no single liability
   | 'form-8615' // kiddie tax applies and Basis doesn't compute it
+  | 'form-8962' // marketplace coverage with no 1095-A months to reconcile — the refund freezes
   | 'form-1040nr' // nonresident year — a different return, not computable until E1
   | 'dual-status-year' // arrival/departure year — specialist return, E5's brief
   | 'residency-unknown' // the root fork unanswered — resident rates would be a default in disguise
@@ -46,6 +48,8 @@ export interface YearEvaluation {
   education: EducationDetermination | null;
   /** Form 8880 — the saver's credit, through its final year (TY2026). */
   savers: SaversCreditDetermination | null;
+  /** Form 8962 — null when there is no marketplace coverage in play. */
+  ptc: PtcDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -65,6 +69,10 @@ export interface YearEvaluation {
     educationCredit: number;
     /** The saver's credit applied — mechanical, no election, stacks after education. */
     saversCredit: number;
+    /** Excess advance premium credit owed back (Schedule 2). */
+    ptcRepayment: number;
+    /** Premium credit beyond what was advanced — refundable. */
+    ptcAdditionalCredit: number;
     /** Negative: refund. Positive: still owed. The P6 shortfall lives here. */
     refundOrOwed: number;
   } | null;
@@ -77,7 +85,20 @@ const num = (state: ReturnType<typeof factState>): number | null =>
 const bool = (state: ReturnType<typeof factState>): boolean | null =>
   state.status === 'known' && state.value.kind === 'bool' ? state.value.value : null;
 
-export function evaluateYear(assertions: FactAssertion[], taxYear: number): YearEvaluation {
+export interface EvaluationExtras {
+  /**
+   * The 1095-A's monthly table, from the stored form (C4) — tables aren't
+   * facts, so the caller that can see the database hands them in. Absent
+   * while the marketplace fact is true blocks on the 8962 by name.
+   */
+  ptcMonths?: PtcMonth[];
+}
+
+export function evaluateYear(
+  assertions: FactAssertion[],
+  taxYear: number,
+  extras?: EvaluationExtras,
+): YearEvaluation {
   const set = factSet(assertions, taxYear);
   const blocked: BlockedItem[] = [];
   const notes: string[] = [];
@@ -169,6 +190,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       penalty: null,
       education: null,
       savers: null,
+      ptc: null,
       blocked,
       notes,
     };
@@ -186,6 +208,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       penalty: null,
       education: null,
       savers: null,
+      ptc: null,
       blocked,
       notes,
     };
@@ -203,6 +226,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       penalty: null,
       education: null,
       savers: null,
+      ptc: null,
       blocked,
       notes,
     };
@@ -221,6 +245,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       penalty: null,
       education: null,
       savers: null,
+      ptc: null,
       blocked,
       notes,
     };
@@ -235,6 +260,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       penalty: null,
       education: null,
       savers: null,
+      ptc: null,
       blocked,
       notes,
     };
@@ -387,6 +413,41 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     notes.push(savers.iraOption.note);
   }
 
+  // The 8962: marketplace coverage must reconcile before any refund moves.
+  // Months come from the stored 1095-A (they aren't facts); coverage with
+  // no months is the freeze, named.
+  const marketplace = ((): boolean => {
+    const state = factState(set, 'marketplace-health-insurance');
+    return state.status === 'known' && state.value.kind === 'bool' && state.value.value;
+  })();
+  let ptc: PtcDetermination | null = null;
+  let ptcRepayment = 0;
+  let ptcAdditionalCredit = 0;
+  if (extras?.ptcMonths !== undefined && extras.ptcMonths.length > 0) {
+    ptc = determinePtc(augmented, extras.ptcMonths, {
+      householdMagi: result.agi,
+      filingStatus: filingStatus.status,
+      taxYear,
+    });
+    if (ptc.status === 'reconciled') {
+      ptcRepayment = ptc.repayment;
+      ptcAdditionalCredit = ptc.additionalCredit;
+      notes.push(...(ptc.explanation.notes ?? []));
+    } else if (ptc.status !== 'not-applicable') {
+      blocked.push('form-8962');
+      notes.push(
+        ...(ptc.refusals.length > 0
+          ? ptc.refusals
+          : ['The 8962 could not be completed — the refund stays frozen until it is.']),
+      );
+    }
+  } else if (marketplace) {
+    blocked.push('form-8962');
+    notes.push(
+      'Marketplace coverage without the 1095-A reconciled: filing without Form 8962 freezes the entire refund — not the difference, all of it.',
+    );
+  }
+
   // The 5329: 10% on the early money, gross of exceptions (they are options
   // with prices, never assumptions — the module's standing rule). This is
   // what flips P6 from a small paper refund to owing.
@@ -405,16 +466,19 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     penalty: penalty.applicable || penalty.refusals.length > 0 ? penalty : null,
     education,
     savers,
+    ptc,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:
         result.federalTax +
         result.ltcgTax +
         result.niit +
-        additionalTax -
+        additionalTax +
+        ptcRepayment -
         appliedNonRefundable -
         appliedSavers,
-      totalTax: result.totalTax + additionalTax - appliedNonRefundable - appliedSavers,
+      totalTax:
+        result.totalTax + additionalTax + ptcRepayment - appliedNonRefundable - appliedSavers,
       agi: result.agi,
       deduction: result.deduction,
       taxableIncome: result.taxableIncome,
@@ -423,11 +487,15 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       earlyWithdrawalPenalty: additionalTax,
       educationCredit,
       saversCredit: appliedSavers,
+      ptcRepayment,
+      ptcAdditionalCredit,
       refundOrOwed:
         result.federalTax +
         result.ltcgTax +
         result.niit +
-        additionalTax -
+        additionalTax +
+        ptcRepayment -
+        ptcAdditionalCredit -
         appliedNonRefundable -
         appliedRefundable -
         appliedSavers -
