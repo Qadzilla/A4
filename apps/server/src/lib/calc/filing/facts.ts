@@ -298,6 +298,51 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'What the crypto that was sold originally cost',
   },
+  'business-miles': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Miles driven for the work itself (commuting to a regular job never counts)',
+  },
+  'business-phone-expense': {
+    kind: 'number',
+    scope: 'year',
+    label: 'The work share of phone and data costs for the year, in dollars',
+  },
+  'business-supplies-expense': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Supplies bought for the work (bags, chargers, materials)',
+  },
+  'home-office-expense': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Home office costs claimed for the work (Basis names this one and hands it off)',
+  },
+  'other-business-expenses': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Other work expenses outside the simple set (named and handed off, never guessed)',
+  },
+  'payer-set-hours': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'The company set the work schedule, not the worker',
+  },
+  'payer-provided-equipment': {
+    kind: 'bool',
+    scope: 'year',
+    label: "The work ran on the company's equipment and tools",
+  },
+  'payer-controlled-how': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'The company directed how the work was done, not just the result',
+  },
+  'same-payer-w2-and-1099': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'The same company issued both a W-2 and a 1099 for the year',
+  },
   'nec-k-overlap': {
     kind: 'number',
     scope: 'year',

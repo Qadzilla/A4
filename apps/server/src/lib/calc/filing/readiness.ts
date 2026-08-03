@@ -175,8 +175,11 @@ export function assessReadiness(
       reason:
         item === 'form-8962'
           ? 'Marketplace coverage is unreconciled: filing without Form 8962 freezes the entire refund — the 1095-A monthly table completes it.'
-          : (evaluation.notes.find((note) => note.length > 0) ??
-            `The year cannot be computed: ${item}.`),
+          : item === 'sch-c'
+            ? (evaluation.se?.refusals[0] ??
+              'The Schedule C claims an expense outside the simple set — it needs a preparer or the fuller slice.')
+            : (evaluation.notes.find((note) => note.length > 0) ??
+              `The year cannot be computed: ${item}.`),
     });
   }
 

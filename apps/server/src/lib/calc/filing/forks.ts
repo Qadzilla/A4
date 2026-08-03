@@ -61,6 +61,20 @@ const REPRESENTATIVE_POINTS: Partial<Record<FactId, { values: KnownFactValue[]; 
     ],
     why: 'Below the 31-day floor and above the 183-day line of the substantial presence test.',
   },
+  'business-miles': {
+    values: [
+      { kind: 'number', value: 0 },
+      { kind: 'number', value: 5000 },
+    ],
+    why: 'No driving versus a typical delivery year — the spread is what keeping the mileage log is worth, in dollars.',
+  },
+  'business-phone-expense': {
+    values: [
+      { kind: 'number', value: 0 },
+      { kind: 'number', value: 600 },
+    ],
+    why: 'Nothing claimed versus a typical work share of a phone plan.',
+  },
 };
 
 export interface ForkBranch {

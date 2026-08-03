@@ -131,13 +131,13 @@ export const SCOPE: { version: number; forms: Record<FormId, ScopeEntry> } = {
       whatItMeans: 'Extra income that has no line of its own — unemployment, prizes, and the like.',
     },
     'sch-c': {
-      supported: false,
-      plannedAt: 'D4',
+      supported: true, // D4: the simple-expense Sch C ships
+      plannedAt: null,
       whatItMeans: 'Profit from working for yourself: what came in, what it cost, what is taxed.',
     },
     'sch-se': {
-      supported: false,
-      plannedAt: 'D4',
+      supported: true, // D4: SE tax with the wage-base offset and the $400 floor
+      plannedAt: null,
       whatItMeans:
         'Social Security and Medicare tax on self-employment profit — the 15.3% no one withheld.',
     },

@@ -26,6 +26,7 @@ import { type PenaltyDetermination, determinePenalty } from './penalty';
 import { type PtcDetermination, type PtcMonth, determinePtc } from './ptc';
 import { type ResidencyDetermination, determineResidency } from './residency';
 import { type SaversCreditDetermination, determineSaversCredit } from './savers-credit';
+import { type SelfEmploymentDetermination, determineSelfEmployment } from './self-employment';
 import { filingYearData } from './year-data';
 
 /** Things a branch could not compute, named. The fork reports these. */
@@ -33,6 +34,7 @@ export type BlockedItem =
   | 'filing-status-election' // joint-or-separate not chosen — no single liability
   | 'form-8615' // kiddie tax applies and Basis doesn't compute it
   | 'form-8962' // marketplace coverage with no 1095-A months to reconcile — the refund freezes
+  | 'sch-c' // a claimed expense outside the simple set — computing around it would overstate
   | 'form-1040nr' // nonresident year — a different return, not computable until E1
   | 'dual-status-year' // arrival/departure year — specialist return, E5's brief
   | 'residency-unknown' // the root fork unanswered — resident rates would be a default in disguise
@@ -50,11 +52,13 @@ export interface YearEvaluation {
   savers: SaversCreditDetermination | null;
   /** Form 8962 — null when there is no marketplace coverage in play. */
   ptc: PtcDetermination | null;
+  /** Schedule C/SE — null when the year has no self-employment income. */
+  se: SelfEmploymentDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
     incomeTax: number;
-    /** Income tax plus NIIT — with SE tax to join when D4 lands. */
+    /** Income tax plus NIIT plus self-employment tax (Schedule 2). */
     federalTax: number;
     totalTax: number;
     agi: number;
@@ -63,6 +67,8 @@ export interface YearEvaluation {
     ltcgZeroBracketRoom: number;
     /** What documents say was already paid in — W-2 box 2, 1099-R box 4. */
     federalWithheld: number;
+    /** Schedule SE's tax — the 15.3% no one withheld. */
+    selfEmploymentTax: number;
     /** The 10% additional tax on early retirement money (Form 5329). */
     earlyWithdrawalPenalty: number;
     /** The elected education credit actually applied (nonrefundable + refundable). */
@@ -191,6 +197,7 @@ export function evaluateYear(
       education: null,
       savers: null,
       ptc: null,
+      se: null,
       blocked,
       notes,
     };
@@ -209,6 +216,7 @@ export function evaluateYear(
       education: null,
       savers: null,
       ptc: null,
+      se: null,
       blocked,
       notes,
     };
@@ -227,6 +235,7 @@ export function evaluateYear(
       education: null,
       savers: null,
       ptc: null,
+      se: null,
       blocked,
       notes,
     };
@@ -246,6 +255,7 @@ export function evaluateYear(
       education: null,
       savers: null,
       ptc: null,
+      se: null,
       blocked,
       notes,
     };
@@ -261,6 +271,31 @@ export function evaluateYear(
       education: null,
       savers: null,
       ptc: null,
+      se: null,
+      blocked,
+      notes,
+    };
+  }
+
+  // Schedule C/SE runs before the estimator: its net profit is an input.
+  // A refusal poisons the whole liability — every downstream number (AGI,
+  // the phaseouts, the credits) sits on top of a Schedule C that couldn't
+  // be computed honestly, so nothing is shown rather than something wrong.
+  const seDetermination = determineSelfEmployment(augmented, taxYear, wages ?? 0);
+  const se = seDetermination.status === 'none' ? null : seDetermination;
+  if (se !== null && se.status === 'refused') {
+    blocked.push('sch-c');
+    notes.push(...se.refusals);
+    return {
+      residency,
+      dependency,
+      filingStatus,
+      liability: null,
+      penalty: null,
+      education: null,
+      savers: null,
+      ptc: null,
+      se,
       blocked,
       notes,
     };
@@ -308,6 +343,21 @@ export function evaluateYear(
     federalWithheld: (w2Withheld ?? 0) + (retirementWithheld ?? 0),
   };
 
+  // The Schedule C profit joins the income. At or above the $400 floor of
+  // net earnings it rides selfEmploymentIncome, where the estimator's SE
+  // arithmetic (the 0.9235 factor, the wage-base offset, the half
+  // deduction) matches the module's to the dollar. Under the floor it
+  // rides otherIncome instead — still income tax, lawfully no SE tax,
+  // which the estimator's unconditional SE math can't express.
+  if (se !== null && se.status === 'computed') {
+    if (se.seTaxApplies) {
+      data.selfEmploymentIncome = se.netProfit;
+    } else {
+      data.otherIncome += se.netProfit;
+    }
+    notes.push(...(se.explanation.notes ?? []));
+  }
+
   if (
     wages === null &&
     longGains === null &&
@@ -317,7 +367,8 @@ export function evaluateYear(
     taxableScholarship === null &&
     unemployment === null &&
     gambling === null &&
-    retirementGross === null
+    retirementGross === null &&
+    se === null
   ) {
     notes.push('No income facts yet — the liability is a floor, not an estimate.');
   }
@@ -467,12 +518,14 @@ export function evaluateYear(
     education,
     savers,
     ptc,
+    se,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:
         result.federalTax +
         result.ltcgTax +
         result.niit +
+        result.selfEmploymentTax +
         additionalTax +
         ptcRepayment -
         appliedNonRefundable -
@@ -484,6 +537,7 @@ export function evaluateYear(
       taxableIncome: result.taxableIncome,
       ltcgZeroBracketRoom: result.ltcgZeroBracketRoom,
       federalWithheld: data.federalWithheld,
+      selfEmploymentTax: result.selfEmploymentTax,
       earlyWithdrawalPenalty: additionalTax,
       educationCredit,
       saversCredit: appliedSavers,
@@ -493,6 +547,7 @@ export function evaluateYear(
         result.federalTax +
         result.ltcgTax +
         result.niit +
+        result.selfEmploymentTax +
         additionalTax +
         ptcRepayment -
         ptcAdditionalCredit -

@@ -23,6 +23,8 @@ account of where the citations stand.
 | 1099-NEC threshold | 2025 $600 · 2026 $2,000 (OBBBA) | `year-data.ts` |
 | 1099-K threshold | $20,000 / 200 txns, retroactive (OBBBA) | `year-data.ts` |
 | Standard deductions | 2025 $15,750/$31,500/$23,625 · 2026 $16,100/$32,200/$24,150 (OBBBA) | `tax-data.ts` |
+| Standard mileage rate | 2025 70¢ (Notice 2025-5) · 2026 72.5¢ Jan–Jun (Notice 2026-10) / 76¢ Jul+ (IR-2025-128); engine floors at 72.5¢, named | `year-data.ts` |
+| SS wage base (SE offset) | 2025 $176,100 · 2026 $181,200 | `tax-data.ts` |
 | Tips/overtime deductions | $25,000 / $12,500, MAGI $150k phaseout, TY2025–28 | doc Part II, D7 pending |
 
 ## Owed to the corpus, by slice

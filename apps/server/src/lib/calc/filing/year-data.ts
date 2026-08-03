@@ -89,6 +89,14 @@ export interface FilingYearData {
     repaymentCaps: Array<{ belowFplPct: number; single: number; other: number }> | null;
   };
   /**
+   * Standard mileage rate (Sch C). 2025: 70¢ (verified). 2026: the year
+   * SPLITS — 72.5¢ Jan–Jun (Notice 2026-10), 76¢ from July 1
+   * (IR-2025-128, verified 2026-08). v1 carries one miles fact, so the
+   * rate here is the January floor and the note names the split — a
+   * conservative estimate, labelled, never a silent average.
+   */
+  mileage: { rate: number; note: string | null };
+  /**
    * 1099-NEC issuance threshold. $600 through TY2025; OBBBA raises it to
    * $2,000 for TY2026 (indexed after). Verified 2026-08. Below it, contract
    * income arrives with no form — and is taxable anyway.
@@ -128,6 +136,7 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
       hoh: { maxRate50: 35625, maxRate20: 38250, maxRate10: 59250 },
       mfj: { maxRate50: 47500, maxRate20: 51000, maxRate10: 79000 },
     },
+    mileage: { rate: 0.7, note: null },
     ptc: {
       fplBase: 15060,
       fplPerAdditional: 5380,
@@ -171,6 +180,10 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
       other: { maxRate50: 24250, maxRate20: 26250, maxRate10: 40250 },
       hoh: { maxRate50: 36375, maxRate20: 39375, maxRate10: 60375 },
       mfj: { maxRate50: 48500, maxRate20: 52500, maxRate10: 80500 },
+    },
+    mileage: {
+      rate: 0.725,
+      note: 'Miles driven from July 1 onward earn 76¢, not 72.5¢ — the estimate uses the January rate as a floor, so heavy second-half drivers deduct more than shown, never less.',
     },
     ptc: {
       fplBase: 15650,

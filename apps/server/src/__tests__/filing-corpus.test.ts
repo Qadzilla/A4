@@ -3,12 +3,13 @@ import { evaluateYear } from '../lib/calc/filing/evaluation';
 import { type FactAssertion, makeAssertion } from '../lib/calc/filing/facts';
 import { DEPENDENCY_FIXTURES } from '../lib/calc/filing/fixtures/dependency';
 import { EDUCATION_FIXTURES } from '../lib/calc/filing/fixtures/education';
-import { PTC_FIXTURES } from '../lib/calc/filing/fixtures/ptc';
-import { SAVERS_FIXTURES } from '../lib/calc/filing/fixtures/savers-credit';
 import { CORPUS_LEDGER } from '../lib/calc/filing/fixtures/ledger';
 import { PENALTY_FIXTURES } from '../lib/calc/filing/fixtures/penalty';
 import { PERSONA_FIXTURES } from '../lib/calc/filing/fixtures/personas';
+import { PTC_FIXTURES } from '../lib/calc/filing/fixtures/ptc';
 import { RESIDENCY_FIXTURES } from '../lib/calc/filing/fixtures/residency';
+import { SAVERS_FIXTURES } from '../lib/calc/filing/fixtures/savers-credit';
+import { SELF_EMPLOYMENT_FIXTURES } from '../lib/calc/filing/fixtures/self-employment';
 import type { FilingFixture, FixtureFact } from '../lib/calc/filing/fixtures/types';
 import { assessReadiness } from '../lib/calc/filing/readiness';
 import { expectations, requiredForms } from '../lib/calc/filing/requirements';
@@ -27,6 +28,7 @@ const ALL: FilingFixture<unknown>[] = [
   ...EDUCATION_FIXTURES,
   ...SAVERS_FIXTURES,
   ...PTC_FIXTURES,
+  ...SELF_EMPLOYMENT_FIXTURES,
   ...PERSONA_FIXTURES,
 ];
 

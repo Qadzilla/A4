@@ -170,10 +170,10 @@ export const PERSONA_FIXTURES: PersonaFixture[] = [
         verdict: 'blocked',
         expectationsEmpty: true,
         formsRequired: ['sch-c', 'sch-se'],
-        outOfScopeInclude: ['sch-c', 'sch-se'],
+        blockersInclude: ['question:digital-asset-activity'],
       },
     },
-    note: "Doctrine 4's proof, end to end: $1,800 under the NEC threshold and $900 under the K threshold, so no paper will ever arrive — the expectation list is exactly empty — and Schedule C and SE are required anyway. The Depop-couch-at-a-loss decomposition (gross is not income) is C2's refinement; the liability itself waits on D4 mapping self-employment income into the estimator.",
+    note: "Doctrine 4's proof, end to end: $1,800 under the NEC threshold and $900 under the K threshold, so no paper will ever arrive — the expectation list is exactly empty — and Schedule C and SE are required anyway. Since D4 both compute: $2,700 net → $381 of SE tax (the fixture in self-employment.ts carries the arithmetic). What still blocks is the 1040's digital-assets question, unanswered.",
   },
   {
     id: 'persona/p5-boston-remote',

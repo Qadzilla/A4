@@ -137,20 +137,27 @@ describe('the wiring', () => {
     expect(result.liability.refundOrOwed).toBe(without.liability.refundOrOwed - 726);
   });
 
-  it("P7's freeze lifts the moment the monthly table arrives — and only that blocker", () => {
-    const p7 = [...insured(), make('contract-income', { kind: 'number', value: 38000 })];
+  it("P7's freeze lifts the moment the monthly table arrives", () => {
+    const p7 = [
+      ...insured(),
+      make('contract-income', { kind: 'number', value: 38000 }),
+      make('digital-asset-activity', { kind: 'bool', value: false }),
+    ];
+    const docs = [
+      { kind: '1095-A' as const, fileId: 'f1' },
+      { kind: 'W-2' as const, fileId: 'f2' },
+    ];
     const MARCH = new Date('2027-03-01T12:00:00Z');
 
-    const frozen = assessReadiness(p7, [{ kind: '1095-A', fileId: 'f1' }], 2026, MARCH);
+    const frozen = assessReadiness(p7, docs, 2026, MARCH);
     expect(frozen.blockers.some((b) => b.id === 'computation:form-8962')).toBe(true);
 
-    const thawed = assessReadiness(p7, [{ kind: '1095-A', fileId: 'f1' }], 2026, MARCH, {
-      ptcMonths: months,
-    });
+    const thawed = assessReadiness(p7, docs, 2026, MARCH, { ptcMonths: months });
     expect(thawed.blockers.some((b) => b.id === 'computation:form-8962')).toBe(false);
-    // Still blocked — Schedule C is honest about not existing yet. The 8962
-    // specifically is done.
-    expect(thawed.verdict).toBe('blocked');
-    expect(thawed.blockers.some((b) => b.id === 'form:sch-c')).toBe(true);
+    // Since D4 the Schedule C computes too — nothing blocks this year any
+    // more. (Before D4 this asserted form:sch-c remained; that blocker's
+    // removal is D4's acceptance.)
+    expect(thawed.blockers.some((b) => b.id === 'form:sch-c')).toBe(false);
+    expect(thawed.verdict).not.toBe('blocked');
   });
 });

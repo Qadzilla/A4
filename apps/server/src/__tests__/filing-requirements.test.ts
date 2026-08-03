@@ -235,8 +235,9 @@ describe('the scope object', () => {
       .map(([id]) => id)
       .sort();
     // The lot engine + exports build 8949/Sch D worksheets; the estimator
-    // computes the 1040 core; D3 ships the 8962 reconciliation. Nothing
-    // else has shipped — nothing else claims.
-    expect(supported).toEqual(['form-1040', 'form-8949', 'form-8962', 'sch-d']);
+    // computes the 1040 core; D3 ships the 8962 reconciliation; D4 ships
+    // the simple-expense Schedule C and the SE arithmetic. Nothing else
+    // has shipped — nothing else claims.
+    expect(supported).toEqual(['form-1040', 'form-8949', 'form-8962', 'sch-c', 'sch-d', 'sch-se']);
   });
 });
