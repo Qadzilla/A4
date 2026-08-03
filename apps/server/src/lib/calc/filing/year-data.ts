@@ -97,6 +97,23 @@ export interface FilingYearData {
    */
   mileage: { rate: number; note: string | null };
   /**
+   * OBBBA tips & overtime deductions (Sch 1-A), TY2025–2028 ONLY — the
+   * module gates the window; the figures live here per Doctrine 6 even
+   * though the statute does NOT index them (IRS newsroom + §§224/225,
+   * verified 2026-08): tips capped $25,000 every status; overtime $12,500
+   * single / $25,000 joint; both reduced $100 per $1,000 (or fraction) of
+   * MAGI above $150,000 / $300,000 joint. Married must file JOINTLY to
+   * claim either. FICA still applies to every tip dollar — the finding.
+   */
+  tipsOvertime: {
+    tipsCap: number;
+    overtimeCapSingle: number;
+    overtimeCapJoint: number;
+    magiStart: number;
+    magiStartJoint: number;
+    reductionPer1000: number;
+  };
+  /**
    * 1099-NEC issuance threshold. $600 through TY2025; OBBBA raises it to
    * $2,000 for TY2026 (indexed after). Verified 2026-08. Below it, contract
    * income arrives with no form — and is taxable anyway.
@@ -137,6 +154,14 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
       mfj: { maxRate50: 47500, maxRate20: 51000, maxRate10: 79000 },
     },
     mileage: { rate: 0.7, note: null },
+    tipsOvertime: {
+      tipsCap: 25000,
+      overtimeCapSingle: 12500,
+      overtimeCapJoint: 25000,
+      magiStart: 150000,
+      magiStartJoint: 300000,
+      reductionPer1000: 100,
+    },
     ptc: {
       fplBase: 15060,
       fplPerAdditional: 5380,
@@ -184,6 +209,15 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
     mileage: {
       rate: 0.725,
       note: 'Miles driven from July 1 onward earn 76¢, not 72.5¢ — the estimate uses the January rate as a floor, so heavy second-half drivers deduct more than shown, never less.',
+    },
+    // Unindexed by statute: identical to 2025 through the 2028 sunset.
+    tipsOvertime: {
+      tipsCap: 25000,
+      overtimeCapSingle: 12500,
+      overtimeCapJoint: 25000,
+      magiStart: 150000,
+      magiStartJoint: 300000,
+      reductionPer1000: 100,
     },
     ptc: {
       fplBase: 15650,

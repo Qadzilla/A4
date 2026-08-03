@@ -150,6 +150,35 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'State income tax taken out of pay (W-2 box 17 total)',
   },
+  'w2-tips': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Tips reported through the employer for the year (W-2 box 7 social security tips)',
+  },
+  'unreported-tips': {
+    kind: 'number',
+    scope: 'year',
+    label:
+      'Tips never reported to the employer (cash the paperwork missed — Form 4137 reports them)',
+  },
+  'se-tips-portion': {
+    kind: 'number',
+    scope: 'year',
+    label:
+      'The tip portion of self-employment receipts (already inside the platform or contract totals — never counted twice)',
+  },
+  'overtime-premium-pay': {
+    kind: 'number',
+    scope: 'year',
+    label:
+      'The PREMIUM portion of overtime pay only — the extra half of time-and-a-half required by federal law, not the whole overtime check',
+  },
+  'tipped-occupation-listed': {
+    kind: 'bool',
+    scope: 'year',
+    label:
+      "The job appears on Treasury's list of occupations that customarily received tips before 2025",
+  },
   'realized-long-gains': {
     kind: 'number',
     scope: 'year',

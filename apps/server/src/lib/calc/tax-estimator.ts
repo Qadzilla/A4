@@ -35,6 +35,13 @@ export interface TaxEstimatorData {
   mortgageInterest: number;
   charitableGiving: number;
   otherItemized: number;
+  /**
+   * Below-the-line deductions that stack ON TOP of the standard/itemized
+   * choice and never touch AGI — the OBBBA tips/overtime deductions
+   * (Sch 1-A, TY2025–28) are the occupants. Reduces taxable income only,
+   * so every AGI/MAGI-based phaseout upstream is unaffected.
+   */
+  belowLineDeductions: number;
 
   // Credits
   numDependentChildren: number;
@@ -99,6 +106,7 @@ export function createDefaultTaxEstimatorData(): TaxEstimatorData {
     mortgageInterest: 0,
     charitableGiving: 0,
     otherItemized: 0,
+    belowLineDeductions: 0,
     numDependentChildren: 0,
     otherCredits: 0,
     federalWithheld: 0,
@@ -179,7 +187,7 @@ export function computeTaxEstimate(data: TaxEstimatorData): TaxEstimateResult {
     const salt = Math.min(data.saltDeduction, fed.saltCap);
     deduction = salt + data.mortgageInterest + data.charitableGiving + data.otherItemized;
   }
-  const taxableIncome = Math.max(0, agi - deduction);
+  const taxableIncome = Math.max(0, agi - deduction - data.belowLineDeductions);
 
   // 5. Federal Income Tax — long-term gains are carved out of ordinary income
   // and taxed at the preferential 0/15/20 brackets, stacked on top of the

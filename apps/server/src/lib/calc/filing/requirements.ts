@@ -175,13 +175,13 @@ export const SCOPE: { version: number; forms: Record<FormId, ScopeEntry> } = {
         'The statement every exempt-visa student owes each year, income or none — it protects the exemption.',
     },
     'sch-1-a': {
-      supported: false,
-      plannedAt: 'D7',
+      supported: true, // D7: the tips/overtime deductions ship
+      plannedAt: null,
       whatItMeans: 'The new deductions for tips and overtime pay, tax years 2025 through 2028.',
     },
     'form-4137': {
-      supported: false,
-      plannedAt: 'D7',
+      supported: true, // D7: the employee-FICA-on-unreported-tips arithmetic ships
+      plannedAt: null,
       whatItMeans: 'Social Security and Medicare on tips an employer never saw.',
     },
     'state-ca-540': {
@@ -474,6 +474,33 @@ export function requiredForms(
         'sch-1',
         ['unemployment-income'],
         'Unemployment compensation is taxable income with no line of its own on the 1040.',
+      ),
+    );
+  }
+
+  // D7: tips/overtime money inside the TY2025–2028 window claims its
+  // schedule; unreported tips owe their FICA in every year.
+  const tipsFacts: FactId[] = [];
+  if ((num(get('w2-tips')) ?? 0) > 0) tipsFacts.push('w2-tips');
+  if ((num(get('unreported-tips')) ?? 0) > 0) tipsFacts.push('unreported-tips');
+  if ((num(get('se-tips-portion')) ?? 0) > 0) tipsFacts.push('se-tips-portion');
+  const overtimeFacts: FactId[] =
+    (num(get('overtime-premium-pay')) ?? 0) > 0 ? ['overtime-premium-pay'] : [];
+  if ((tipsFacts.length > 0 || overtimeFacts.length > 0) && taxYear >= 2025 && taxYear <= 2028) {
+    out.push(
+      requirement(
+        'sch-1-a',
+        [...tipsFacts, ...overtimeFacts],
+        'Tip or overtime income in the deduction window — Schedule 1-A carries the new deductions.',
+      ),
+    );
+  }
+  if (tipsFacts.includes('unreported-tips')) {
+    out.push(
+      requirement(
+        'form-4137',
+        ['unreported-tips'],
+        'Tips the employer never saw owe the employee share of Social Security and Medicare.',
       ),
     );
   }

@@ -75,6 +75,20 @@ const REPRESENTATIVE_POINTS: Partial<Record<FactId, { values: KnownFactValue[]; 
     ],
     why: 'Nothing claimed versus a typical work share of a phone plan.',
   },
+  'unreported-tips': {
+    values: [
+      { kind: 'number', value: 0 },
+      { kind: 'number', value: 3000 },
+    ],
+    why: 'None versus a typical year of cash tips — pricing both the 4137 FICA owed and the deduction the reporting unlocks.',
+  },
+  'overtime-premium-pay': {
+    values: [
+      { kind: 'number', value: 0 },
+      { kind: 'number', value: 3000 },
+    ],
+    why: 'No overtime versus a typical premium-half year under the TY2025–28 deduction.',
+  },
 };
 
 export interface ForkBranch {

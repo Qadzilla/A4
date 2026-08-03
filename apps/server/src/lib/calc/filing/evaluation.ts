@@ -32,6 +32,7 @@ import { type PtcDetermination, type PtcMonth, determinePtc } from './ptc';
 import { type ResidencyDetermination, determineResidency } from './residency';
 import { type SaversCreditDetermination, determineSaversCredit } from './savers-credit';
 import { type SelfEmploymentDetermination, determineSelfEmployment } from './self-employment';
+import { type TipsOvertimeDetermination, determineTipsOvertime } from './tips-overtime';
 import { filingYearData } from './year-data';
 
 /** Things a branch could not compute, named. The fork reports these. */
@@ -61,6 +62,8 @@ export interface YearEvaluation {
   se: SelfEmploymentDetermination | null;
   /** Form 8949/Sch D — null when no trades or crypto disposals exist. */
   capitalGains: CapitalGainsDetermination | null;
+  /** Sch 1-A + Form 4137 — null when no tip or overtime money exists. */
+  tipsOvertime: TipsOvertimeDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -76,6 +79,10 @@ export interface YearEvaluation {
     federalWithheld: number;
     /** Schedule SE's tax — the 15.3% no one withheld. */
     selfEmploymentTax: number;
+    /** Sch 1-A: the tips + overtime deduction actually applied (TY2025–28). */
+    tipsOvertimeDeduction: number;
+    /** Form 4137: employee FICA on tips the employer never saw. */
+    form4137Tax: number;
     /** The 10% additional tax on early retirement money (Form 5329). */
     earlyWithdrawalPenalty: number;
     /** The elected education credit actually applied (nonrefundable + refundable). */
@@ -224,6 +231,7 @@ export function evaluateYear(
       ptc: null,
       se: null,
       capitalGains,
+      tipsOvertime: null,
       blocked,
       notes,
     };
@@ -244,6 +252,7 @@ export function evaluateYear(
       ptc: null,
       se: null,
       capitalGains,
+      tipsOvertime: null,
       blocked,
       notes,
     };
@@ -264,6 +273,7 @@ export function evaluateYear(
       ptc: null,
       se: null,
       capitalGains,
+      tipsOvertime: null,
       blocked,
       notes,
     };
@@ -285,6 +295,7 @@ export function evaluateYear(
       ptc: null,
       se: null,
       capitalGains,
+      tipsOvertime: null,
       blocked,
       notes,
     };
@@ -302,6 +313,7 @@ export function evaluateYear(
       ptc: null,
       se: null,
       capitalGains,
+      tipsOvertime: null,
       blocked,
       notes,
     };
@@ -327,6 +339,7 @@ export function evaluateYear(
       ptc: null,
       se,
       capitalGains,
+      tipsOvertime: null,
       blocked,
       notes,
     };
@@ -364,12 +377,17 @@ export function evaluateYear(
     // itemized. Unknown defaults to NOT taxable — the audience's reality —
     // and because the gate reads the fact here, forking
     // itemized-prior-year prices exactly what finding out is worth.
+    // Unreported tips ride along too: they were never in W-2 box 1, and
+    // they are taxable income in EVERY year — the 4137 (their FICA) and
+    // the Sch 1-A deduction (their income-tax relief, 2025–28 only) both
+    // hang off the same fact downstream.
     otherIncome:
       (taxableScholarship ?? 0) +
       (num(factState(set, 'scholarship-included-in-income')) ?? 0) +
       (unemployment ?? 0) +
       (gambling ?? 0) +
       (retirementTaxable ?? retirementGross ?? 0) +
+      (num(factState(set, 'unreported-tips')) ?? 0) +
       (bool(factState(set, 'itemized-prior-year')) === true ? (stateRefund ?? 0) : 0),
     federalWithheld: (w2Withheld ?? 0) + (retirementWithheld ?? 0),
   };
@@ -446,7 +464,30 @@ export function evaluateYear(
     );
   }
 
-  const result = computeTaxEstimate(data);
+  let result = computeTaxEstimate(data);
+
+  // Sch 1-A + Form 4137, computed on the final AGI (the deduction is
+  // BELOW the line — it reduces taxable income only, so no MAGI-based
+  // phaseout above moves, and no circularity exists). When it applies,
+  // the estimator re-runs with the deduction stacked on the standard
+  // deduction, and every credit below bounds against the reduced tax.
+  const tipsOtDet = determineTipsOvertime(augmented, taxYear, {
+    magi: result.agi,
+    filingStatus: filingStatus.status,
+    seNetProfit: se !== null && se.status === 'computed' ? se.netProfit : 0,
+    w2Wages: wages ?? 0,
+  });
+  const tipsOvertime =
+    tipsOtDet.status === 'none' && tipsOtDet.form4137 === null ? null : tipsOtDet;
+  if (tipsOvertime !== null) {
+    notes.push(...(tipsOvertime.explanation.notes ?? []));
+    notes.push(...tipsOvertime.refusals);
+    if (tipsOvertime.totalDeduction > 0) {
+      data.belowLineDeductions = tipsOvertime.totalDeduction;
+      result = computeTaxEstimate(data);
+    }
+  }
+  const form4137Tax = tipsOvertime?.form4137?.ficaOwed ?? 0;
 
   // The elected education credit, applied only when elected: the engine
   // prices both credits and never picks (the standing rule) — an unmade
@@ -557,6 +598,7 @@ export function evaluateYear(
     ptc,
     se,
     capitalGains,
+    tipsOvertime,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:
@@ -565,17 +607,25 @@ export function evaluateYear(
         result.niit +
         result.selfEmploymentTax +
         additionalTax +
+        form4137Tax +
         ptcRepayment -
         appliedNonRefundable -
         appliedSavers,
       totalTax:
-        result.totalTax + additionalTax + ptcRepayment - appliedNonRefundable - appliedSavers,
+        result.totalTax +
+        additionalTax +
+        form4137Tax +
+        ptcRepayment -
+        appliedNonRefundable -
+        appliedSavers,
       agi: result.agi,
       deduction: result.deduction,
       taxableIncome: result.taxableIncome,
       ltcgZeroBracketRoom: result.ltcgZeroBracketRoom,
       federalWithheld: data.federalWithheld,
       selfEmploymentTax: result.selfEmploymentTax,
+      tipsOvertimeDeduction: tipsOvertime?.totalDeduction ?? 0,
+      form4137Tax,
       earlyWithdrawalPenalty: additionalTax,
       educationCredit,
       saversCredit: appliedSavers,
@@ -587,6 +637,7 @@ export function evaluateYear(
         result.niit +
         result.selfEmploymentTax +
         additionalTax +
+        form4137Tax +
         ptcRepayment -
         ptcAdditionalCredit -
         appliedNonRefundable -

@@ -25,7 +25,7 @@ account of where the citations stand.
 | Standard deductions | 2025 $15,750/$31,500/$23,625 · 2026 $16,100/$32,200/$24,150 (OBBBA) | `tax-data.ts` |
 | Standard mileage rate | 2025 70¢ (Notice 2025-5) · 2026 72.5¢ Jan–Jun (Notice 2026-10) / 76¢ Jul+ (IR-2025-128); engine floors at 72.5¢, named | `year-data.ts` |
 | SS wage base (SE offset) | 2025 $176,100 · 2026 $181,200 | `tax-data.ts` |
-| Tips/overtime deductions | $25,000 / $12,500, MAGI $150k phaseout, TY2025–28 | doc Part II, D7 pending |
+| Tips/overtime deductions | Tips $25,000 every status · overtime $12,500/$25,000 MFJ · $100 per $1,000-or-fraction over $150k/$300k MAGI · joint-required if married · TY2025–28 unindexed (IRS OBBBA newsroom, verified 2026-08) | `year-data.ts` |
 
 ## Owed to the corpus, by slice
 
