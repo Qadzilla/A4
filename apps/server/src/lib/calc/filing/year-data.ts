@@ -30,6 +30,31 @@ export interface FilingYearData {
    */
   kiddieUnearnedThreshold?: number;
   /**
+   * Education credits (Form 8863): both the AOTC and LLC phase out over the
+   * same MAGI band — statutory, not indexed. Verified 2026-08 for both
+   * years: $80,000–$90,000 single / $160,000–$180,000 joint. MFS gets
+   * neither credit at all.
+   */
+  educationCreditPhaseout: {
+    startSingle: number;
+    endSingle: number;
+    startMfj: number;
+    endMfj: number;
+  };
+  /**
+   * Student-loan interest (IRC §221): $2,500 cap, denied to MFS and to
+   * anyone claimable as a dependent. Phaseouts verified 2026-08 —
+   * 2025: $85k–$100k single, $170k–$200k joint;
+   * 2026: $85k–$100k single, $175k–$205k joint.
+   */
+  studentLoanInterest: {
+    max: number;
+    startSingle: number;
+    endSingle: number;
+    startMfj: number;
+    endMfj: number;
+  };
+  /**
    * 1099-NEC issuance threshold. $600 through TY2025; OBBBA raises it to
    * $2,000 for TY2026 (indexed after). Verified 2026-08. Below it, contract
    * income arrives with no form — and is taxable anyway.
@@ -51,6 +76,19 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
     dependentStdAddon: 450,
     necThreshold: 600,
     kThreshold: 20000,
+    educationCreditPhaseout: {
+      startSingle: 80000,
+      endSingle: 90000,
+      startMfj: 160000,
+      endMfj: 180000,
+    },
+    studentLoanInterest: {
+      max: 2500,
+      startSingle: 85000,
+      endSingle: 100000,
+      startMfj: 170000,
+      endMfj: 200000,
+    },
   },
   2026: {
     qrGrossIncomeLimit: 5300,
@@ -59,6 +97,19 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
     kiddieUnearnedThreshold: 2700,
     necThreshold: 2000,
     kThreshold: 20000,
+    educationCreditPhaseout: {
+      startSingle: 80000,
+      endSingle: 90000,
+      startMfj: 160000,
+      endMfj: 180000,
+    },
+    studentLoanInterest: {
+      max: 2500,
+      startSingle: 85000,
+      endSingle: 100000,
+      startMfj: 175000,
+      endMfj: 205000,
+    },
   },
 };
 

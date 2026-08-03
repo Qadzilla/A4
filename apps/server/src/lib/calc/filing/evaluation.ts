@@ -19,6 +19,7 @@ import {
   createDefaultTaxEstimatorData,
 } from '../tax-estimator';
 import { type DependencyDetermination, determineDependency } from './dependency';
+import { type EducationDetermination, determineEducation } from './education';
 import { type FactAssertion, type FactId, factSet, factState, makeAssertion } from './facts';
 import { type FilingStatusDetermination, determineFilingStatus } from './filing-status';
 import { type PenaltyDetermination, determinePenalty } from './penalty';
@@ -40,6 +41,8 @@ export interface YearEvaluation {
   filingStatus: FilingStatusDetermination;
   /** Form 5329 — computed whenever early retirement money exists. */
   penalty: PenaltyDetermination | null;
+  /** Form 8863 + student-loan interest — null on the blocked paths. */
+  education: EducationDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -55,6 +58,8 @@ export interface YearEvaluation {
     federalWithheld: number;
     /** The 10% additional tax on early retirement money (Form 5329). */
     earlyWithdrawalPenalty: number;
+    /** The elected education credit actually applied (nonrefundable + refundable). */
+    educationCredit: number;
     /** Negative: refund. Positive: still owed. The P6 shortfall lives here. */
     refundOrOwed: number;
   } | null;
@@ -151,21 +156,48 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     notes.push(
       'Nonresident for tax purposes: the return is Form 1040-NR, which Basis computes at E1 — resident rates would be the wrong arithmetic, so no liability is shown.',
     );
-    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
+    return {
+      residency,
+      dependency,
+      filingStatus,
+      liability: null,
+      penalty: null,
+      education: null,
+      blocked,
+      notes,
+    };
   }
   if (residency.status === 'dual-status') {
     blocked.push('dual-status-year');
     notes.push(
       'An arrival or departure year splits into resident and nonresident windows — genuinely specialist work, briefed at E5. No single liability exists.',
     );
-    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
+    return {
+      residency,
+      dependency,
+      filingStatus,
+      liability: null,
+      penalty: null,
+      education: null,
+      blocked,
+      notes,
+    };
   }
   if (residency.status === 'unknown') {
     blocked.push('residency-unknown');
     notes.push(
       'Residency for tax purposes is unresolved — computing at resident rates would be a default in disguise. Citizenship or visa facts settle it.',
     );
-    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
+    return {
+      residency,
+      dependency,
+      filingStatus,
+      liability: null,
+      penalty: null,
+      education: null,
+      blocked,
+      notes,
+    };
   }
 
   // No single liability without a filing status: joint-or-separate is an
@@ -173,11 +205,29 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
   if (filingStatus.status === 'unknown') {
     blocked.push('filing-status-election');
     notes.push('No filing status is settled, so there is no single liability to report.');
-    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
+    return {
+      residency,
+      dependency,
+      filingStatus,
+      liability: null,
+      penalty: null,
+      education: null,
+      blocked,
+      notes,
+    };
   }
 
   if (year === null) {
-    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
+    return {
+      residency,
+      dependency,
+      filingStatus,
+      liability: null,
+      penalty: null,
+      education: null,
+      blocked,
+      notes,
+    };
   }
 
   const data: TaxEstimatorData = {
@@ -214,6 +264,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     // itemized-prior-year prices exactly what finding out is worth.
     otherIncome:
       (taxableScholarship ?? 0) +
+      (num(factState(set, 'scholarship-included-in-income')) ?? 0) +
       (unemployment ?? 0) +
       (gambling ?? 0) +
       (retirementTaxable ?? retirementGross ?? 0) +
@@ -256,7 +307,55 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     }
   }
 
+  // First pass: MAGI for the education phaseouts is AGI before the
+  // student-loan deduction (the deduction can't phase itself out).
+  const firstPass = computeTaxEstimate(data);
+  const education = determineEducation(augmented, taxYear, {
+    magi: firstPass.agi,
+    filingStatus: filingStatus.status,
+    dependency,
+  });
+  if (education.studentLoanInterest.allowed > 0) {
+    data.studentLoanInterest = education.studentLoanInterest.allowed;
+    notes.push(
+      `$${education.studentLoanInterest.allowed} of student-loan interest deducts above the line — no itemizing needed.`,
+    );
+  }
+
   const result = computeTaxEstimate(data);
+
+  // The elected education credit, applied only when elected: the engine
+  // prices both credits and never picks (the standing rule) — an unmade
+  // election leaves the liability honest about what's on the table.
+  const chosen =
+    education.elected === 'aotc'
+      ? education.aotc
+      : education.elected === 'llc'
+        ? education.llc
+        : null;
+  const preCreditTax = result.federalTax + result.ltcgTax;
+  const appliedNonRefundable =
+    chosen !== null && chosen.status === 'available'
+      ? Math.min(chosen.nonRefundable, preCreditTax)
+      : 0;
+  const appliedRefundable =
+    chosen !== null && chosen.status === 'available' ? chosen.refundable : 0;
+  const educationCredit = appliedNonRefundable + appliedRefundable;
+  if (educationCredit > 0) {
+    notes.push(
+      `The elected ${education.elected === 'aotc' ? 'American Opportunity' : 'Lifetime Learning'} credit applies: $${appliedNonRefundable} against tax${appliedRefundable > 0 ? ` plus $${appliedRefundable} refundable — money back even at zero tax` : ''}.`,
+    );
+  } else {
+    const best = Math.max(
+      education.aotc.status === 'available' ? education.aotc.amount : 0,
+      education.llc.status === 'available' ? education.llc.amount : 0,
+    );
+    if (best > 0) {
+      notes.push(
+        `Up to $${best} of education credit is available and NOT applied — which credit to take is an election, and it hasn't been made. Both are priced in the education determination.`,
+      );
+    }
+  }
 
   // The 5329: 10% on the early money, gross of exceptions (they are options
   // with prices, never assumptions — the module's standing rule). This is
@@ -274,18 +373,27 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     dependency,
     filingStatus,
     penalty: penalty.applicable || penalty.refusals.length > 0 ? penalty : null,
+    education,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
-      federalTax: result.federalTax + result.ltcgTax + result.niit + additionalTax,
-      totalTax: result.totalTax + additionalTax,
+      federalTax:
+        result.federalTax + result.ltcgTax + result.niit + additionalTax - appliedNonRefundable,
+      totalTax: result.totalTax + additionalTax - appliedNonRefundable,
       agi: result.agi,
       deduction: result.deduction,
       taxableIncome: result.taxableIncome,
       ltcgZeroBracketRoom: result.ltcgZeroBracketRoom,
       federalWithheld: data.federalWithheld,
       earlyWithdrawalPenalty: additionalTax,
+      educationCredit,
       refundOrOwed:
-        result.federalTax + result.ltcgTax + result.niit + additionalTax - data.federalWithheld,
+        result.federalTax +
+        result.ltcgTax +
+        result.niit +
+        additionalTax -
+        appliedNonRefundable -
+        appliedRefundable -
+        data.federalWithheld,
     },
     blocked,
     notes,

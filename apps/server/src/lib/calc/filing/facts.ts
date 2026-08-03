@@ -65,6 +65,12 @@ export const FACT_REGISTRY = {
     scope: 'timeless',
     label: 'Country of citizenship',
   },
+  'aotc-years-used': {
+    kind: 'number',
+    scope: 'timeless',
+    label:
+      'Years the American Opportunity Credit was claimed in past filings (four lifetime years exist; old returns or the IRS transcript can say)',
+  },
 
   // Of the year
   'days-present': {
@@ -340,6 +346,33 @@ export const FACT_REGISTRY = {
     kind: 'number',
     scope: 'year',
     label: 'Federal tax already taken from retirement money (1099-R box 4 total)',
+  },
+  'degree-program': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Enrolled in a program leading to a degree or recognised credential',
+  },
+  'enrolled-half-time': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Enrolled at least half-time for at least one academic period',
+  },
+  'felony-drug-conviction': {
+    kind: 'bool',
+    scope: 'year',
+    label:
+      'A felony conviction for possessing or distributing a controlled substance, on record at year end (one credit asks; nothing else does)',
+  },
+  'scholarship-included-in-income': {
+    kind: 'number',
+    scope: 'year',
+    label:
+      'Scholarship money deliberately counted as taxable income to free up tuition for the education credit (a legal election)',
+  },
+  'education-credit-election': {
+    kind: 'string',
+    scope: 'year',
+    label: 'Which education credit to take, where both are available (aotc, llc, or none)',
   },
   'early-distribution-from-ira': {
     kind: 'bool',

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { evaluateYear } from '../lib/calc/filing/evaluation';
 import { type FactAssertion, makeAssertion } from '../lib/calc/filing/facts';
 import { DEPENDENCY_FIXTURES } from '../lib/calc/filing/fixtures/dependency';
+import { EDUCATION_FIXTURES } from '../lib/calc/filing/fixtures/education';
 import { CORPUS_LEDGER } from '../lib/calc/filing/fixtures/ledger';
 import { PENALTY_FIXTURES } from '../lib/calc/filing/fixtures/penalty';
 import { PERSONA_FIXTURES } from '../lib/calc/filing/fixtures/personas';
@@ -21,6 +22,7 @@ const ALL: FilingFixture<unknown>[] = [
   ...RESIDENCY_FIXTURES,
   ...DEPENDENCY_FIXTURES,
   ...PENALTY_FIXTURES,
+  ...EDUCATION_FIXTURES,
   ...PERSONA_FIXTURES,
 ];
 
