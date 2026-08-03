@@ -298,6 +298,11 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'What the crypto that was sold originally cost',
   },
+  'crypto-held-over-year': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'The crypto that was sold had been held for more than a year',
+  },
   'business-miles': {
     kind: 'number',
     scope: 'year',

@@ -115,4 +115,18 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'se/misclassification-one-signal-does-not' },
   { id: 'se/same-payer-alone-leans' },
   { id: 'se/no-income-is-none' },
+  // D5 — capital gains wiring (8949/Sch D instructions; Pub 550; lot engine as spec)
+  { id: 'cg/fifo-short-arithmetic' },
+  { id: 'cg/long-term-boundary-pair' },
+  { id: 'cg/wash-sale-carried-forward' },
+  { id: 'cg/uncovered-units-honesty' },
+  { id: 'cg/year-filter-matches-across-history' },
+  { id: 'cg/category-printed-wins' },
+  { id: 'cg/category-derived-covered-pair' },
+  { id: 'cg/category-noncovered-derived' },
+  { id: 'cg/crypto-long-person-row' },
+  { id: 'cg/crypto-unknown-term-defaults-short' },
+  { id: 'cg/crypto-missing-basis-is-priced' },
+  { id: 'cg/estimate-superseded-not-contradicted' },
+  { id: 'cg/no-trades-no-crypto-none' },
 ];

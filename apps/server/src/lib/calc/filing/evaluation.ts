@@ -18,6 +18,11 @@ import {
   computeTaxEstimate,
   createDefaultTaxEstimatorData,
 } from '../tax-estimator';
+import {
+  type CapitalGainsDetermination,
+  type CapitalGainsTrade,
+  determineCapitalGains,
+} from './capital-gains';
 import { type DependencyDetermination, determineDependency } from './dependency';
 import { type EducationDetermination, determineEducation } from './education';
 import { type FactAssertion, type FactId, factSet, factState, makeAssertion } from './facts';
@@ -54,6 +59,8 @@ export interface YearEvaluation {
   ptc: PtcDetermination | null;
   /** Schedule C/SE — null when the year has no self-employment income. */
   se: SelfEmploymentDetermination | null;
+  /** Form 8949/Sch D — null when no trades or crypto disposals exist. */
+  capitalGains: CapitalGainsDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -98,6 +105,12 @@ export interface EvaluationExtras {
    * while the marketplace fact is true blocks on the 8962 by name.
    */
   ptcMonths?: PtcMonth[];
+  /**
+   * The trade ledger (C3 documents + SnapTrade sync + manual), same rule:
+   * trades aren't facts. When present, the lot engine's totals become
+   * rule-sourced gain facts that supersede any person estimate.
+   */
+  trades?: CapitalGainsTrade[];
 }
 
 export function evaluateYear(
@@ -108,6 +121,18 @@ export function evaluateYear(
   const set = factSet(assertions, taxYear);
   const blocked: BlockedItem[] = [];
   const notes: string[] = [];
+
+  // The trade ledger, when the caller hands it in, becomes the year's
+  // gains through the lot engine — and the totals come back as rule-
+  // sourced facts that supersede any person estimate (Doctrines 5 and 8).
+  // Crypto disposals ride the same determination from facts alone: the
+  // no-form path needs no ledger.
+  const cgDetermination = determineCapitalGains(assertions, extras?.trades ?? [], taxYear);
+  const capitalGains = cgDetermination.status === 'none' ? null : cgDetermination;
+  // Gains are read through the computed set so the estimator, the kiddie
+  // guard and every fork price the ledger's number, not the estimate.
+  const gainsSet =
+    capitalGains !== null ? factSet([...assertions, ...capitalGains.facts], taxYear) : set;
 
   // The root fork runs first — it selects the rule set everything else
   // belongs to. Its determination is asserted back as a rule-sourced fact so
@@ -138,8 +163,8 @@ export function evaluateYear(
   const filingStatus = determineFilingStatus(augmented, taxYear);
 
   const wages = num(factState(set, 'w2-wages'));
-  const longGains = num(factState(set, 'realized-long-gains'));
-  const shortGains = num(factState(set, 'realized-short-gains'));
+  const longGains = num(factState(gainsSet, 'realized-long-gains'));
+  const shortGains = num(factState(gainsSet, 'realized-short-gains'));
   const interest = num(factState(set, 'interest-income'));
   const ordinaryDiv = num(factState(set, 'dividends-ordinary'));
   const qualifiedDiv = num(factState(set, 'dividends-qualified'));
@@ -198,6 +223,7 @@ export function evaluateYear(
       savers: null,
       ptc: null,
       se: null,
+      capitalGains,
       blocked,
       notes,
     };
@@ -217,6 +243,7 @@ export function evaluateYear(
       savers: null,
       ptc: null,
       se: null,
+      capitalGains,
       blocked,
       notes,
     };
@@ -236,6 +263,7 @@ export function evaluateYear(
       savers: null,
       ptc: null,
       se: null,
+      capitalGains,
       blocked,
       notes,
     };
@@ -256,6 +284,7 @@ export function evaluateYear(
       savers: null,
       ptc: null,
       se: null,
+      capitalGains,
       blocked,
       notes,
     };
@@ -272,6 +301,7 @@ export function evaluateYear(
       savers: null,
       ptc: null,
       se: null,
+      capitalGains,
       blocked,
       notes,
     };
@@ -296,6 +326,7 @@ export function evaluateYear(
       savers: null,
       ptc: null,
       se,
+      capitalGains,
       blocked,
       notes,
     };
@@ -356,6 +387,12 @@ export function evaluateYear(
       data.otherIncome += se.netProfit;
     }
     notes.push(...(se.explanation.notes ?? []));
+  }
+
+  // The 8949's own findings ride along: uncovered units, wash sales, a
+  // superseded estimate, the crypto defaults — all named, none silent.
+  if (capitalGains !== null) {
+    notes.push(...(capitalGains.explanation.notes ?? []));
   }
 
   if (
@@ -519,6 +556,7 @@ export function evaluateYear(
     savers,
     ptc,
     se,
+    capitalGains,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:
