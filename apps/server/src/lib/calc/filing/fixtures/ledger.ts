@@ -48,4 +48,12 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'persona/p6-parlay-and-a-401k' },
   { id: 'persona/p7-marketplace-freelancer' },
   { id: 'persona/p8-three-years-behind' },
+  // D6 — early-withdrawal penalty (Form 5329 instructions)
+  { id: 'penalty/education-kills-it-for-an-ira' },
+  { id: 'penalty/education-does-nothing-for-a-401k' },
+  { id: 'penalty/unknown-pocket-is-the-fork' },
+  { id: 'penalty/first-home-caps-at-ten-thousand' },
+  { id: 'penalty/medical-floor-runs-on-agi' },
+  { id: 'penalty/age-55-never-helps-an-ira' },
+  { id: 'penalty/roth-refuses-instead-of-over-penalising' },
 ];

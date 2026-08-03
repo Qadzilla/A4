@@ -65,6 +65,7 @@ export interface StoredBenefitFormRow {
 
 export const BENEFIT_FACT_IDS: FactId[] = [
   'retirement-distribution',
+  'retirement-early-ira-amount',
   'retirement-distribution-taxable',
   'retirement-early-distribution',
   'retirement-rollover',
@@ -198,6 +199,27 @@ export function planBenefitFacts(input: BenefitFactPlanInput): FactAssertion[] {
         withheldSeen = true;
         if (bucket === 'rollover' && r.box4 > 0) rolloverWithWithholding += r.box4;
       }
+    }
+
+    // The pocket split D6's exception matrix turns on: education and
+    // first-home kill the penalty for an IRA and do nothing for a 401(k).
+    // Asserted only when EVERY early row states its IRA/SEP/SIMPLE box —
+    // partial knowledge stays a question, not a guess.
+    const earlyRows = rRows
+      .map((row) => row.extracted.r1099)
+      .filter(
+        (r): r is NonNullable<typeof r> => r !== null && classifyBox7(r.box7Codes) === 'early',
+      );
+    if (earlyRows.length > 0 && earlyRows.every((r) => r.iraSepSimple !== null)) {
+      const iraEarly = earlyRows.reduce(
+        (sum, r) => sum + (r.iraSepSimple === true ? (r.box1 ?? 0) : 0),
+        0,
+      );
+      doc(
+        'retirement-early-ira-amount',
+        iraEarly,
+        '1099-R IRA/SEP/SIMPLE checkbox across the early distributions',
+      );
     }
 
     if (grossSeen) doc('retirement-distribution', gross, '1099-R box 1 (rollovers excluded)');

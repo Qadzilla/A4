@@ -341,6 +341,41 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Federal tax already taken from retirement money (1099-R box 4 total)',
   },
+  'early-distribution-from-ira': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'The early retirement money came out of an IRA (rather than a 401(k)-type plan)',
+  },
+  'retirement-early-ira-amount': {
+    kind: 'number',
+    scope: 'year',
+    label: 'The part of the early retirement money that came out of IRAs specifically',
+  },
+  'medical-expenses-paid': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Unreimbursed medical and dental costs paid during the year',
+  },
+  'unemployed-twelve-weeks': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Received unemployment for twelve straight weeks or more',
+  },
+  'health-premiums-paid-while-unemployed': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Health insurance premiums paid during that unemployment',
+  },
+  'bought-first-home': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Bought a first home during the year',
+  },
+  'separated-from-service-at-55': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Left that employer in or after the year of turning 55',
+  },
   'state-refund-received': {
     kind: 'number',
     scope: 'year',

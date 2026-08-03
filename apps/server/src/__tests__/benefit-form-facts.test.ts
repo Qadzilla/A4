@@ -252,13 +252,14 @@ describe('the streams reach the liability', () => {
     // 45,000 + 6,000 + 9,000 — the 7,000 of losses appear nowhere.
     expect(result.liability.agi).toBe(60000);
     expect(result.liability.federalWithheld).toBe(5400);
-    // The trap in numbers: before the penalty, the year even looks like a
-    // small refund — which is exactly why the 20% withholding feels like
-    // settlement. The 10% additional tax D6 computes (~$900 on the $9,000
-    // cashout) flips it to owing. The engine's pre-penalty figure is
-    // honest about being pre-penalty; the flip is D6's acceptance test.
-    expect(result.liability.refundOrOwed).toBeLessThan(0);
-    expect(result.liability.refundOrOwed + 900).toBeGreaterThan(0);
+    // The trap in numbers, realised: before the penalty the year looks
+    // like a small refund — which is exactly why the 20% withholding felt
+    // like settlement. D6's $900 additional tax flips it to owing. This
+    // was written as D6's acceptance test when C5 shipped; it now passes
+    // against the wired penalty.
+    expect(result.liability.earlyWithdrawalPenalty).toBe(900);
+    expect(result.liability.refundOrOwed - 900).toBeLessThan(0); // pre-penalty: a paper refund
+    expect(result.liability.refundOrOwed).toBeGreaterThan(0); // the real bill: owing
   });
 
   it('a rollover changes nothing — the pleasant finding, in dollars', () => {

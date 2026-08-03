@@ -21,6 +21,7 @@ import {
 import { type DependencyDetermination, determineDependency } from './dependency';
 import { type FactAssertion, type FactId, factSet, factState, makeAssertion } from './facts';
 import { type FilingStatusDetermination, determineFilingStatus } from './filing-status';
+import { type PenaltyDetermination, determinePenalty } from './penalty';
 import { type ResidencyDetermination, determineResidency } from './residency';
 import { filingYearData } from './year-data';
 
@@ -37,6 +38,8 @@ export interface YearEvaluation {
   residency: ResidencyDetermination;
   dependency: DependencyDetermination;
   filingStatus: FilingStatusDetermination;
+  /** Form 5329 — computed whenever early retirement money exists. */
+  penalty: PenaltyDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -50,6 +53,8 @@ export interface YearEvaluation {
     ltcgZeroBracketRoom: number;
     /** What documents say was already paid in — W-2 box 2, 1099-R box 4. */
     federalWithheld: number;
+    /** The 10% additional tax on early retirement money (Form 5329). */
+    earlyWithdrawalPenalty: number;
     /** Negative: refund. Positive: still owed. The P6 shortfall lives here. */
     refundOrOwed: number;
   } | null;
@@ -146,21 +151,21 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     notes.push(
       'Nonresident for tax purposes: the return is Form 1040-NR, which Basis computes at E1 — resident rates would be the wrong arithmetic, so no liability is shown.',
     );
-    return { residency, dependency, filingStatus, liability: null, blocked, notes };
+    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
   }
   if (residency.status === 'dual-status') {
     blocked.push('dual-status-year');
     notes.push(
       'An arrival or departure year splits into resident and nonresident windows — genuinely specialist work, briefed at E5. No single liability exists.',
     );
-    return { residency, dependency, filingStatus, liability: null, blocked, notes };
+    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
   }
   if (residency.status === 'unknown') {
     blocked.push('residency-unknown');
     notes.push(
       'Residency for tax purposes is unresolved — computing at resident rates would be a default in disguise. Citizenship or visa facts settle it.',
     );
-    return { residency, dependency, filingStatus, liability: null, blocked, notes };
+    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
   }
 
   // No single liability without a filing status: joint-or-separate is an
@@ -168,11 +173,11 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
   if (filingStatus.status === 'unknown') {
     blocked.push('filing-status-election');
     notes.push('No filing status is settled, so there is no single liability to report.');
-    return { residency, dependency, filingStatus, liability: null, blocked, notes };
+    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
   }
 
   if (year === null) {
-    return { residency, dependency, filingStatus, liability: null, blocked, notes };
+    return { residency, dependency, filingStatus, liability: null, penalty: null, blocked, notes };
   }
 
   const data: TaxEstimatorData = {
@@ -252,20 +257,35 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
   }
 
   const result = computeTaxEstimate(data);
+
+  // The 5329: 10% on the early money, gross of exceptions (they are options
+  // with prices, never assumptions — the module's standing rule). This is
+  // what flips P6 from a small paper refund to owing.
+  const penalty = determinePenalty(augmented, taxYear, result.agi);
+  const additionalTax = penalty.applicable ? penalty.penalty : 0;
+  if (penalty.applicable) {
+    notes.push(
+      `Early retirement money carries a 10% additional tax of $${penalty.penalty} on top of the income tax — the withholding that felt like settlement usually doesn't cover it. Exceptions exist and are priced separately.`,
+    );
+  }
+
   return {
     residency,
     dependency,
     filingStatus,
+    penalty: penalty.applicable || penalty.refusals.length > 0 ? penalty : null,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
-      federalTax: result.federalTax + result.ltcgTax + result.niit,
-      totalTax: result.totalTax,
+      federalTax: result.federalTax + result.ltcgTax + result.niit + additionalTax,
+      totalTax: result.totalTax + additionalTax,
       agi: result.agi,
       deduction: result.deduction,
       taxableIncome: result.taxableIncome,
       ltcgZeroBracketRoom: result.ltcgZeroBracketRoom,
       federalWithheld: data.federalWithheld,
-      refundOrOwed: result.federalTax + result.ltcgTax + result.niit - data.federalWithheld,
+      earlyWithdrawalPenalty: additionalTax,
+      refundOrOwed:
+        result.federalTax + result.ltcgTax + result.niit + additionalTax - data.federalWithheld,
     },
     blocked,
     notes,
