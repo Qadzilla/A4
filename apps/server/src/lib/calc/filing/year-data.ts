@@ -55,6 +55,18 @@ export interface FilingYearData {
     endMfj: number;
   };
   /**
+   * Saver's credit (Form 8880) AGI tiers — 50%/20%/10% of up to $2,000
+   * contributed, by filing bucket. 2025 verified 2026-08; 2026 from
+   * Notice 2025-67 (verified 2026-08). The credit's last year is TY2026:
+   * SECURE 2.0 replaces it with the Saver's Match, and the module refuses
+   * 2027+ by name rather than modelling the successor.
+   */
+  saversCredit: {
+    other: { maxRate50: number; maxRate20: number; maxRate10: number };
+    hoh: { maxRate50: number; maxRate20: number; maxRate10: number };
+    mfj: { maxRate50: number; maxRate20: number; maxRate10: number };
+  };
+  /**
    * 1099-NEC issuance threshold. $600 through TY2025; OBBBA raises it to
    * $2,000 for TY2026 (indexed after). Verified 2026-08. Below it, contract
    * income arrives with no form — and is taxable anyway.
@@ -89,6 +101,11 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
       startMfj: 170000,
       endMfj: 200000,
     },
+    saversCredit: {
+      other: { maxRate50: 23750, maxRate20: 25500, maxRate10: 39500 },
+      hoh: { maxRate50: 35625, maxRate20: 38250, maxRate10: 59250 },
+      mfj: { maxRate50: 47500, maxRate20: 51000, maxRate10: 79000 },
+    },
   },
   2026: {
     qrGrossIncomeLimit: 5300,
@@ -109,6 +126,11 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
       endSingle: 100000,
       startMfj: 175000,
       endMfj: 205000,
+    },
+    saversCredit: {
+      other: { maxRate50: 24250, maxRate20: 26250, maxRate10: 40250 },
+      hoh: { maxRate50: 36375, maxRate20: 39375, maxRate10: 60375 },
+      mfj: { maxRate50: 48500, maxRate20: 52500, maxRate10: 80500 },
     },
   },
 };

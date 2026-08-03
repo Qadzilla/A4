@@ -129,6 +129,12 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Medicare tax taken out of pay (W-2 box 6 total)',
   },
+  'ira-contributions': {
+    kind: 'number',
+    scope: 'year',
+    label:
+      'Money put into a traditional or Roth IRA for the year (counts right up to the April filing deadline)',
+  },
   'w2-retirement-contributions': {
     kind: 'number',
     scope: 'year',

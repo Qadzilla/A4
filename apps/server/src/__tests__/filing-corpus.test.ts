@@ -3,6 +3,7 @@ import { evaluateYear } from '../lib/calc/filing/evaluation';
 import { type FactAssertion, makeAssertion } from '../lib/calc/filing/facts';
 import { DEPENDENCY_FIXTURES } from '../lib/calc/filing/fixtures/dependency';
 import { EDUCATION_FIXTURES } from '../lib/calc/filing/fixtures/education';
+import { SAVERS_FIXTURES } from '../lib/calc/filing/fixtures/savers-credit';
 import { CORPUS_LEDGER } from '../lib/calc/filing/fixtures/ledger';
 import { PENALTY_FIXTURES } from '../lib/calc/filing/fixtures/penalty';
 import { PERSONA_FIXTURES } from '../lib/calc/filing/fixtures/personas';
@@ -23,6 +24,7 @@ const ALL: FilingFixture<unknown>[] = [
   ...DEPENDENCY_FIXTURES,
   ...PENALTY_FIXTURES,
   ...EDUCATION_FIXTURES,
+  ...SAVERS_FIXTURES,
   ...PERSONA_FIXTURES,
 ];
 

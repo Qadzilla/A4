@@ -24,6 +24,7 @@ import { type FactAssertion, type FactId, factSet, factState, makeAssertion } fr
 import { type FilingStatusDetermination, determineFilingStatus } from './filing-status';
 import { type PenaltyDetermination, determinePenalty } from './penalty';
 import { type ResidencyDetermination, determineResidency } from './residency';
+import { type SaversCreditDetermination, determineSaversCredit } from './savers-credit';
 import { filingYearData } from './year-data';
 
 /** Things a branch could not compute, named. The fork reports these. */
@@ -43,6 +44,8 @@ export interface YearEvaluation {
   penalty: PenaltyDetermination | null;
   /** Form 8863 + student-loan interest — null on the blocked paths. */
   education: EducationDetermination | null;
+  /** Form 8880 — the saver's credit, through its final year (TY2026). */
+  savers: SaversCreditDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -60,6 +63,8 @@ export interface YearEvaluation {
     earlyWithdrawalPenalty: number;
     /** The elected education credit actually applied (nonrefundable + refundable). */
     educationCredit: number;
+    /** The saver's credit applied — mechanical, no election, stacks after education. */
+    saversCredit: number;
     /** Negative: refund. Positive: still owed. The P6 shortfall lives here. */
     refundOrOwed: number;
   } | null;
@@ -163,6 +168,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       liability: null,
       penalty: null,
       education: null,
+      savers: null,
       blocked,
       notes,
     };
@@ -179,6 +185,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       liability: null,
       penalty: null,
       education: null,
+      savers: null,
       blocked,
       notes,
     };
@@ -195,6 +202,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       liability: null,
       penalty: null,
       education: null,
+      savers: null,
       blocked,
       notes,
     };
@@ -212,6 +220,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       liability: null,
       penalty: null,
       education: null,
+      savers: null,
       blocked,
       notes,
     };
@@ -225,6 +234,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       liability: null,
       penalty: null,
       education: null,
+      savers: null,
       blocked,
       notes,
     };
@@ -357,6 +367,26 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     }
   }
 
+  // The saver's credit is mechanical — no election exists, it stacks with
+  // whatever education credit applied, bounded by the tax that remains.
+  const savers = determineSaversCredit(augmented, taxYear, {
+    agi: result.agi,
+    filingStatus: filingStatus.status,
+    dependency,
+  });
+  const appliedSavers =
+    savers.status === 'available'
+      ? Math.min(savers.amount, Math.max(0, preCreditTax - appliedNonRefundable))
+      : 0;
+  if (appliedSavers > 0) {
+    notes.push(
+      `The saver's credit applies: $${appliedSavers} for retirement contributions already made${taxYear === 2026 ? " — the credit's final year before the Saver's Match replaces it" : ''}.`,
+    );
+  }
+  if (savers.iraOption !== null) {
+    notes.push(savers.iraOption.note);
+  }
+
   // The 5329: 10% on the early money, gross of exceptions (they are options
   // with prices, never assumptions — the module's standing rule). This is
   // what flips P6 from a small paper refund to owing.
@@ -374,11 +404,17 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
     filingStatus,
     penalty: penalty.applicable || penalty.refusals.length > 0 ? penalty : null,
     education,
+    savers,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:
-        result.federalTax + result.ltcgTax + result.niit + additionalTax - appliedNonRefundable,
-      totalTax: result.totalTax + additionalTax - appliedNonRefundable,
+        result.federalTax +
+        result.ltcgTax +
+        result.niit +
+        additionalTax -
+        appliedNonRefundable -
+        appliedSavers,
+      totalTax: result.totalTax + additionalTax - appliedNonRefundable - appliedSavers,
       agi: result.agi,
       deduction: result.deduction,
       taxableIncome: result.taxableIncome,
@@ -386,6 +422,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
       federalWithheld: data.federalWithheld,
       earlyWithdrawalPenalty: additionalTax,
       educationCredit,
+      saversCredit: appliedSavers,
       refundOrOwed:
         result.federalTax +
         result.ltcgTax +
@@ -393,6 +430,7 @@ export function evaluateYear(assertions: FactAssertion[], taxYear: number): Year
         additionalTax -
         appliedNonRefundable -
         appliedRefundable -
+        appliedSavers -
         data.federalWithheld,
     },
     blocked,
