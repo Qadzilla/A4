@@ -177,4 +177,12 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'treaty/name-variant-normalizes' },
   { id: 'treaty/no-8833-required-yet' },
   { id: 'treaty/no-citizenship-clean' },
+  // E4 — FICA refund detection (Pub 519 §3121(b)(19); Forms 843/8316)
+  { id: 'fica/p3-found-money' },
+  { id: 'fica/zero-box-4-nothing' },
+  { id: 'fica/year-six-resident-owes-it' },
+  { id: 'fica/claim-window-runs-per-year' },
+  { id: 'fica/unauthorized-work-refused' },
+  { id: 'fica/authorization-unknown-assumed' },
+  { id: 'fica/citizen-owes-fica' },
 ];

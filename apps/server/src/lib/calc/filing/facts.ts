@@ -195,6 +195,11 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Name of the academic institution attended (Form 8843 Part III asks for it)',
   },
+  'work-authorized': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'The work was authorized employment (on-campus, or CPT/OPT for off-campus)',
+  },
   'realized-long-gains': {
     kind: 'number',
     scope: 'year',

@@ -28,6 +28,7 @@ import {
   liveAssertions,
   contradictions as liveContradictions,
 } from './facts';
+import { determineFicaRefund } from './fica-refund';
 import { type RankedUnknown, rankUnknowns } from './forks';
 import { determineForm8843 } from './form-8843';
 import {
@@ -220,6 +221,32 @@ export function assessReadiness(
       status: 'attention',
       detail: `No Form 8843 on record for ${y}, an exempt year. Filing it late is protective, not punitive — it is the paper that defends that year's exemption, including for any FICA refund.`,
       action: `Print, sign and mail the ${y} Form 8843 on its own — a standalone 8843 has no e-file.`,
+    });
+  }
+
+  // ── FICA refund: money outside the return (E4) ──
+  // Found money is a line, never a verdict input: $1,240 sitting with
+  // the Treasury doesn't make the return less ready, and hiding it
+  // until "ready" would bury the single best finding in the product.
+  const fica = determineFicaRefund(assertions, taxYear);
+  if (fica.status === 'found') {
+    lines.push({
+      id: 'finding:fica-refund',
+      kind: 'fact',
+      label: 'FICA withheld in error',
+      status: 'attention',
+      detail: `$${Math.round(fica.total)} of Social Security and Medicare was withheld from an exempt year — recoverable in full, outside the return. The claim window closes ${fica.claimWindowEnds}.`,
+      action:
+        'Ask the employer for the refund first (the letter is outlined in the finding); if they refuse or are gone, the Form 843 + 8316 package files on paper.',
+    });
+  } else if (fica.status === 'refused') {
+    lines.push({
+      id: 'finding:fica-refund',
+      kind: 'fact',
+      label: 'FICA withheld — needs a preparer',
+      status: 'attention',
+      detail: fica.refusals[0] as string,
+      action: null,
     });
   }
 
