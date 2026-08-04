@@ -159,4 +159,13 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'nr/gig-work-refused' },
   { id: 'nr/marketplace-refused' },
   { id: 'nr/credits-explained-not-hidden' },
+  // E2 — Form 8843 (Form 8843 instructions; Pub 519 exempt individuals)
+  { id: '8843/zero-income-still-owed' },
+  { id: '8843/return-year-rides-along' },
+  { id: '8843/five-exempt-years-five-forms' },
+  { id: '8843/filed-years-drop-out' },
+  { id: '8843/year-six-vanishes' },
+  { id: '8843/j-researcher-refused' },
+  { id: '8843/part-iii-names-the-school' },
+  { id: '8843/resident-never-owes' },
 ];

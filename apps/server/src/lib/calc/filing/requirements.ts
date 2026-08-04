@@ -169,8 +169,8 @@ export const SCOPE: { version: number; forms: Record<FormId, ScopeEntry> } = {
       whatItMeans: 'The 10% penalty on early retirement withdrawals, and its exceptions.',
     },
     'form-8843': {
-      supported: false,
-      plannedAt: 'E2',
+      supported: true, // E2: the requirement engine, standalone reality and catch-up list ship
+      plannedAt: null,
       whatItMeans:
         'The statement every exempt-visa student owes each year, income or none — it protects the exemption.',
     },

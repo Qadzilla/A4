@@ -29,6 +29,7 @@ import {
   contradictions as liveContradictions,
 } from './facts';
 import { type RankedUnknown, rankUnknowns } from './forks';
+import { determineForm8843 } from './form-8843';
 import {
   type ArrivedDoc,
   type Expectation,
@@ -183,6 +184,45 @@ export function assessReadiness(
     });
   }
 
+  // ── Form 8843: its own line, never a return blocker (E2) ──
+  // The requirement row above already covers "this year owes it"; this
+  // adds what the row can't say — the standalone mailing reality, the
+  // Part III fields still owed, and the protective catch-up list for
+  // prior exempt years with no 8843 on record.
+  const f8843 = determineForm8843(assertions, taxYear);
+  if (f8843.required) {
+    const line = lines.find((l) => l.id === 'form:form-8843');
+    if (line) {
+      line.detail = f8843.standalone
+        ? 'Owed even with no income — it is what defends the exemption (and the FICA refund). A standalone 8843 cannot be e-filed; it prints, gets signed, and mails.'
+        : 'Rides the 1040-NR — one more sheet in the same filing.';
+      if (f8843.missingFacts.length > 0) {
+        line.status = 'attention';
+        line.action = "Part III wants the school's name — the form's own fields say what's needed.";
+      }
+    }
+  }
+  if (f8843.refusals.length > 0) {
+    lines.push({
+      id: 'form:form-8843',
+      kind: 'form',
+      label: 'form-8843',
+      status: 'attention',
+      detail: f8843.refusals[0] as string,
+      action: null,
+    });
+  }
+  for (const y of f8843.catchUp) {
+    lines.push({
+      id: `form:form-8843:${y}`,
+      kind: 'form',
+      label: `form-8843 (${y})`,
+      status: 'attention',
+      detail: `No Form 8843 on record for ${y}, an exempt year. Filing it late is protective, not punitive — it is the paper that defends that year's exemption, including for any FICA refund.`,
+      action: `Print, sign and mail the ${y} Form 8843 on its own — a standalone 8843 has no e-file.`,
+    });
+  }
+
   // ── The digital-assets question ──
   // On the 1040's face, answered under penalty of perjury, for everyone.
   // A number can be amended later; a false "no" is a different kind of
@@ -233,10 +273,12 @@ export function assessReadiness(
 
   // ── Verdict ──
   const waiting = lines.some((l) => l.kind === 'document' && l.status === 'not-started');
+  // Missing prior-year 8843s never block this year's return — but a year
+  // with protective filings outstanding is not cleanly "ready" either.
   const verdict =
     blockers.length > 0
       ? 'blocked'
-      : worthAsking.length > 0 || waiting
+      : worthAsking.length > 0 || waiting || f8843.catchUp.length > 0
         ? 'ready-with-cautions'
         : 'ready';
 

@@ -185,6 +185,16 @@ export const FACT_REGISTRY = {
     label:
       'Federal tax withheld on a scholarship (1042-S box 7a — nonresident scholarship reporting)',
   },
+  '8843-filed': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'A Form 8843 was filed for the year (old records or the mailed copy can say)',
+  },
+  'school-name': {
+    kind: 'string',
+    scope: 'year',
+    label: 'Name of the academic institution attended (Form 8843 Part III asks for it)',
+  },
   'realized-long-gains': {
     kind: 'number',
     scope: 'year',

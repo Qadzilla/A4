@@ -4,6 +4,7 @@ import { type FactAssertion, makeAssertion } from '../lib/calc/filing/facts';
 import { CAPITAL_GAINS_FIXTURES } from '../lib/calc/filing/fixtures/capital-gains';
 import { DEPENDENCY_FIXTURES } from '../lib/calc/filing/fixtures/dependency';
 import { EDUCATION_FIXTURES } from '../lib/calc/filing/fixtures/education';
+import { FORM_8843_FIXTURES } from '../lib/calc/filing/fixtures/form-8843';
 import { CORPUS_LEDGER } from '../lib/calc/filing/fixtures/ledger';
 import { NONRESIDENT_FIXTURES } from '../lib/calc/filing/fixtures/nonresident';
 import { PENALTY_FIXTURES } from '../lib/calc/filing/fixtures/penalty';
@@ -35,6 +36,7 @@ const ALL: FilingFixture<unknown>[] = [
   ...CAPITAL_GAINS_FIXTURES,
   ...TIPS_OVERTIME_FIXTURES,
   ...NONRESIDENT_FIXTURES,
+  ...FORM_8843_FIXTURES,
   ...PERSONA_FIXTURES,
 ];
 
