@@ -14,6 +14,7 @@ import { RESIDENCY_FIXTURES } from '../lib/calc/filing/fixtures/residency';
 import { SAVERS_FIXTURES } from '../lib/calc/filing/fixtures/savers-credit';
 import { SELF_EMPLOYMENT_FIXTURES } from '../lib/calc/filing/fixtures/self-employment';
 import { TIPS_OVERTIME_FIXTURES } from '../lib/calc/filing/fixtures/tips-overtime';
+import { TREATY_FIXTURES } from '../lib/calc/filing/fixtures/treaties';
 import type { FilingFixture, FixtureFact } from '../lib/calc/filing/fixtures/types';
 import { assessReadiness } from '../lib/calc/filing/readiness';
 import { expectations, requiredForms } from '../lib/calc/filing/requirements';
@@ -37,6 +38,7 @@ const ALL: FilingFixture<unknown>[] = [
   ...TIPS_OVERTIME_FIXTURES,
   ...NONRESIDENT_FIXTURES,
   ...FORM_8843_FIXTURES,
+  ...TREATY_FIXTURES,
   ...PERSONA_FIXTURES,
 ];
 

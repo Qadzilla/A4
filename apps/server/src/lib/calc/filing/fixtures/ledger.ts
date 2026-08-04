@@ -168,4 +168,13 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: '8843/j-researcher-refused' },
   { id: '8843/part-iii-names-the-school' },
   { id: '8843/resident-never-owes' },
+  // E3 — the treaty engine (Pub 901; India Art 21(2); China Art 20)
+  { id: 'treaty/india-standard-deduction' },
+  { id: 'treaty/china-article-20' },
+  { id: 'treaty/korea-named-refusal' },
+  { id: 'treaty/no-treaty-clean-nothing' },
+  { id: 'treaty/h1b-gets-nothing' },
+  { id: 'treaty/name-variant-normalizes' },
+  { id: 'treaty/no-8833-required-yet' },
+  { id: 'treaty/no-citizenship-clean' },
 ];

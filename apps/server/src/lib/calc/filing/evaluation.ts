@@ -13,6 +13,7 @@
 // capped at the regular amount (Topic 551, figures in year-data) — is fed
 // through the itemized path, which sums its inputs verbatim.
 
+import { FEDERAL_TAX_DATA } from '../tax-data';
 import {
   type TaxEstimatorData,
   computeTaxEstimate,
@@ -34,6 +35,7 @@ import { type ResidencyDetermination, determineResidency } from './residency';
 import { type SaversCreditDetermination, determineSaversCredit } from './savers-credit';
 import { type SelfEmploymentDetermination, determineSelfEmployment } from './self-employment';
 import { type TipsOvertimeDetermination, determineTipsOvertime } from './tips-overtime';
+import { type TreatyDetermination, determineTreatyBenefits } from './treaties';
 import { filingYearData } from './year-data';
 
 /** Things a branch could not compute, named. The fork reports these. */
@@ -67,6 +69,8 @@ export interface YearEvaluation {
   tipsOvertime: TipsOvertimeDetermination | null;
   /** Form 1040-NR (E1) — present exactly on nonresident years. */
   nonresident: NonresidentDetermination | null;
+  /** Treaty benefits (E3) — null when no citizenship/visa facts put one in play. */
+  treaties: TreatyDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -226,6 +230,20 @@ export function evaluateYear(
     // refuses, so those years stay blocked with the reason visible.
     const nonresident = determineNonresidentReturn(augmented, taxYear);
     notes.push(...(nonresident.explanation.notes ?? []));
+    // E3: the treaty benefits, applied by citation — India's standard
+    // deduction and China's $5,000 exemption. Uncoded student articles
+    // surface as teaching notes, never as silent omissions.
+    const treatyDet = determineTreatyBenefits(augmented, taxYear);
+    const treaties =
+      treatyDet.benefits.length > 0 ||
+      treatyDet.refusals.length > 0 ||
+      (treatyDet.explanation.notes ?? []).length > 0
+        ? treatyDet
+        : null;
+    if (treaties !== null) {
+      notes.push(...(treaties.explanation.notes ?? []));
+      notes.push(...treaties.refusals);
+    }
     if (nonresident.status === 'refused' || capitalGains !== null || year === null) {
       if (capitalGains !== null) {
         notes.push(
@@ -247,23 +265,54 @@ export function evaluateYear(
         capitalGains,
         tipsOvertime: null,
         nonresident,
+        treaties,
         blocked,
         notes,
       };
     }
 
+    // China Article 20: up to $5,000 of the wage/scholarship ECI comes
+    // out before anything is taxed — wages first, then scholarship.
+    let nrWages = nonresident.eci.wages;
+    let nrScholarship = nonresident.eci.taxableScholarship;
+    const chinaExemption = treaties?.benefits.find((b) => b.kind === 'wage-scholarship-exemption');
+    if (chinaExemption && chinaExemption.amount !== null) {
+      const fromWages = Math.min(chinaExemption.amount, nrWages);
+      const fromScholarship = Math.min(chinaExemption.amount - fromWages, nrScholarship);
+      nrWages -= fromWages;
+      nrScholarship -= fromScholarship;
+      notes.push(
+        `$${fromWages + fromScholarship} of income is exempt under the China treaty (Article ${chinaExemption.article}) and never enters the taxable total.`,
+      );
+    }
+
+    // India Article 21(2): the standard deduction returns — used when it
+    // beats the state-tax itemization, which at a student income it
+    // essentially always does. The choice is arithmetic, not an election.
+    const indiaStd = treaties?.benefits.find((b) => b.kind === 'standard-deduction');
+    const stdAmount = indiaStd
+      ? (FEDERAL_TAX_DATA[taxYear]?.standardDeduction[nonresident.filingStatus] ?? 0)
+      : 0;
+    const useStandard = indiaStd !== undefined && stdAmount > nonresident.itemizedStateTax;
+    if (useStandard) {
+      notes.push(
+        `The standard deduction ($${stdAmount}) applies under India Article 21(2) — larger than the $${nonresident.itemizedStateTax} of state tax that would otherwise itemize, and most nonresidents get neither.`,
+      );
+    }
+
     // The return that remains, through the same estimator: ECI at the
-    // graduated rates (single or MFS column), the state tax itemized,
-    // and NO standard deduction — taxed from the first dollar. Exempt
-    // §871(i) interest never enters income at all.
+    // graduated rates (single or MFS column), the state tax itemized —
+    // or India's standard deduction — and otherwise NO deduction at
+    // all: taxed from the first dollar. Exempt §871(i) interest never
+    // enters income.
     const nrData: TaxEstimatorData = {
       ...createDefaultTaxEstimatorData(),
       taxYear,
       filingStatus: nonresident.filingStatus,
-      w2Wages: nonresident.eci.wages,
-      otherIncome: nonresident.eci.taxableScholarship,
-      deductionType: 'itemized',
-      saltDeduction: nonresident.itemizedStateTax,
+      w2Wages: nrWages,
+      otherIncome: nrScholarship,
+      deductionType: useStandard ? 'standard' : 'itemized',
+      saltDeduction: useStandard ? 0 : nonresident.itemizedStateTax,
       federalWithheld: nonresident.federalWithheld,
     };
     const nrResult = computeTaxEstimate(nrData);
@@ -280,6 +329,7 @@ export function evaluateYear(
       capitalGains,
       tipsOvertime: null,
       nonresident,
+      treaties,
       liability: {
         incomeTax: nrTax,
         // No NIIT (NRAs are outside §1411), no SE tax, no Schedule 2
@@ -327,6 +377,7 @@ export function evaluateYear(
       capitalGains,
       tipsOvertime: null,
       nonresident: null,
+      treaties: null,
       blocked,
       notes,
     };
@@ -349,6 +400,7 @@ export function evaluateYear(
       capitalGains,
       tipsOvertime: null,
       nonresident: null,
+      treaties: null,
       blocked,
       notes,
     };
@@ -372,6 +424,7 @@ export function evaluateYear(
       capitalGains,
       tipsOvertime: null,
       nonresident: null,
+      treaties: null,
       blocked,
       notes,
     };
@@ -391,6 +444,7 @@ export function evaluateYear(
       capitalGains,
       tipsOvertime: null,
       nonresident: null,
+      treaties: null,
       blocked,
       notes,
     };
@@ -418,6 +472,7 @@ export function evaluateYear(
       capitalGains,
       tipsOvertime: null,
       nonresident: null,
+      treaties: null,
       blocked,
       notes,
     };
@@ -489,6 +544,29 @@ export function evaluateYear(
   // superseded estimate, the crypto defaults — all named, none silent.
   if (capitalGains !== null) {
     notes.push(...(capitalGains.explanation.notes ?? []));
+  }
+
+  // E3's survival case: China's Article 20 is carved out of the saving
+  // clause, so the $5,000 exemption follows the student ACROSS the
+  // residency flip — the year-six F-1 keeps it on a plain 1040. Only a
+  // substantial-presence resident qualifies here: a green card changes
+  // the analysis, and a citizen never takes treaty benefits.
+  const residentTreatyDet = determineTreatyBenefits(augmented, taxYear);
+  const treatySurvivor =
+    residency.status === 'resident' && residency.rule === 'substantial-presence'
+      ? residentTreatyDet.benefits.find((b) => b.survivesResidency && b.amount !== null)
+      : undefined;
+  const treaties = treatySurvivor !== undefined ? residentTreatyDet : null;
+  if (treatySurvivor?.amount) {
+    const exempt = Math.min(treatySurvivor.amount, wages ?? 0);
+    if (exempt > 0) {
+      // Rides otherIncome as a negative so the wage input (and the FICA
+      // arithmetic that keys off it) stays as printed.
+      data.otherIncome -= exempt;
+      notes.push(
+        `$${exempt} of wages stays exempt under the China treaty (Article ${treatySurvivor.article}) even as a RESIDENT — this benefit survives the residency flip, which almost nothing else does.`,
+      );
+    }
   }
 
   if (
@@ -678,6 +756,7 @@ export function evaluateYear(
     capitalGains,
     tipsOvertime,
     nonresident: null,
+    treaties,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:
