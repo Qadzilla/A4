@@ -120,8 +120,8 @@ export const SCOPE: { version: number; forms: Record<FormId, ScopeEntry> } = {
       whatItMeans: 'The totals of investment gains and losses, carried to the return.',
     },
     'form-1040-nr': {
-      supported: false,
-      plannedAt: 'E1',
+      supported: true, // E1: the nonresident return shape ships
+      plannedAt: null,
       whatItMeans:
         'The return nonresidents file instead of the 1040 — different deductions, different rules on what income the US taxes.',
     },

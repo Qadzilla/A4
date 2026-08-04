@@ -27,6 +27,7 @@ import { type DependencyDetermination, determineDependency } from './dependency'
 import { type EducationDetermination, determineEducation } from './education';
 import { type FactAssertion, type FactId, factSet, factState, makeAssertion } from './facts';
 import { type FilingStatusDetermination, determineFilingStatus } from './filing-status';
+import { type NonresidentDetermination, determineNonresidentReturn } from './nonresident';
 import { type PenaltyDetermination, determinePenalty } from './penalty';
 import { type PtcDetermination, type PtcMonth, determinePtc } from './ptc';
 import { type ResidencyDetermination, determineResidency } from './residency';
@@ -41,7 +42,7 @@ export type BlockedItem =
   | 'form-8615' // kiddie tax applies and Basis doesn't compute it
   | 'form-8962' // marketplace coverage with no 1095-A months to reconcile — the refund freezes
   | 'sch-c' // a claimed expense outside the simple set — computing around it would overstate
-  | 'form-1040nr' // nonresident year — a different return, not computable until E1
+  | 'form-1040nr' // nonresident year holding income E1 refuses to classify (or a §6013 election)
   | 'dual-status-year' // arrival/departure year — specialist return, E5's brief
   | 'residency-unknown' // the root fork unanswered — resident rates would be a default in disguise
   | 'year-data'; // the year's figures aren't loaded
@@ -64,6 +65,8 @@ export interface YearEvaluation {
   capitalGains: CapitalGainsDetermination | null;
   /** Sch 1-A + Form 4137 — null when no tip or overtime money exists. */
   tipsOvertime: TipsOvertimeDetermination | null;
+  /** Form 1040-NR (E1) — present exactly on nonresident years. */
+  nonresident: NonresidentDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -216,15 +219,59 @@ export function evaluateYear(
   // question can't quietly default to resident rates (Doctrine 7 and A2's
   // fence, respectively).
   if (residency.status === 'nonresident') {
-    blocked.push('form-1040nr');
-    notes.push(
-      'Nonresident for tax purposes: the return is Form 1040-NR, which Basis computes at E1 — resident rates would be the wrong arithmetic, so no liability is shown.',
-    );
+    // E1: the 1040-NR computes. The module decides what the return can
+    // hold (ECI wages and scholarship, exempt interest, the state-tax
+    // itemization) and names everything it refuses — and a computed
+    // trade ledger or crypto disposal is exactly the classification it
+    // refuses, so those years stay blocked with the reason visible.
+    const nonresident = determineNonresidentReturn(augmented, taxYear);
+    notes.push(...(nonresident.explanation.notes ?? []));
+    if (nonresident.status === 'refused' || capitalGains !== null || year === null) {
+      if (capitalGains !== null) {
+        notes.push(
+          'Investment sales or crypto disposals on a nonresident year: capital-gains classification for a nonresident turns on presence days and source rules E1 does not attempt — a preparer question, named rather than mis-computed.',
+        );
+      }
+      blocked.push('form-1040nr');
+      notes.push(...nonresident.refusals);
+      return {
+        residency,
+        dependency,
+        filingStatus,
+        liability: null,
+        penalty: null,
+        education: null,
+        savers: null,
+        ptc: null,
+        se: null,
+        capitalGains,
+        tipsOvertime: null,
+        nonresident,
+        blocked,
+        notes,
+      };
+    }
+
+    // The return that remains, through the same estimator: ECI at the
+    // graduated rates (single or MFS column), the state tax itemized,
+    // and NO standard deduction — taxed from the first dollar. Exempt
+    // §871(i) interest never enters income at all.
+    const nrData: TaxEstimatorData = {
+      ...createDefaultTaxEstimatorData(),
+      taxYear,
+      filingStatus: nonresident.filingStatus,
+      w2Wages: nonresident.eci.wages,
+      otherIncome: nonresident.eci.taxableScholarship,
+      deductionType: 'itemized',
+      saltDeduction: nonresident.itemizedStateTax,
+      federalWithheld: nonresident.federalWithheld,
+    };
+    const nrResult = computeTaxEstimate(nrData);
+    const nrTax = nrResult.federalTax + nrResult.ltcgTax;
     return {
       residency,
       dependency,
       filingStatus,
-      liability: null,
       penalty: null,
       education: null,
       savers: null,
@@ -232,6 +279,32 @@ export function evaluateYear(
       se: null,
       capitalGains,
       tipsOvertime: null,
+      nonresident,
+      liability: {
+        incomeTax: nrTax,
+        // No NIIT (NRAs are outside §1411), no SE tax, no Schedule 2
+        // riders — and employee FICA is NOT a return line here: for the
+        // exempt-visa students this path serves it should never have
+        // been withheld at all, which is E4's refund, not this total.
+        federalTax: nrTax,
+        totalTax: nrTax,
+        agi: nrResult.agi,
+        deduction: nrResult.deduction,
+        taxableIncome: nrResult.taxableIncome,
+        // The 0% long-term window is resident planning; nonresident
+        // gains follow different rules entirely, so no room is claimed.
+        ltcgZeroBracketRoom: 0,
+        federalWithheld: nonresident.federalWithheld,
+        selfEmploymentTax: 0,
+        tipsOvertimeDeduction: 0,
+        form4137Tax: 0,
+        earlyWithdrawalPenalty: 0,
+        educationCredit: 0,
+        saversCredit: 0,
+        ptcRepayment: 0,
+        ptcAdditionalCredit: 0,
+        refundOrOwed: nrTax - nonresident.federalWithheld,
+      },
       blocked,
       notes,
     };
@@ -253,6 +326,7 @@ export function evaluateYear(
       se: null,
       capitalGains,
       tipsOvertime: null,
+      nonresident: null,
       blocked,
       notes,
     };
@@ -274,6 +348,7 @@ export function evaluateYear(
       se: null,
       capitalGains,
       tipsOvertime: null,
+      nonresident: null,
       blocked,
       notes,
     };
@@ -296,6 +371,7 @@ export function evaluateYear(
       se: null,
       capitalGains,
       tipsOvertime: null,
+      nonresident: null,
       blocked,
       notes,
     };
@@ -314,6 +390,7 @@ export function evaluateYear(
       se: null,
       capitalGains,
       tipsOvertime: null,
+      nonresident: null,
       blocked,
       notes,
     };
@@ -340,6 +417,7 @@ export function evaluateYear(
       se,
       capitalGains,
       tipsOvertime: null,
+      nonresident: null,
       blocked,
       notes,
     };
@@ -599,6 +677,7 @@ export function evaluateYear(
     se,
     capitalGains,
     tipsOvertime,
+    nonresident: null,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:

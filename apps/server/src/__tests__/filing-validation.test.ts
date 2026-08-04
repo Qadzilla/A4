@@ -54,10 +54,15 @@ describe('the engine side of the comparison', () => {
     expect(blocked).toContain('form-8615');
   });
 
-  it('yields no lines for the nonresident persona — untestable by design', () => {
+  it('yields the 1040-NR lines for the nonresident persona since E1', () => {
+    // Before E1 this asserted zero lines. The 1040-NR shares the 1040's
+    // core line numbering (11/12/15/16/24), so a future Sprintax recording
+    // compares against exactly these ids.
     const { lines, blocked } = engineLines('P3', 2026);
-    expect(lines.size).toBe(0);
-    expect(blocked).toContain('form-1040nr');
+    expect(blocked).not.toContain('form-1040nr');
+    expect(lines.get(LINE_IDS.deduction)).toBe(0); // no standard deduction, ever
+    expect(lines.get(LINE_IDS.taxableIncome)).toBe(12000);
+    expect(lines.get(LINE_IDS.tax)).toBeCloseTo(1200, 0); // 10% from the first dollar
   });
 });
 
@@ -124,7 +129,9 @@ describe('the C-phase gate', () => {
     const status = validationStatus(runs);
 
     expect(status.required).toEqual(['P1', 'P2']);
-    expect(status.deferred.some((d) => d.persona === 'P3' && d.until === 'E1')).toBe(true);
+    expect(
+      status.deferred.some((d) => d.persona === 'P3' && d.until === 'Sprintax recording'),
+    ).toBe(true);
 
     const satisfied = status.required.every((p) => (status.recordedTools[p] ?? []).length >= 2);
     // The gate is exactly its definition — this test passes before the

@@ -246,12 +246,18 @@ describe('the root fork, wired through', () => {
     make('w2-wages', { kind: 'number', value: 12000 }),
   ];
 
-  it('blocks a nonresident year on the 1040-NR by name, never resident rates', () => {
+  it('computes a nonresident year as the 1040-NR — no standard deduction, ever', () => {
+    // Before E1 this asserted the year was blocked; the flip to a computed
+    // 1040-NR is E1's acceptance. The shape is the point: taxed from the
+    // first dollar, because the standard deduction does not exist here.
     const result = evaluateYear(f1(), 2026);
     expect(result.residency.status).toBe('nonresident');
-    expect(result.liability).toBeNull();
-    expect(result.blocked).toContain('form-1040nr');
+    expect(result.blocked).not.toContain('form-1040nr');
+    if (result.liability === null) throw new Error('expected the 1040-NR liability');
+    expect(result.liability.deduction).toBe(0);
+    expect(result.liability.taxableIncome).toBe(12000);
     expect(JSON.stringify(result.notes)).toContain('1040-NR');
+    expect(result.nonresident?.status).toBe('computed');
   });
 
   it('feeds residency into dependency without a hand-asserted fact', () => {
@@ -290,9 +296,15 @@ describe('the root fork, wired through', () => {
     if (!citizen || !alien) throw new Error('expected both branches');
 
     expect(citizen.evaluation.liability).not.toBeNull();
-    expect(alien.evaluation.liability).toBeNull();
-    expect(alien.evaluation.blocked).toContain('form-1040nr');
-    expect(result.blockedDiffers.map((b) => b.item)).toContain('form-1040nr');
+    // Since E1 BOTH branches compute — the root fork is priced in dollars
+    // now, not in blocked forms: the citizen's standard deduction shelters
+    // the $12,000 entirely; the nonresident pays income tax from the
+    // first dollar (10% to the bracket top: $1,200).
+    expect(alien.evaluation.liability).not.toBeNull();
+    expect(alien.evaluation.liability?.deduction).toBe(0);
+    expect(citizen.evaluation.liability?.incomeTax).toBe(0);
+    expect(alien.evaluation.liability?.incomeTax).toBeCloseTo(1200, 0);
+    expect(result.delta).toBeGreaterThan(0);
     expect(result.alsoChanges).toContain('residency-status');
   });
 });

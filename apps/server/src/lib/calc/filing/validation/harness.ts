@@ -82,8 +82,10 @@ const TOLERANCE = 1;
 
 /**
  * The engine's side of the comparison for a persona fixture, as 1040 lines.
- * Null liability (a 1040-NR year, an unmade election) yields no lines and
- * the blocked names — P3 is untestable-externally by design until E-phase.
+ * Null liability (an unmade election, income E1 refuses) yields no lines
+ * and the blocked names. A computed 1040-NR emits the same core line ids —
+ * the 1040-NR shares the 1040's numbering for lines 11/12/15/16/24, so a
+ * Sprintax recording compares against exactly this surface.
  */
 export function engineLines(personaId: string, taxYear: number) {
   const fixture = PERSONA_FIXTURES.find(
@@ -218,8 +220,8 @@ export function validationStatus(runs: RecordedRun[]): ValidationStatus {
     deferred: [
       {
         persona: 'P3',
-        until: 'E1',
-        why: 'A 1040-NR needs a nonresident-capable tool (Sprintax or equivalent) and an engine that computes the return — both land with E-phase.',
+        until: 'Sprintax recording',
+        why: 'The engine computes the 1040-NR since E1; what remains is the external run against a nonresident-capable tool (Sprintax or equivalent), recorded like the resident personas.',
       },
     ],
     gateOpen,

@@ -146,4 +146,17 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'to/2024-predates' },
   { id: 'to/2029-sunset' },
   { id: 'to/2028-inside-window-awaits-figures' },
+  // E1 — the 1040-NR shape (1040-NR instructions; Pub 519; IRC §871(i))
+  { id: 'nr/p3-wage-year' },
+  { id: 'nr/exempt-interest-finding' },
+  { id: 'nr/scholarship-is-eci' },
+  { id: 'nr/state-tax-itemizes' },
+  { id: 'nr/married-files-separately' },
+  { id: 'nr/joint-election-refused' },
+  { id: 'nr/married-unknown-refused' },
+  { id: 'nr/dividends-are-fdap-refused' },
+  { id: 'nr/gains-turn-on-presence-refused' },
+  { id: 'nr/gig-work-refused' },
+  { id: 'nr/marketplace-refused' },
+  { id: 'nr/credits-explained-not-hidden' },
 ];

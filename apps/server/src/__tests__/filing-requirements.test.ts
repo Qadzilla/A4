@@ -159,10 +159,13 @@ describe('required forms', () => {
     expect(ids).toContain('form-1040-nr');
     expect(ids).toContain('form-8843');
     expect(ids).not.toContain('form-1040');
-    // Both are honest refusals until E-phase.
+    // E1 computes the 1040-NR; the 8843 stays an honest refusal until E2.
     const nr = forms.find((f) => f.form === 'form-1040-nr');
-    expect(nr?.supported).toBe(false);
-    expect(nr?.ifUnsupported?.whatItMeans.length).toBeGreaterThan(0);
+    expect(nr?.supported).toBe(true);
+    expect(nr?.ifUnsupported).toBeNull();
+    const f8843 = forms.find((f) => f.form === 'form-8843');
+    expect(f8843?.supported).toBe(false);
+    expect(f8843?.ifUnsupported?.whatItMeans.length).toBeGreaterThan(0);
   });
 
   it('P2: the kiddie requirement rides the dependency machinery, with the amounts named', () => {
@@ -237,10 +240,11 @@ describe('the scope object', () => {
     // The lot engine + exports build 8949/Sch D worksheets; the estimator
     // computes the 1040 core; D3 ships the 8962 reconciliation; D4 the
     // simple-expense Schedule C and SE arithmetic; D7 the tips/overtime
-    // deductions and the 4137. Nothing else has shipped — nothing else
-    // claims.
+    // deductions and the 4137; E1 the 1040-NR shape. Nothing else has
+    // shipped — nothing else claims.
     expect(supported).toEqual([
       'form-1040',
+      'form-1040-nr',
       'form-4137',
       'form-8949',
       'form-8962',

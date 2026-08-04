@@ -5,6 +5,7 @@ import { CAPITAL_GAINS_FIXTURES } from '../lib/calc/filing/fixtures/capital-gain
 import { DEPENDENCY_FIXTURES } from '../lib/calc/filing/fixtures/dependency';
 import { EDUCATION_FIXTURES } from '../lib/calc/filing/fixtures/education';
 import { CORPUS_LEDGER } from '../lib/calc/filing/fixtures/ledger';
+import { NONRESIDENT_FIXTURES } from '../lib/calc/filing/fixtures/nonresident';
 import { PENALTY_FIXTURES } from '../lib/calc/filing/fixtures/penalty';
 import { PERSONA_FIXTURES } from '../lib/calc/filing/fixtures/personas';
 import { PTC_FIXTURES } from '../lib/calc/filing/fixtures/ptc';
@@ -33,6 +34,7 @@ const ALL: FilingFixture<unknown>[] = [
   ...SELF_EMPLOYMENT_FIXTURES,
   ...CAPITAL_GAINS_FIXTURES,
   ...TIPS_OVERTIME_FIXTURES,
+  ...NONRESIDENT_FIXTURES,
   ...PERSONA_FIXTURES,
 ];
 

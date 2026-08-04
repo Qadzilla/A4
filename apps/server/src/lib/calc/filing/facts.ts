@@ -179,6 +179,12 @@ export const FACT_REGISTRY = {
     label:
       "The job appears on Treasury's list of occupations that customarily received tips before 2025",
   },
+  'scholarship-federal-withheld': {
+    kind: 'number',
+    scope: 'year',
+    label:
+      'Federal tax withheld on a scholarship (1042-S box 7a — nonresident scholarship reporting)',
+  },
   'realized-long-gains': {
     kind: 'number',
     scope: 'year',
