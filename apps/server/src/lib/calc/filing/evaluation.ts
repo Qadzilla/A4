@@ -25,6 +25,7 @@ import {
   determineCapitalGains,
 } from './capital-gains';
 import { type DependencyDetermination, determineDependency } from './dependency';
+import { type DualStatusBrief, determineDualStatusBrief } from './dual-status';
 import { type EducationDetermination, determineEducation } from './education';
 import { type FactAssertion, type FactId, factSet, factState, makeAssertion } from './facts';
 import { type FilingStatusDetermination, determineFilingStatus } from './filing-status';
@@ -71,6 +72,8 @@ export interface YearEvaluation {
   nonresident: NonresidentDetermination | null;
   /** Treaty benefits (E3) — null when no citizenship/visa facts put one in play. */
   treaties: TreatyDetermination | null;
+  /** The E5 brief — present exactly when the year straddles residency. */
+  dualStatus: DualStatusBrief | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -266,6 +269,7 @@ export function evaluateYear(
         tipsOvertime: null,
         nonresident,
         treaties,
+        dualStatus: null,
         blocked,
         notes,
       };
@@ -330,6 +334,7 @@ export function evaluateYear(
       tipsOvertime: null,
       nonresident,
       treaties,
+      dualStatus: null,
       liability: {
         incomeTax: nrTax,
         // No NIIT (NRAs are outside §1411), no SE tax, no Schedule 2
@@ -360,10 +365,17 @@ export function evaluateYear(
     };
   }
   if (residency.status === 'dual-status') {
+    // E5: the best refusal in the product — no dual-status return is
+    // computed (the fence), but the brief organises everything already
+    // known so the preparer meeting is twenty minutes, not two hours.
+    const dualStatus = determineDualStatusBrief(assertions, taxYear);
     blocked.push('dual-status-year');
     notes.push(
-      'An arrival or departure year splits into resident and nonresident windows — genuinely specialist work, briefed at E5. No single liability exists.',
+      'An arrival or departure year splits into resident and nonresident windows — genuinely specialist work. No single liability exists; the dual-status brief carries everything already known.',
     );
+    if (dualStatus !== null) {
+      notes.push(...(dualStatus.explanation.notes ?? []));
+    }
     return {
       residency,
       dependency,
@@ -378,6 +390,7 @@ export function evaluateYear(
       tipsOvertime: null,
       nonresident: null,
       treaties: null,
+      dualStatus,
       blocked,
       notes,
     };
@@ -401,6 +414,7 @@ export function evaluateYear(
       tipsOvertime: null,
       nonresident: null,
       treaties: null,
+      dualStatus: null,
       blocked,
       notes,
     };
@@ -425,6 +439,7 @@ export function evaluateYear(
       tipsOvertime: null,
       nonresident: null,
       treaties: null,
+      dualStatus: null,
       blocked,
       notes,
     };
@@ -445,6 +460,7 @@ export function evaluateYear(
       tipsOvertime: null,
       nonresident: null,
       treaties: null,
+      dualStatus: null,
       blocked,
       notes,
     };
@@ -473,6 +489,7 @@ export function evaluateYear(
       tipsOvertime: null,
       nonresident: null,
       treaties: null,
+      dualStatus: null,
       blocked,
       notes,
     };
@@ -757,6 +774,7 @@ export function evaluateYear(
     tipsOvertime,
     nonresident: null,
     treaties,
+    dualStatus: null,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:

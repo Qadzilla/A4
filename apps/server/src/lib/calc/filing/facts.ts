@@ -200,6 +200,12 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'The work was authorized employment (on-campus, or CPT/OPT for off-campus)',
   },
+  'first-presence-date': {
+    kind: 'date',
+    scope: 'year',
+    label:
+      'First day physically present in the US during the year (unrecorded assumes present from January 1 — the continuing case)',
+  },
   'realized-long-gains': {
     kind: 'number',
     scope: 'year',

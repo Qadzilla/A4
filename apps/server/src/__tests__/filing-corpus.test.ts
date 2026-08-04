@@ -3,6 +3,7 @@ import { evaluateYear } from '../lib/calc/filing/evaluation';
 import { type FactAssertion, makeAssertion } from '../lib/calc/filing/facts';
 import { CAPITAL_GAINS_FIXTURES } from '../lib/calc/filing/fixtures/capital-gains';
 import { DEPENDENCY_FIXTURES } from '../lib/calc/filing/fixtures/dependency';
+import { DUAL_STATUS_FIXTURES } from '../lib/calc/filing/fixtures/dual-status';
 import { EDUCATION_FIXTURES } from '../lib/calc/filing/fixtures/education';
 import { FICA_REFUND_FIXTURES } from '../lib/calc/filing/fixtures/fica-refund';
 import { FORM_8843_FIXTURES } from '../lib/calc/filing/fixtures/form-8843';
@@ -41,6 +42,7 @@ const ALL: FilingFixture<unknown>[] = [
   ...FORM_8843_FIXTURES,
   ...TREATY_FIXTURES,
   ...FICA_REFUND_FIXTURES,
+  ...DUAL_STATUS_FIXTURES,
   ...PERSONA_FIXTURES,
 ];
 

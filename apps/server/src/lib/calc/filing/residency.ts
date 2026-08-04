@@ -38,6 +38,12 @@ export interface ResidencyDetermination {
    * withholding on authorized work. E4 turns this flag into found money.
    */
   ficaExempt: boolean;
+  /**
+   * Pub 519 residency starting date, where the rule yields one: Jan 1 for a
+   * full resident year, the first presence day for a dual-status straddle,
+   * null when mid-year with no date on file. Absent on non-SPT paths.
+   */
+  residencyStartDate?: string | null;
   explanation: RuleTrace;
   /** What was consulted — the consumed list for a rule-sourced assertion. */
   consumed: FactId[];
@@ -298,22 +304,32 @@ export function determineResidency(
     };
   }
 
-  // Met the test in the very year of first arrival: the residency starting
-  // date falls mid-year and the year is dual-status — E5's brief, not a
-  // return this engine computes. A continuing student's year six starts
-  // with presence on January 1st, which is a full resident year.
-  if (firstEntry === taxYear) {
+  // The test is met — now WHERE residency starts decides the year's shape
+  // (Pub 519: under substantial presence, residency starts on the first day
+  // of presence in the calendar year). A continuing student present from
+  // January 1st is a full resident year. A mid-year return — the year-six
+  // F-1 who spent the spring abroad — makes the year DUAL-STATUS: E5's
+  // brief, not a return this engine computes. The first-presence-date fact
+  // carries the boundary; unrecorded assumes January 1st, the continuing
+  // case (the same decidable-path preference as the exempt clock).
+  const firstPresence = value<string>(read('first-presence-date', current), 'first-presence-date');
+  const midYearStart =
+    (firstPresence !== null && firstPresence > `${taxYear}-01-01`) || firstEntry === taxYear;
+  if (midYearStart) {
     return {
       status: 'dual-status',
       rule: 'substantial-presence',
       exemptYearsUsed,
       form8843Required: false,
       ficaExempt: false,
+      residencyStartDate: firstPresence,
       explanation: {
         ...trace,
         notes: [
           ...(trace.notes ?? []),
-          'First year of presence with the test met — residency starts mid-year, making this a dual-status year.',
+          firstPresence !== null
+            ? `Residency starts ${firstPresence} — the first day of presence this year — making the months before it a nonresident window and the year dual-status.`
+            : 'First year of presence with the test met — residency starts mid-year, making this a dual-status year.',
         ],
       },
       consumed,
@@ -326,6 +342,7 @@ export function determineResidency(
     exemptYearsUsed,
     form8843Required: false,
     ficaExempt: false,
+    residencyStartDate: `${taxYear}-01-01`,
     explanation: trace,
     consumed,
   };

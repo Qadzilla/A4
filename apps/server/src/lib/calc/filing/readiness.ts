@@ -18,6 +18,7 @@
 //               not yet due (the calendar truth: "ready" before the papers
 //               can exist is a caution, not a green light)
 
+import type { DualStatusBrief } from './dual-status';
 import { type EvaluationExtras, evaluateYear } from './evaluation';
 import {
   FACT_REGISTRY,
@@ -61,6 +62,11 @@ export interface Blocker {
     | 'computation'
     | 'unanswered-question';
   reason: string;
+  /**
+   * E5: a dual-status year blocks WITH its brief — detect, name, explain,
+   * refuse, and hand over everything already known (Doctrine 7's shape).
+   */
+  briefing?: DualStatusBrief;
 }
 
 export interface Contradiction {
@@ -171,6 +177,16 @@ export function assessReadiness(
   // rest are computation states only the evaluation knows.
   for (const item of evaluation.blocked) {
     if (item === 'form-1040nr' || item === 'form-8615') continue;
+    if (item === 'dual-status-year') {
+      blockers.push({
+        id: 'computation:dual-status-year',
+        from: 'computation',
+        reason:
+          'The year straddles residency — a dual-status return is genuinely specialist work Basis refuses to compute. The brief attached here is everything already known, organised so the preparer meeting is twenty minutes instead of two hours.',
+        briefing: evaluation.dualStatus ?? undefined,
+      });
+      continue;
+    }
     blockers.push({
       id: `computation:${item}`,
       from: 'computation',

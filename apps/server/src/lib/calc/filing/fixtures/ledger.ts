@@ -185,4 +185,11 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'fica/unauthorized-work-refused' },
   { id: 'fica/authorization-unknown-assumed' },
   { id: 'fica/citizen-owes-fica' },
+  // E5 — dual-status years (Pub 519 dual-status chapter; the brief is the product)
+  { id: 'ds/arrival-straddle-detected' },
+  { id: 'ds/continuing-student-full-resident' },
+  { id: 'ds/no-date-defaults-continuing' },
+  { id: 'ds/mid-five-years-not-triggered' },
+  { id: 'ds/december-arrival-cruel-case' },
+  { id: 'ds/brief-says-annual-means-annual' },
 ];
