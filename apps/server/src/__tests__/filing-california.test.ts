@@ -91,8 +91,9 @@ describe('the wiring', () => {
   it('the state computes alongside the federal return without touching it', () => {
     const withState = evaluateYear(californian(), 2025);
     if (withState.liability === null) throw new Error('expected liability');
-    expect(withState.state?.status).toBe('computed');
-    expect(Math.round(withState.state?.taxAfterCredits ?? 0)).toBe(663);
+    if (withState.state?.stateCode !== 'CA') throw new Error('expected the California return');
+    expect(withState.state.status).toBe('computed');
+    expect(Math.round(withState.state.taxAfterCredits)).toBe(663);
 
     // The same person in Texas: identical federal numbers, no state at all.
     const texan = evaluateYear(
@@ -125,6 +126,7 @@ describe('the wiring', () => {
     const withoutGains = evaluateYear(californian(), 2025);
     expect(result.liability.incomeTax).toBe(withoutGains.liability?.incomeTax);
     // …and California charges its ordinary rate on every dollar of it.
+    if (result.state.stateCode !== 'CA') throw new Error('expected the California return');
     expect(result.state.taxOnCapitalGains).toBeGreaterThan(0);
     expect(JSON.stringify(result.notes)).toContain('no 0% window');
   });

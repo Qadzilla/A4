@@ -36,6 +36,7 @@ import { type ResidencyDetermination, determineResidency } from './residency';
 import { type SaversCreditDetermination, determineSaversCredit } from './savers-credit';
 import { type SelfEmploymentDetermination, determineSelfEmployment } from './self-employment';
 import { type CaliforniaDetermination, determineCalifornia } from './states/california';
+import { type NewYorkDetermination, determineNewYork } from './states/new-york';
 import { type TipsOvertimeDetermination, determineTipsOvertime } from './tips-overtime';
 import { type TreatyDetermination, determineTreatyBenefits } from './treaties';
 import { filingYearData } from './year-data';
@@ -76,7 +77,7 @@ export interface YearEvaluation {
   /** The E5 brief — present exactly when the year straddles residency. */
   dualStatus: DualStatusBrief | null;
   /** The state return (F-phase) — null when the state isn't modelled yet. */
-  state: CaliforniaDetermination | null;
+  state: CaliforniaDetermination | NewYorkDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -789,7 +790,27 @@ export function evaluateYear(
     // preferentially: long-term gains plus qualified dividends.
     capitalGains: data.capitalGainsLong,
   });
-  const state = californiaDet.status === 'not-applicable' ? null : californiaDet;
+  // New York reaches a year two ways — living there, or working for a
+  // New York employer from anywhere else (the convenience rule), so it
+  // is asked even when the person lives in another state entirely.
+  const newYorkDet = determineNewYork(augmented, taxYear, {
+    federalAgi: result.agi,
+    filingStatus: filingStatus.status,
+    canBeClaimed: dependency.canBeClaimed,
+    residencyStatus: residency.status,
+    stateOfResidence: ((): string | null => {
+      const s = factState(set, 'state-of-residence');
+      return s.status === 'known' && s.value.kind === 'string' ? s.value.value : null;
+    })(),
+    wages: wages ?? 0,
+  });
+
+  const state: CaliforniaDetermination | NewYorkDetermination | null =
+    newYorkDet.status !== 'not-applicable'
+      ? newYorkDet
+      : californiaDet.status === 'not-applicable'
+        ? null
+        : californiaDet;
   if (state !== null) {
     notes.push(...(state.explanation.notes ?? []));
     notes.push(...state.refusals);

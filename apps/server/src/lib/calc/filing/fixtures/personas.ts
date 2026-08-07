@@ -195,16 +195,18 @@ export const PERSONA_FIXTURES: PersonaFixture[] = [
       { factId: 'brokerage-account', value: bool(true) },
       { factId: 'sold-investments', value: bool(true) },
       { factId: 'realized-short-gains', value: num(2000) },
+      // F2: the employer-location fact this persona waited for since A7.
+      { factId: 'employer-state', value: str('NY') },
     ],
     expected: {
       2026: {
         verdict: 'blocked',
-        formsRequired: ['form-1040', 'form-8949', 'sch-d', 'state-ma-1'],
+        formsRequired: ['form-1040', 'form-8949', 'sch-d', 'state-ma-1', 'state-ny-it201'],
         outOfScopeInclude: ['state-ma-1'],
         expectationsInclude: ['W-2', '1099-B'],
       },
     },
-    note: "Blocked on the Massachusetts return until F3 — where the 8.5% short-term class and the netting rules live. The other half of this persona, New York's convenience-of-the-employer rule, needs an employer-location fact the registry gains at F2; its absence here is the traceability marker.",
+    note: "Both halves of this persona at last. New York's convenience-of-the-employer rule reaches the whole $65,000 despite the person never leaving Boston — F2 computes that side and requires the IT-203. Massachusetts itself is still blocked until F3, where the 8.5% short-term class and the netting rules live; the credit MA gives for the New York tax is F4's.",
   },
   {
     id: 'persona/p6-parlay-and-a-401k',

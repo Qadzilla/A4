@@ -50,6 +50,7 @@ export type RenterCreditStatus =
   | 'unknown';
 
 export interface CaliforniaDetermination {
+  stateCode: 'CA';
   status: CaliforniaStatus;
   /** Federal AGI plus the enumerated conformity adjustments. */
   caAgi: number;
@@ -125,6 +126,7 @@ export function determineCalifornia(
   const finish = (
     partial: Partial<CaliforniaDetermination> & { status: CaliforniaStatus },
   ): CaliforniaDetermination => ({
+    stateCode: 'CA',
     caAgi: 0,
     hsaAddBack: 0,
     standardDeduction: 0,

@@ -200,6 +200,42 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'The work was authorized employment (on-campus, or CPT/OPT for off-campus)',
   },
+  'months-in-nyc': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Months living in New York City — any borough (the city charges its own income tax)',
+  },
+  'months-in-yonkers': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Months living in Yonkers (residents pay a surcharge on top of the state tax)',
+  },
+  'yonkers-wages': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Wages earned working inside Yonkers while living somewhere else',
+  },
+  'employer-state': {
+    kind: 'string',
+    scope: 'year',
+    label: "The state the employer's office is in, whatever state the work was actually done from",
+  },
+  'work-outside-employer-necessity': {
+    kind: 'bool',
+    scope: 'year',
+    label:
+      "Working from another state was the employer's own requirement, not the worker's choice (a narrow, factual test)",
+  },
+  'ny-permanent-abode': {
+    kind: 'bool',
+    scope: 'year',
+    label: 'Kept a place to live in New York available year-round (a lease, a room, a family home)',
+  },
+  'days-present-ny': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Days physically present in New York State during the year (any part of a day counts)',
+  },
   'rent-months-california': {
     kind: 'number',
     scope: 'year',

@@ -1,43 +1,30 @@
-// ─── F2 · New York figures, by year — PARTIAL, NOT YET WIRED ───────
+// ─── F2 · New York figures, by year ────────────────────────────────
+// Every number below was read off tax.ny.gov's own tables on
+// 2026-08-04, not from a summary:
+//   brackets, NYC brackets, household credits, NYC school tax credit,
+//   Yonkers resident surcharge  — 2025 IT-201-I instructions
+//   standard deductions          — tax.ny.gov/pit/file/standard_deductions
+//   Yonkers nonresident rate     — 2025 Form Y-203-I, line 6 ("the rate
+//                                  of 0.5% (.005)") and its $3,000
+//                                  no-filing floor
+//   college tuition credit       — 2025 Form IT-272-I ($400 per eligible
+//                                  student, refundable, undergraduate
+//                                  only, full-year residents only)
 //
-// STATUS: this file is transcription-complete for the rate schedules and
-// nothing else. No module imports it yet, and New York is still
-// unsupported in SCOPE. It exists so the primary-source transcription
-// below is not repeated — everything here was read off tax.ny.gov's own
-// tables on 2026-08-04, not from a summary.
+// Deliberately NOT modelled, with reasons:
+//   The AGI-over-$107,650 tax computation. New York claws back the
+//   benefit of its lower brackets through roughly ten banded worksheets
+//   (IT-201-I "Tax computation worksheets 1–10"), each phasing a
+//   flat-rate figure in over a $50,000 span. Above that threshold the
+//   module REFUSES by name rather than computing the plain schedule,
+//   which would understate the bill. Nobody in this product's audience
+//   is near it; a silent understatement for the ones who are would be
+//   the worst kind of wrong.
 //
-// VERIFIED (safe to build on):
-//   • NYS 2025 rate schedules, all three — 2025 IT-201-I instructions,
-//     the "If line 38 is / The tax is" tables.
-//   • NYC 2025 resident rate schedules, all three — same instructions,
-//     the "If line 47 is" tables.
-//   • NYS 2025 standard deductions — tax.ny.gov/pit/file/standard_deductions.
-//   • NYC school tax credit RATE REDUCTION amount — same instructions.
-//   • Yonkers resident surcharge: 16.75% of net state tax, confirmed off
-//     the Yonkers worksheet itself ("n. Yonkers resident tax rate (16.75%)").
-//
-// STILL UNVERIFIED — do not code these from memory:
-//   • Yonkers NONRESIDENT earnings tax rate (Form Y-203). Believed 0.5%
-//     of Yonkers-source wages; NOT confirmed against Y-203.
-//   • NYC school tax credit FIXED amount. The gates are confirmed
-//     (no credit if claimable as a dependent, or income over $250,000);
-//     the dollar amounts are not.
-//   • College tuition credit / itemized deduction (Form IT-272) — the
-//     contract's NY oblivious-money item. Nothing verified.
-//   • The NY "tax computation" recapture for AGI over $107,650, which
-//     claws back the benefit of the lower brackets. NY is unusual in
-//     having this and a module without it OVERSTATES nobody but
-//     UNDERSTATES higher earners. Must be built before NY ships.
-//
-// ALSO STILL OWED (logic, not figures):
-//   • Convenience of the employer (TSB-M-06(5)I) — the reason F2 exists.
-//     Needs registry facts for the employer's office state, days worked
-//     outside NY, and the narrow employer-necessity escape.
-//   • Statutory residency: 183 days + a permanent place of abode makes a
-//     New York resident even while domiciled elsewhere. Detect, explain,
-//     refuse the dual-resident computation (F4's).
-//   • The evaluation's `state` field is typed to California alone; it
-//     becomes a union when a second state lands.
+//   Household credits are carried for SINGLE filers only (tables 1 and
+//   4). The joint/HoH tables vary by dependent count, which this
+//   audience does not have; a joint filer simply gets no household
+//   credit computed rather than a guessed one.
 
 import type { TaxBracket } from '../../tax-data';
 
@@ -49,8 +36,19 @@ export interface NewYorkYearData {
   standardDeduction: { single: number; mfj: number; mfs: number; hoh: number };
   /** A claimable dependent filing single gets this instead. */
   dependentStandardDeduction: number;
+  /** Over this NY AGI the banded recapture worksheets apply — we refuse. */
+  recaptureThreshold: number;
   /** Yonkers residents pay this share of their net state tax, on top. */
   yonkersResidentSurchargeRate: number;
+  yonkersNonresident: { rate: number; noFilingFloor: number };
+  nycSchoolTaxCredit: { single: number; joint: number; incomeLimit: number };
+  /** IT-272: per eligible student, refundable. The exact figure is the
+   *  form's worksheet, so only eligibility and the cap live here. */
+  collegeTuitionCredit: { maxPerStudent: number; expenseCap: number };
+  /** IT-201-I household credit table 1 — single filers, by federal AGI. */
+  householdCreditSingle: Array<{ upTo: number; credit: number }>;
+  /** IT-201-I NYC household credit table 4 — single filers. */
+  nycHouseholdCreditSingle: Array<{ upTo: number; credit: number }>;
 }
 
 const NY_DATA: Record<number, NewYorkYearData> = {
@@ -132,7 +130,23 @@ const NY_DATA: Record<number, NewYorkYearData> = {
     },
     standardDeduction: { single: 8000, mfj: 16050, mfs: 8000, hoh: 11200 },
     dependentStandardDeduction: 3100,
+    recaptureThreshold: 107650,
     yonkersResidentSurchargeRate: 0.1675,
+    yonkersNonresident: { rate: 0.005, noFilingFloor: 3000 },
+    nycSchoolTaxCredit: { single: 63, joint: 125, incomeLimit: 250000 },
+    collegeTuitionCredit: { maxPerStudent: 400, expenseCap: 10000 },
+    householdCreditSingle: [
+      { upTo: 5000, credit: 75 },
+      { upTo: 6000, credit: 60 },
+      { upTo: 7000, credit: 50 },
+      { upTo: 20000, credit: 45 },
+      { upTo: 25000, credit: 40 },
+      { upTo: 28000, credit: 20 },
+    ],
+    nycHouseholdCreditSingle: [
+      { upTo: 10000, credit: 15 },
+      { upTo: 12500, credit: 10 },
+    ],
   },
 };
 

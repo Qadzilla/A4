@@ -190,8 +190,8 @@ export const SCOPE: { version: number; forms: Record<FormId, ScopeEntry> } = {
       whatItMeans: 'The California return — its own rules, credits and rates.',
     },
     'state-ny-it201': {
-      supported: false,
-      plannedAt: 'F2',
+      supported: true, // F2: state, city and Yonkers compute for full-year residents
+      plannedAt: null,
       whatItMeans: 'The New York return — state, city and Yonkers taxes in one filing.',
     },
     'state-ma-1': {
@@ -555,6 +555,23 @@ export function requiredForms(
   const stateForm = state !== null ? stateForms[state] : undefined;
   if (stateForm) {
     out.push(requirement(stateForm, ['state-of-residence'], `Resident of ${state} for the year.`));
+  }
+
+  // F2: New York reaches non-residents through the convenience rule — a
+  // New York employer makes a New York return (the IT-203) required
+  // however far away the work was actually done.
+  const employerState = ((): string | null => {
+    const s = get('employer-state');
+    return s.status === 'known' && s.value.kind === 'string' ? s.value.value : null;
+  })();
+  if (employerState === 'NY' && state !== 'NY') {
+    out.push(
+      requirement(
+        'state-ny-it201',
+        ['employer-state'],
+        'Wages from a New York employer are New York income under its convenience-of-the-employer rule, so a New York nonresident return (IT-203) is required even without living there.',
+      ),
+    );
   }
 
   return out;

@@ -254,7 +254,8 @@ describe('the scope object', () => {
     // computes the 1040 core; D3 ships the 8962 reconciliation; D4 the
     // simple-expense Schedule C and SE arithmetic; D7 the tips/overtime
     // deductions and the 4137; E1 the 1040-NR shape; E2 the 8843; F1 the
-    // California 540. Nothing else has shipped — nothing else claims.
+    // California 540; F2 the New York return. Nothing else has shipped —
+    // nothing else claims.
     expect(supported).toEqual([
       'form-1040',
       'form-1040-nr',
@@ -267,6 +268,7 @@ describe('the scope object', () => {
       'sch-d',
       'sch-se',
       'state-ca-540',
+      'state-ny-it201',
     ]);
   });
 });
