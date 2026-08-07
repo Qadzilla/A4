@@ -195,8 +195,8 @@ export const SCOPE: { version: number; forms: Record<FormId, ScopeEntry> } = {
       whatItMeans: 'The New York return — state, city and Yonkers taxes in one filing.',
     },
     'state-ma-1': {
-      supported: false,
-      plannedAt: 'F3',
+      supported: true, // F3: classes, the mercies and the deductions ship
+      plannedAt: null,
       whatItMeans: 'The Massachusetts return — 8.5% on short-term gains, its own deductions.',
     },
   },

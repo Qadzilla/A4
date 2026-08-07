@@ -220,4 +220,17 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'ny/dependent-loses-the-tuition-credit' },
   { id: 'ny/recapture-refuses-rather-than-understates' },
   { id: 'ny/no-new-york-connection' },
+  // F3 — Massachusetts (mass.gov rates, exemptions, NTS/LIC; Form 1 line 29 worksheet)
+  { id: 'ma/wage-year-computes' },
+  { id: 'ma/short-term-beats-the-federal-bracket' },
+  { id: 'ma/no-tax-status-is-zero-not-less' },
+  { id: 'ma/limited-income-credit-caps-the-tax' },
+  { id: 'ma/limited-income-credit-does-not-always-bite' },
+  { id: 'ma/rental-deduction-is-half-the-rent' },
+  { id: 'ma/rent-unasked-is-priced' },
+  { id: 'ma/undergrad-loan-interest-in-full' },
+  { id: 'ma/losses-refuse-rather-than-overstate' },
+  { id: 'ma/mfs-gets-neither-mercy' },
+  { id: 'ma/2026-not-verified-refuses' },
+  { id: 'ma/not-a-massachusetts-year' },
 ];

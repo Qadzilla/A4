@@ -1,0 +1,264 @@
+// ─── Massachusetts fixtures (F3) ───────────────────────────────────
+// Arithmetic hand-computed in the notes against mass.gov's published
+// rates, exemptions and NTS/LIC thresholds. Figures live in ma-data.ts
+// with their sources.
+//
+// What this state exists to prove: the 8.5% short-term class that beats
+// most federal brackets at this income, and three mercies students hit
+// constantly and almost never claim — No Tax Status, the Limited Income
+// Credit, and deductions for rent and undergraduate loan interest that
+// are more generous than anything federal.
+
+import type { MassachusettsStatus } from '../states/massachusetts';
+import type { FilingFixture, FixtureFact } from './types';
+
+export interface MassachusettsExpected {
+  status: MassachusettsStatus;
+  partBTaxable?: number;
+  personalExemption?: number;
+  rentalDeduction?: number;
+  studentLoanDeduction?: number;
+  massachusettsAgi?: number;
+  /** Rounded to the dollar. */
+  taxBeforeMercies?: number;
+  noTaxStatus?: boolean;
+  limitedIncomeCredit?: number;
+  totalMassachusettsTax?: number;
+  missingFactsContain?: string;
+  refusalsContain?: string;
+  notesContain?: string;
+}
+
+export interface MassachusettsFixture extends FilingFixture<MassachusettsExpected> {
+  ctx: {
+    filingStatus: 'single' | 'mfj' | 'mfs' | 'hoh' | 'qss';
+    stateOfResidence: string | null;
+    seNetProfit: number;
+  };
+}
+
+const num = (v: number) => ({ kind: 'number', value: v }) as const;
+const str = (v: string) => ({ kind: 'string', value: v }) as const;
+
+const inMA = (): FixtureFact[] => [{ factId: 'state-of-residence', value: str('MA') }];
+
+const base = { filingStatus: 'single' as const, stateOfResidence: 'MA', seNetProfit: 0 };
+
+export const MASSACHUSETTS_FIXTURES: MassachusettsFixture[] = [
+  {
+    id: 'ma/wage-year-computes',
+    source: {
+      kind: 'authority',
+      citation:
+        'mass.gov: Part B income is taxed at 5%, and the single personal exemption is $4,400 (Form 1 line 2a).',
+    },
+    taxYear: 2025,
+    facts: [...inMA(), { factId: 'w2-wages', value: num(65000) }],
+    ctx: base,
+    expected: {
+      status: 'computed',
+      personalExemption: 4400,
+      partBTaxable: 60600,
+      taxBeforeMercies: 3030,
+      totalMassachusettsTax: 3030,
+    },
+    note: '65,000 − 4,400 exemption = 60,600 of Part B income at 5% = $3,030. Well over both mercy thresholds, so neither applies.',
+  },
+  {
+    id: 'ma/short-term-beats-the-federal-bracket',
+    source: {
+      kind: 'authority',
+      citation:
+        'mass.gov tax rates: Massachusetts taxes Part A short-term capital gains at 8.5%, against 5% on wages — higher than the federal bracket most of this audience is in.',
+    },
+    taxYear: 2025,
+    facts: [
+      ...inMA(),
+      { factId: 'w2-wages', value: num(65000) },
+      { factId: 'realized-short-gains', value: num(2000) },
+    ],
+    ctx: base,
+    expected: {
+      status: 'computed',
+      taxBeforeMercies: 3200,
+      notesContain: 'higher than the 5% it charges on wages',
+    },
+    note: "P5's $2,000 of short-term gain: 8.5% = $170 of Massachusetts tax on top of the $3,030 on wages. At a 12% federal bracket the state takes almost as much as the IRS does on that sale.",
+  },
+  {
+    id: 'ma/no-tax-status-is-zero-not-less',
+    source: {
+      kind: 'authority',
+      citation:
+        'mass.gov No Tax Status: a single filer whose Massachusetts AGI does not exceed $8,000 owes no Massachusetts income tax at all, but still files.',
+    },
+    taxYear: 2025,
+    facts: [...inMA(), { factId: 'w2-wages', value: num(7500) }],
+    ctx: base,
+    expected: {
+      status: 'computed',
+      noTaxStatus: true,
+      totalMassachusettsTax: 0,
+      notesContain: 'Not reduced: zero',
+    },
+    note: 'The finding students never hear: under the floor the state tax is zero, and filing is purely how the withholding comes back.',
+  },
+  {
+    id: 'ma/limited-income-credit-caps-the-tax',
+    source: {
+      kind: 'authority',
+      citation:
+        'Form 1 Line 29 worksheet: above No Tax Status but under $14,000 (single), the tax is capped at 10% of the excess of Massachusetts AGI over the $8,000 No Tax Status limit.',
+    },
+    taxYear: 2025,
+    facts: [...inMA(), { factId: 'w2-wages', value: num(10000) }],
+    ctx: base,
+    expected: {
+      status: 'computed',
+      noTaxStatus: false,
+      limitedIncomeCredit: 80,
+      totalMassachusettsTax: 200,
+      notesContain: 'Limited Income Credit',
+    },
+    note: 'MA AGI 10,000 — over the $8,000 floor, under the $14,000 ceiling. Regular tax: (10,000 − 4,400) × 5% = $280. The cap is 10% × (10,000 − 8,000) = $200, which is lower, so the credit takes $80 off and the tax is $200.',
+  },
+  {
+    id: 'ma/limited-income-credit-does-not-always-bite',
+    source: {
+      kind: 'adversarial',
+      rationale:
+        'The credit only helps where the 10%-of-excess cap falls BELOW the regular tax, which stops being true around $11,600 of income. A module that applied the cap unconditionally would OVERCHARGE everyone in the upper half of the band — this fixture pins that the engine compares rather than assumes.',
+    },
+    taxYear: 2025,
+    facts: [...inMA(), { factId: 'w2-wages', value: num(12000) }],
+    ctx: base,
+    expected: {
+      status: 'computed',
+      noTaxStatus: false,
+      limitedIncomeCredit: 0,
+      totalMassachusettsTax: 380,
+    },
+    note: 'MA AGI 12,000. Regular tax: (12,000 − 4,400) × 5% = $380. The cap is 10% × (12,000 − 8,000) = $400 — HIGHER than the tax, so it does not apply and the tax stays $380. The two LIC fixtures bracket the crossover at $11,600.',
+  },
+  {
+    id: 'ma/rental-deduction-is-half-the-rent',
+    source: {
+      kind: 'authority',
+      citation:
+        'mass.gov: a Massachusetts renter may deduct 50% of rent paid on a principal residence, capped at $4,000.',
+    },
+    taxYear: 2025,
+    facts: [
+      ...inMA(),
+      { factId: 'w2-wages', value: num(65000) },
+      { factId: 'rent-paid-massachusetts', value: num(24000) },
+    ],
+    ctx: base,
+    expected: {
+      status: 'computed',
+      rentalDeduction: 4000,
+      partBTaxable: 56600,
+      notesContain: 'Half your rent deducts',
+    },
+    note: '$24,000 of rent → half is 12,000, capped at 4,000. Worth $200 of tax at the 5% rate, for a lease you already signed.',
+  },
+  {
+    id: 'ma/rent-unasked-is-priced',
+    source: {
+      kind: 'adversarial',
+      rationale:
+        "Nobody volunteers their rent to a tax product. An unasserted rent fact must surface as a named missing fact with the money attached — this is the same oblivious-money pattern as California's renter credit.",
+    },
+    taxYear: 2025,
+    facts: [...inMA(), { factId: 'w2-wages', value: num(65000) }],
+    ctx: base,
+    expected: {
+      status: 'computed',
+      missingFactsContain: 'rent-paid-massachusetts',
+      notesContain: 'worth asking',
+    },
+  },
+  {
+    id: 'ma/undergrad-loan-interest-in-full',
+    source: {
+      kind: 'authority',
+      citation:
+        'mass.gov education deductions: Massachusetts allows a deduction for undergraduate student-loan interest with no ceiling and no phaseout, and it may be claimed alongside the federal deduction on different payments.',
+    },
+    taxYear: 2025,
+    facts: [
+      ...inMA(),
+      { factId: 'w2-wages', value: num(65000) },
+      { factId: 'student-loan-interest-paid', value: num(3200) },
+    ],
+    ctx: base,
+    expected: {
+      status: 'computed',
+      studentLoanDeduction: 3200,
+      notesContain: 'no $2,500 ceiling',
+    },
+    note: 'The federal deduction stops at $2,500 and phases out entirely at higher incomes. Massachusetts deducts the whole $3,200 regardless — state generosity nobody advertises.',
+  },
+  {
+    id: 'ma/losses-refuse-rather-than-overstate',
+    source: {
+      kind: 'adversarial',
+      rationale:
+        'Massachusetts nets capital losses in its own order — short against short, then against long, then up to $2,000 against interest and dividends, then carryforward. That ordering has not been transcribed from the Schedule B and D instructions, and applying rates to the gains while ignoring the losses would OVERSTATE the state tax. The module refuses instead of overcharging.',
+    },
+    taxYear: 2025,
+    facts: [
+      ...inMA(),
+      { factId: 'w2-wages', value: num(65000) },
+      { factId: 'realized-short-gains', value: num(-3000) },
+      { factId: 'realized-long-gains', value: num(5000) },
+    ],
+    ctx: base,
+    expected: { status: 'refused', refusalsContain: 'own order' },
+    note: "This is the contract's cruel case — short-term loss against long-term gain, the cross-class collar. It is exactly the case the ordering exists for, and exactly the case Basis will not guess at.",
+  },
+  {
+    id: 'ma/mfs-gets-neither-mercy',
+    source: {
+      kind: 'authority',
+      citation:
+        'mass.gov: "Married filing separate taxpayers don\'t qualify for either NTS or LIC." A real price of the filing-status election.',
+    },
+    taxYear: 2025,
+    facts: [...inMA(), { factId: 'w2-wages', value: num(7500) }],
+    ctx: { ...base, filingStatus: 'mfs' },
+    expected: {
+      status: 'computed',
+      noTaxStatus: false,
+      notesContain: 'qualifies for neither',
+    },
+    note: 'The same $7,500 that is tax-free for a single filer is taxable filing separately — the election costs the whole mercy.',
+  },
+  {
+    id: 'ma/2026-not-verified-refuses',
+    source: {
+      kind: 'adversarial',
+      rationale:
+        "Massachusetts sets the exemption and mercy thresholds annually. Only the year confirmed against mass.gov is loaded; carrying 2025's figures forward on the assumption nothing moved is exactly the guess this engine refuses to make.",
+    },
+    taxYear: 2026,
+    facts: [...inMA(), { factId: 'w2-wages', value: num(65000) }],
+    ctx: base,
+    expected: { status: 'refused', refusalsContain: "aren't verified" },
+  },
+  {
+    id: 'ma/not-a-massachusetts-year',
+    source: {
+      kind: 'adversarial',
+      rationale:
+        'A resident of anywhere else must produce nothing at all from the Massachusetts module.',
+    },
+    taxYear: 2025,
+    facts: [
+      { factId: 'state-of-residence', value: str('NH') },
+      { factId: 'w2-wages', value: num(65000) },
+    ],
+    ctx: { ...base, stateOfResidence: 'NH' },
+    expected: { status: 'not-applicable' },
+  },
+];

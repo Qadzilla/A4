@@ -275,7 +275,7 @@ export function determineNewYork(
   } else if (nycMonths > 0 && nycMonths < 12) {
     missing.push('months-in-nyc');
     notes.push(
-      `Part of the year in New York City means a part-year city return (Form IT-360.1) that prorates the city tax — allocation work Basis leaves to F4 rather than approximating.`,
+      'Part of the year in New York City means a part-year city return (Form IT-360.1) that prorates the city tax — allocation work Basis leaves to F4 rather than approximating.',
     );
   }
 

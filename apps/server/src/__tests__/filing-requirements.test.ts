@@ -205,24 +205,27 @@ describe('required forms', () => {
     expect(forms).toContain('form-5329');
   });
 
-  it('a state in scope produces its return row; one still waiting refuses by name', () => {
-    // F1 ships California, so the 540 is computed rather than refused.
-    const ca = requiredForms(
-      [...citizen(), make('state-of-residence', { kind: 'string', value: 'CA' })],
-      [],
-      2026,
-    ).find((f) => f.form === 'state-ca-540');
-    expect(ca?.supported).toBe(true);
-    expect(ca?.ifUnsupported).toBeNull();
+  it('all three F-phase states produce computed return rows', () => {
+    for (const [code, form] of [
+      ['CA', 'state-ca-540'],
+      ['NY', 'state-ny-it201'],
+      ['MA', 'state-ma-1'],
+    ] as const) {
+      const row = requiredForms(
+        [...citizen(), make('state-of-residence', { kind: 'string', value: code })],
+        [],
+        2026,
+      ).find((f) => f.form === form);
+      expect(row?.supported, `${code} supported`).toBe(true);
+      expect(row?.ifUnsupported, `${code} has no refusal`).toBeNull();
+    }
+  });
 
-    // Massachusetts is still F3's, and says so with its reason attached.
-    const ma = requiredForms(
-      [...citizen(), make('state-of-residence', { kind: 'string', value: 'MA' })],
-      [],
-      2026,
-    ).find((f) => f.form === 'state-ma-1');
-    expect(ma?.supported).toBe(false);
-    expect(ma?.ifUnsupported?.whyItApplies).toContain('MA');
+  it('a form still outside scope refuses by name, with its reason attached', () => {
+    const facts = [...citizen(), make('unemployment-income', { kind: 'number', value: 3200 })];
+    const sch1 = requiredForms(facts, [], 2026).find((f) => f.form === 'sch-1');
+    expect(sch1?.supported).toBe(false);
+    expect(sch1?.ifUnsupported?.whatItMeans.length).toBeGreaterThan(20);
   });
 
   it('digital-asset activity requires the sale forms with no document to stand on', () => {
@@ -268,6 +271,7 @@ describe('the scope object', () => {
       'sch-d',
       'sch-se',
       'state-ca-540',
+      'state-ma-1',
       'state-ny-it201',
     ]);
   });

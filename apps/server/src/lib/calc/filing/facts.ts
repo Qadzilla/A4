@@ -236,6 +236,11 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Days physically present in New York State during the year (any part of a day counts)',
   },
+  'rent-paid-massachusetts': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Rent paid for a Massachusetts home for the year (half of it deducts, up to a cap)',
+  },
   'rent-months-california': {
     kind: 'number',
     scope: 'year',

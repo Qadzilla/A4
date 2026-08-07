@@ -36,6 +36,7 @@ import { type ResidencyDetermination, determineResidency } from './residency';
 import { type SaversCreditDetermination, determineSaversCredit } from './savers-credit';
 import { type SelfEmploymentDetermination, determineSelfEmployment } from './self-employment';
 import { type CaliforniaDetermination, determineCalifornia } from './states/california';
+import { type MassachusettsDetermination, determineMassachusetts } from './states/massachusetts';
 import { type NewYorkDetermination, determineNewYork } from './states/new-york';
 import { type TipsOvertimeDetermination, determineTipsOvertime } from './tips-overtime';
 import { type TreatyDetermination, determineTreatyBenefits } from './treaties';
@@ -77,7 +78,7 @@ export interface YearEvaluation {
   /** The E5 brief — present exactly when the year straddles residency. */
   dualStatus: DualStatusBrief | null;
   /** The state return (F-phase) — null when the state isn't modelled yet. */
-  state: CaliforniaDetermination | NewYorkDetermination | null;
+  state: CaliforniaDetermination | NewYorkDetermination | MassachusettsDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -805,12 +806,26 @@ export function evaluateYear(
     wages: wages ?? 0,
   });
 
-  const state: CaliforniaDetermination | NewYorkDetermination | null =
+  const massachusettsDet = determineMassachusetts(augmented, taxYear, {
+    filingStatus: filingStatus.status,
+    stateOfResidence: ((): string | null => {
+      const s = factState(set, 'state-of-residence');
+      return s.status === 'known' && s.value.kind === 'string' ? s.value.value : null;
+    })(),
+    seNetProfit: se !== null && se.status === 'computed' ? se.netProfit : 0,
+  });
+
+  // New York wins where it applies, because the convenience rule can
+  // reach a resident of another state — the home state's own return is
+  // F4's multi-state work, not something to silently drop here.
+  const state: CaliforniaDetermination | NewYorkDetermination | MassachusettsDetermination | null =
     newYorkDet.status !== 'not-applicable'
       ? newYorkDet
-      : californiaDet.status === 'not-applicable'
-        ? null
-        : californiaDet;
+      : californiaDet.status !== 'not-applicable'
+        ? californiaDet
+        : massachusettsDet.status !== 'not-applicable'
+          ? massachusettsDet
+          : null;
   if (state !== null) {
     notes.push(...(state.explanation.notes ?? []));
     notes.push(...state.refusals);

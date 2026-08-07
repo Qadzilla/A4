@@ -202,11 +202,11 @@ export const PERSONA_FIXTURES: PersonaFixture[] = [
       2026: {
         verdict: 'blocked',
         formsRequired: ['form-1040', 'form-8949', 'sch-d', 'state-ma-1', 'state-ny-it201'],
-        outOfScopeInclude: ['state-ma-1'],
         expectationsInclude: ['W-2', '1099-B'],
+        blockersInclude: ['question:digital-asset-activity'],
       },
     },
-    note: "Both halves of this persona at last. New York's convenience-of-the-employer rule reaches the whole $65,000 despite the person never leaving Boston — F2 computes that side and requires the IT-203. Massachusetts itself is still blocked until F3, where the 8.5% short-term class and the netting rules live; the credit MA gives for the New York tax is F4's.",
+    note: "Both states now compute. New York's convenience-of-the-employer rule reaches the whole $65,000 despite the person never leaving Boston (F2), and Massachusetts charges 8.5% on the short-term gain where the federal bracket is 12% (F3). What is still missing is the credit Massachusetts gives for the New York tax — without it these two returns double-count, and that reconciliation is F4's. The year blocks on the digital-assets question, like every other persona that hasn't answered it.",
   },
   {
     id: 'persona/p6-parlay-and-a-401k',
