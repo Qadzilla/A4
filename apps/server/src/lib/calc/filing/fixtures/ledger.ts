@@ -192,4 +192,17 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'ds/mid-five-years-not-triggered' },
   { id: 'ds/december-arrival-cruel-case' },
   { id: 'ds/brief-says-annual-means-annual' },
+  // F1 — California (2025 Form 540 + instructions; FTB credit pages; FTB 3514)
+  { id: 'ca/wage-year-computes' },
+  { id: 'ca/no-zero-window-here' },
+  { id: 'ca/hsa-add-back' },
+  { id: 'ca/renters-credit-claimed' },
+  { id: 'ca/renters-credit-income-gate' },
+  { id: 'ca/renters-credit-unasked-is-priced' },
+  { id: 'ca/caleitc-pays-childless-young-workers' },
+  { id: 'ca/caleitc-investment-ceiling-is-a-cliff' },
+  { id: 'ca/dependent-loses-both-credits' },
+  { id: 'ca/2026-not-published-refuses' },
+  { id: 'ca/nonresident-alien-routes-to-540nr' },
+  { id: 'ca/not-a-californian' },
 ];

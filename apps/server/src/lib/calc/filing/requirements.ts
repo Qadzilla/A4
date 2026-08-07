@@ -185,8 +185,8 @@ export const SCOPE: { version: number; forms: Record<FormId, ScopeEntry> } = {
       whatItMeans: 'Social Security and Medicare on tips an employer never saw.',
     },
     'state-ca-540': {
-      supported: false,
-      plannedAt: 'F1',
+      supported: true, // F1: the 540 computes for full-year residents
+      plannedAt: null,
       whatItMeans: 'The California return — its own rules, credits and rates.',
     },
     'state-ny-it201': {

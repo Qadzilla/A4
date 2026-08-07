@@ -35,6 +35,7 @@ import { type PtcDetermination, type PtcMonth, determinePtc } from './ptc';
 import { type ResidencyDetermination, determineResidency } from './residency';
 import { type SaversCreditDetermination, determineSaversCredit } from './savers-credit';
 import { type SelfEmploymentDetermination, determineSelfEmployment } from './self-employment';
+import { type CaliforniaDetermination, determineCalifornia } from './states/california';
 import { type TipsOvertimeDetermination, determineTipsOvertime } from './tips-overtime';
 import { type TreatyDetermination, determineTreatyBenefits } from './treaties';
 import { filingYearData } from './year-data';
@@ -74,6 +75,8 @@ export interface YearEvaluation {
   treaties: TreatyDetermination | null;
   /** The E5 brief — present exactly when the year straddles residency. */
   dualStatus: DualStatusBrief | null;
+  /** The state return (F-phase) — null when the state isn't modelled yet. */
+  state: CaliforniaDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -270,6 +273,7 @@ export function evaluateYear(
         nonresident,
         treaties,
         dualStatus: null,
+        state: null,
         blocked,
         notes,
       };
@@ -335,6 +339,7 @@ export function evaluateYear(
       nonresident,
       treaties,
       dualStatus: null,
+      state: null,
       liability: {
         incomeTax: nrTax,
         // No NIIT (NRAs are outside §1411), no SE tax, no Schedule 2
@@ -391,6 +396,7 @@ export function evaluateYear(
       nonresident: null,
       treaties: null,
       dualStatus,
+      state: null,
       blocked,
       notes,
     };
@@ -415,6 +421,7 @@ export function evaluateYear(
       nonresident: null,
       treaties: null,
       dualStatus: null,
+      state: null,
       blocked,
       notes,
     };
@@ -440,6 +447,7 @@ export function evaluateYear(
       nonresident: null,
       treaties: null,
       dualStatus: null,
+      state: null,
       blocked,
       notes,
     };
@@ -461,6 +469,7 @@ export function evaluateYear(
       nonresident: null,
       treaties: null,
       dualStatus: null,
+      state: null,
       blocked,
       notes,
     };
@@ -490,6 +499,7 @@ export function evaluateYear(
       nonresident: null,
       treaties: null,
       dualStatus: null,
+      state: null,
       blocked,
       notes,
     };
@@ -761,6 +771,30 @@ export function evaluateYear(
     );
   }
 
+  // F1: the state return, an independent rule set over the same facts —
+  // never a percentage of the federal bill. California recomputes from
+  // federal AGI through its own conformity set, brackets and credits, and
+  // reports separately: state tax is not added into the federal totals.
+  const californiaDet = determineCalifornia(augmented, taxYear, {
+    federalAgi: result.agi,
+    filingStatus: filingStatus.status,
+    canBeClaimed: dependency.canBeClaimed,
+    residencyStatus: residency.status,
+    earnedIncome: (wages ?? 0) + (se !== null && se.status === 'computed' ? se.netProfit : 0),
+    // CalEITC's Worksheet 1 counts interest, the full ordinary-dividend
+    // box, and net capital gain — not the qualified subset separately.
+    investmentIncome:
+      (interest ?? 0) + (ordinaryDiv ?? 0) + Math.max(0, (longGains ?? 0) + (shortGains ?? 0)),
+    // The no-preference finding measures what the federal side treated
+    // preferentially: long-term gains plus qualified dividends.
+    capitalGains: data.capitalGainsLong,
+  });
+  const state = californiaDet.status === 'not-applicable' ? null : californiaDet;
+  if (state !== null) {
+    notes.push(...(state.explanation.notes ?? []));
+    notes.push(...state.refusals);
+  }
+
   return {
     residency,
     dependency,
@@ -775,6 +809,7 @@ export function evaluateYear(
     nonresident: null,
     treaties,
     dualStatus: null,
+    state,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:

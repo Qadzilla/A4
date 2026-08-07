@@ -205,11 +205,24 @@ describe('required forms', () => {
     expect(forms).toContain('form-5329');
   });
 
-  it('a supported state produces its return row, honestly unsupported until F-phase', () => {
-    const facts = [...citizen(), make('state-of-residence', { kind: 'string', value: 'CA' })];
-    const ca = requiredForms(facts, [], 2026).find((f) => f.form === 'state-ca-540');
-    expect(ca?.supported).toBe(false);
-    expect(ca?.ifUnsupported?.whyItApplies).toContain('CA');
+  it('a state in scope produces its return row; one still waiting refuses by name', () => {
+    // F1 ships California, so the 540 is computed rather than refused.
+    const ca = requiredForms(
+      [...citizen(), make('state-of-residence', { kind: 'string', value: 'CA' })],
+      [],
+      2026,
+    ).find((f) => f.form === 'state-ca-540');
+    expect(ca?.supported).toBe(true);
+    expect(ca?.ifUnsupported).toBeNull();
+
+    // Massachusetts is still F3's, and says so with its reason attached.
+    const ma = requiredForms(
+      [...citizen(), make('state-of-residence', { kind: 'string', value: 'MA' })],
+      [],
+      2026,
+    ).find((f) => f.form === 'state-ma-1');
+    expect(ma?.supported).toBe(false);
+    expect(ma?.ifUnsupported?.whyItApplies).toContain('MA');
   });
 
   it('digital-asset activity requires the sale forms with no document to stand on', () => {
@@ -240,8 +253,8 @@ describe('the scope object', () => {
     // The lot engine + exports build 8949/Sch D worksheets; the estimator
     // computes the 1040 core; D3 ships the 8962 reconciliation; D4 the
     // simple-expense Schedule C and SE arithmetic; D7 the tips/overtime
-    // deductions and the 4137; E1 the 1040-NR shape; E2 the 8843. Nothing
-    // else has shipped — nothing else claims.
+    // deductions and the 4137; E1 the 1040-NR shape; E2 the 8843; F1 the
+    // California 540. Nothing else has shipped — nothing else claims.
     expect(supported).toEqual([
       'form-1040',
       'form-1040-nr',
@@ -253,6 +266,7 @@ describe('the scope object', () => {
       'sch-c',
       'sch-d',
       'sch-se',
+      'state-ca-540',
     ]);
   });
 });

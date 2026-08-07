@@ -200,6 +200,11 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'The work was authorized employment (on-campus, or CPT/OPT for off-campus)',
   },
+  'rent-months-california': {
+    kind: 'number',
+    scope: 'year',
+    label: 'Months of the year renting a home in California (six or more earns a state credit)',
+  },
   'first-presence-date': {
     kind: 'date',
     scope: 'year',
