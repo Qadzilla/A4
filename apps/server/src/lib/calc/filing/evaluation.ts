@@ -37,6 +37,7 @@ import { type SaversCreditDetermination, determineSaversCredit } from './savers-
 import { type SelfEmploymentDetermination, determineSelfEmployment } from './self-employment';
 import { type CaliforniaDetermination, determineCalifornia } from './states/california';
 import { type MassachusettsDetermination, determineMassachusetts } from './states/massachusetts';
+import { type MultiStateDetermination, determineMultiState } from './states/multi-state';
 import { type NewYorkDetermination, determineNewYork } from './states/new-york';
 import { type TipsOvertimeDetermination, determineTipsOvertime } from './tips-overtime';
 import { type TreatyDetermination, determineTreatyBenefits } from './treaties';
@@ -79,6 +80,14 @@ export interface YearEvaluation {
   dualStatus: DualStatusBrief | null;
   /** The state return (F-phase) — null when the state isn't modelled yet. */
   state: CaliforniaDetermination | NewYorkDetermination | MassachusettsDetermination | null;
+  /**
+   * Other states that also computed a return this year — a source state
+   * reached by New York's convenience rule, or the state left behind in a
+   * move. Both returns get filed, so both are reported.
+   */
+  otherStates: Array<CaliforniaDetermination | NewYorkDetermination | MassachusettsDetermination>;
+  /** F4 — allocation across a move, and the credit that stops double tax. */
+  multiState: MultiStateDetermination | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -276,6 +285,8 @@ export function evaluateYear(
         treaties,
         dualStatus: null,
         state: null,
+        otherStates: [],
+        multiState: null,
         blocked,
         notes,
       };
@@ -342,6 +353,8 @@ export function evaluateYear(
       treaties,
       dualStatus: null,
       state: null,
+      otherStates: [],
+      multiState: null,
       liability: {
         incomeTax: nrTax,
         // No NIIT (NRAs are outside §1411), no SE tax, no Schedule 2
@@ -399,6 +412,8 @@ export function evaluateYear(
       treaties: null,
       dualStatus,
       state: null,
+      otherStates: [],
+      multiState: null,
       blocked,
       notes,
     };
@@ -424,6 +439,8 @@ export function evaluateYear(
       treaties: null,
       dualStatus: null,
       state: null,
+      otherStates: [],
+      multiState: null,
       blocked,
       notes,
     };
@@ -450,6 +467,8 @@ export function evaluateYear(
       treaties: null,
       dualStatus: null,
       state: null,
+      otherStates: [],
+      multiState: null,
       blocked,
       notes,
     };
@@ -472,6 +491,8 @@ export function evaluateYear(
       treaties: null,
       dualStatus: null,
       state: null,
+      otherStates: [],
+      multiState: null,
       blocked,
       notes,
     };
@@ -502,6 +523,8 @@ export function evaluateYear(
       treaties: null,
       dualStatus: null,
       state: null,
+      otherStates: [],
+      multiState: null,
       blocked,
       notes,
     };
@@ -815,20 +838,81 @@ export function evaluateYear(
     seNetProfit: se !== null && se.status === 'computed' ? se.netProfit : 0,
   });
 
-  // New York wins where it applies, because the convenience rule can
-  // reach a resident of another state — the home state's own return is
-  // F4's multi-state work, not something to silently drop here.
+  // The RESIDENT state's return is the primary one: it taxes everything
+  // and it is the one that gives the credit. A source state reached by
+  // New York's convenience rule rides the multi-state determination
+  // instead of displacing the home return (F4).
+  const stateOfResidence = ((): string | null => {
+    const s = factState(set, 'state-of-residence');
+    return s.status === 'known' && s.value.kind === 'string' ? s.value.value : null;
+  })();
+  const byCode: Record<
+    string,
+    CaliforniaDetermination | NewYorkDetermination | MassachusettsDetermination
+  > = { CA: californiaDet, NY: newYorkDet, MA: massachusettsDet };
+  const residentDet = stateOfResidence !== null ? byCode[stateOfResidence] : undefined;
   const state: CaliforniaDetermination | NewYorkDetermination | MassachusettsDetermination | null =
-    newYorkDet.status !== 'not-applicable'
-      ? newYorkDet
-      : californiaDet.status !== 'not-applicable'
-        ? californiaDet
-        : massachusettsDet.status !== 'not-applicable'
-          ? massachusettsDet
-          : null;
+    residentDet !== undefined && residentDet.status !== 'not-applicable'
+      ? residentDet
+      : newYorkDet.status !== 'not-applicable'
+        ? newYorkDet
+        : californiaDet.status !== 'not-applicable'
+          ? californiaDet
+          : massachusettsDet.status !== 'not-applicable'
+            ? massachusettsDet
+            : null;
   if (state !== null) {
     notes.push(...(state.explanation.notes ?? []));
     notes.push(...state.refusals);
+  }
+
+  // F4: where two states look at the same dollar, the credit for taxes
+  // paid is what stops them both keeping it.
+  const slices = (['CA', 'NY', 'MA'] as const)
+    .map((code) => {
+      const d = byCode[code];
+      if (d === undefined || d.status !== 'computed') return null;
+      const tax =
+        d.stateCode === 'CA'
+          ? d.taxAfterCredits
+          : d.stateCode === 'NY'
+            ? d.totalNewYorkTax
+            : d.totalMassachusettsTax;
+      const income =
+        d.stateCode === 'CA' ? d.caAgi : d.stateCode === 'NY' ? d.nyAgi : d.massachusettsAgi;
+      return { code, tax, income, resident: stateOfResidence === code };
+    })
+    .filter((s): s is NonNullable<typeof s> => s !== null);
+
+  const multiStateDet = determineMultiState(augmented, taxYear, {
+    slices,
+    wages: wages ?? 0,
+    sales:
+      capitalGains?.rows
+        .filter((r) => r.provenance.kind === 'trade')
+        .map((r) => ({ saleDate: r.soldDate, gain: r.gain })) ?? [],
+    statutoryResidencyDetected:
+      newYorkDet.status === 'refused' && newYorkDet.statutoryResidencyDetected,
+  });
+  const otherStates = (['CA', 'NY', 'MA'] as const)
+    .map((code) => byCode[code])
+    .filter(
+      (d): d is CaliforniaDetermination | NewYorkDetermination | MassachusettsDetermination =>
+        d !== undefined && d.status === 'computed' && d !== state,
+    );
+
+  // A source state's findings are often the most important thing in the
+  // year — New York's convenience rule above all — so they surface
+  // alongside the home state's rather than being lost to precedence.
+  for (const other of otherStates) {
+    notes.push(...(other.explanation.notes ?? []));
+    notes.push(...other.refusals);
+  }
+
+  const multiState = multiStateDet.status === 'single-state' ? null : multiStateDet;
+  if (multiState !== null) {
+    notes.push(...(multiState.explanation.notes ?? []));
+    notes.push(...multiState.refusals);
   }
 
   return {
@@ -846,6 +930,8 @@ export function evaluateYear(
     treaties,
     dualStatus: null,
     state,
+    otherStates,
+    multiState,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:

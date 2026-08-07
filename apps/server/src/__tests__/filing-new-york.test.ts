@@ -96,13 +96,17 @@ describe('the wiring', () => {
       ],
       2025,
     );
-    if (result.state?.stateCode !== 'NY') throw new Error('expected the New York return');
-    expect(result.state.status).toBe('computed');
-    expect(result.state.basis).toBe('nonresident-convenience');
+    // Since F4 the RESIDENT state is the primary return; New York rides
+    // alongside it as the source state, because both get filed.
+    expect(result.state?.stateCode).toBe('MA');
+    const ny = result.otherStates.find((s) => s.stateCode === 'NY');
+    if (ny?.stateCode !== 'NY') throw new Error('expected the New York return');
+    expect(ny.status).toBe('computed');
+    expect(ny.basis).toBe('nonresident-convenience');
     // Every dollar of wages is New York income despite the person never
     // working there — the rule the page and the product both exist for.
-    expect(result.state.nyAgi).toBe(65000);
-    expect(result.state.totalNewYorkTax).toBeGreaterThan(0);
+    expect(ny.nyAgi).toBe(65000);
+    expect(ny.totalNewYorkTax).toBeGreaterThan(0);
     expect(JSON.stringify(result.notes)).toContain('convenience of the employer');
     // The federal return is untouched by any of it.
     expect(result.liability).not.toBeNull();

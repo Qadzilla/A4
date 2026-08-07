@@ -10,6 +10,7 @@ import { FICA_REFUND_FIXTURES } from '../lib/calc/filing/fixtures/fica-refund';
 import { FORM_8843_FIXTURES } from '../lib/calc/filing/fixtures/form-8843';
 import { CORPUS_LEDGER } from '../lib/calc/filing/fixtures/ledger';
 import { MASSACHUSETTS_FIXTURES } from '../lib/calc/filing/fixtures/massachusetts';
+import { MULTI_STATE_FIXTURES } from '../lib/calc/filing/fixtures/multi-state';
 import { NEW_YORK_FIXTURES } from '../lib/calc/filing/fixtures/new-york';
 import { NONRESIDENT_FIXTURES } from '../lib/calc/filing/fixtures/nonresident';
 import { PENALTY_FIXTURES } from '../lib/calc/filing/fixtures/penalty';
@@ -48,6 +49,7 @@ const ALL: FilingFixture<unknown>[] = [
   ...CALIFORNIA_FIXTURES,
   ...NEW_YORK_FIXTURES,
   ...MASSACHUSETTS_FIXTURES,
+  ...MULTI_STATE_FIXTURES,
   ...DUAL_STATUS_FIXTURES,
   ...PERSONA_FIXTURES,
 ];

@@ -170,13 +170,17 @@ describe('the wiring', () => {
     expect(JSON.stringify(result.notes)).toContain('owe Massachusetts nothing');
   });
 
-  it('P5 with a New York employer still gets New York, not Massachusetts', () => {
-    // The precedence the union encodes: the convenience rule reaches
-    // across the border, and the home-state return is F4's work.
+  it('P5 files both: Massachusetts is home, New York is the source state', () => {
+    // Before F4 New York displaced the home return. It no longer does —
+    // the resident state is primary and New York rides alongside, which
+    // is what actually happens: two returns get filed.
     const result = evaluateYear(
       [...bostonian(), make('employer-state', { kind: 'string', value: 'NY' })],
       2025,
     );
-    expect(result.state?.stateCode).toBe('NY');
+    expect(result.state?.stateCode).toBe('MA');
+    expect(result.otherStates.map((s) => s.stateCode)).toContain('NY');
+    expect(result.multiState?.credit?.receivingState).toBe('MA');
+    expect(result.multiState?.credit?.sourceState).toBe('NY');
   });
 });

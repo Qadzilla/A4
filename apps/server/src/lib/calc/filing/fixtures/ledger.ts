@@ -233,4 +233,15 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'ma/mfs-gets-neither-mercy' },
   { id: 'ma/2026-not-verified-refuses' },
   { id: 'ma/not-a-massachusetts-year' },
+  // F4 — multi-state allocation and credit for taxes paid (OJC / IT-112-R / Schedule S)
+  { id: 'ms/p5-massachusetts-credits-the-new-york-tax' },
+  { id: 'ms/massachusetts-cap-bites-and-the-gap-is-real' },
+  { id: 'ms/california-caps-on-both-sides' },
+  { id: 'ms/california-source-side-cap-catches-the-naive-version' },
+  { id: 'ms/moved-mid-year-splits-wages-by-day-count' },
+  { id: 'ms/paystub-beats-the-calendar' },
+  { id: 'ms/sales-belong-to-where-you-lived-that-day' },
+  { id: 'ms/three-states-refuses' },
+  { id: 'ms/statutory-residency-is-not-a-credit-problem' },
+  { id: 'ms/one-state-is-not-multi-state' },
 ];

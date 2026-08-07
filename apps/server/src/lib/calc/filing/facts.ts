@@ -236,6 +236,22 @@ export const FACT_REGISTRY = {
     scope: 'year',
     label: 'Days physically present in New York State during the year (any part of a day counts)',
   },
+  'state-move-date': {
+    kind: 'date',
+    scope: 'year',
+    label: 'The day you changed which state you live in (the boundary both returns are split at)',
+  },
+  'prior-state-of-residence': {
+    kind: 'string',
+    scope: 'year',
+    label: 'The state you lived in before the move, if you moved during the year',
+  },
+  'wages-earned-in-prior-state': {
+    kind: 'number',
+    scope: 'year',
+    label:
+      'Wages paid while still living in the old state (a paystub from around the move date gives the exact split)',
+  },
   'rent-paid-massachusetts': {
     kind: 'number',
     scope: 'year',
