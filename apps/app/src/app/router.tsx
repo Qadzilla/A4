@@ -1,6 +1,7 @@
 import { AuthGuard } from '@/auth/AuthGuard';
 import { ChatSurface } from '@/surfaces/chat';
 import { DocumentsSurface } from '@/surfaces/documents';
+import { FilingSurface } from '@/surfaces/filing';
 import { LandingSurface } from '@/surfaces/landing';
 import { Shell } from '@/surfaces/layout';
 import { PortfolioSurface } from '@/surfaces/portfolio';
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/portfolio" replace /> },
       { path: 'portfolio', element: <PortfolioSurface /> },
       { path: 'taxes', element: <TaxesSurface /> },
+      { path: 'filing', element: <FilingSurface /> },
       { path: 'workspace', element: <ChatSurface /> },
       // The surface was called Chat until it grew a workspace beside the
       // conversation; keep the old path working for anything already linked.

@@ -1,0 +1,465 @@
+import { useTRPC } from '@/lib/trpc';
+import { US_STATES } from '@/lib/us-states';
+import { useSpaceId } from '@/surfaces/layout';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Check, HelpCircle, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+
+// ─── G1 · The intake surface ───────────────────────────────────────
+// Zero-to-ready, as questions about a life. Everything that decides
+// WHAT to ask and IN WHAT ORDER lives on the server in
+// lib/calc/filing/intake.ts — this file renders a plan it is handed and
+// writes answers back. That split is the point: the ordering rule
+// ("reorder around what the answer is worth") is testable without a
+// browser, and the surface cannot quietly develop opinions of its own.
+//
+// Three things here are deliberate and easy to get wrong:
+//   · Skip is a first-class answer with its own button, not an empty
+//     field. "I don't know" is an assertion the engine can use; leaving
+//     a box blank tells it nothing.
+//   · Progress is a readiness verdict, never a percentage. Half these
+//     questions do not apply to any one person, so a percentage would
+//     be a number that measures nothing.
+//   · Answers save one at a time as they are given, so closing the tab
+//     mid-section loses nothing.
+
+const TAX_YEAR = 2025;
+const SAVE_DEBOUNCE_MS = 700;
+
+type Plan = {
+  taxYear: number;
+  sections: Array<{
+    section: string;
+    title: string;
+    answered: number;
+    applicable: number;
+    questions: PlannedQuestion[];
+  }>;
+  nextUp: PlannedQuestion[];
+};
+
+type PlannedQuestion = {
+  factId: string;
+  section: string;
+  prompt: string;
+  why: string | null;
+  input:
+    | { kind: 'yes-no' }
+    | { kind: 'date' }
+    | { kind: 'text' }
+    | { kind: 'us-state' }
+    | { kind: 'choice'; options: Array<{ value: string; label: string }> }
+    | { kind: 'number'; unit: string };
+  status: 'unasked' | 'answered' | 'from-document' | 'skipped' | 'contradicted';
+  value: { kind: string; value: string | number | boolean } | null;
+  answeredBy: 'person' | 'document' | 'rule' | null;
+  assertionId: string | null;
+  worth: number | null;
+  unlocks: boolean;
+};
+
+type AnswerValue =
+  | { kind: 'bool'; value: boolean }
+  | { kind: 'number'; value: number }
+  | { kind: 'string'; value: string }
+  | { kind: 'date'; value: string }
+  | { kind: 'unknown' };
+
+const money = (n: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(Math.abs(n));
+
+const UNIT_SUFFIX: Record<string, string> = {
+  months: 'months',
+  days: 'days',
+  miles: 'miles',
+  percent: '%',
+  count: '',
+  year: '',
+  dollars: '',
+};
+
+const VERDICT_LINE: Record<string, string> = {
+  'not-started': 'Nothing recorded for this year yet.',
+  blocked: 'Something has to be resolved before this year can be finished.',
+  'ready-with-cautions': 'Everything computes — with a few things worth a second look.',
+  ready: 'Everything this year needs is on file.',
+};
+
+const VERDICT_LABEL: Record<string, string> = {
+  'not-started': 'Not started',
+  blocked: 'Blocked',
+  'ready-with-cautions': 'Ready, with cautions',
+  ready: 'Ready',
+};
+
+export function FilingSurface() {
+  const trpc = useTRPC();
+  const spaceId = useSpaceId();
+  const queryClient = useQueryClient();
+  const [findings, setFindings] = useState<Array<{ factId: string; line: string }>>([]);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const planQuery = useQuery(
+    trpc.filing.intake.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
+  );
+  const readinessQuery = useQuery(
+    trpc.filing.readiness.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
+  );
+
+  const answer = useMutation(
+    trpc.filing.answer.mutationOptions({
+      onSuccess: (result) => {
+        setSaving(null);
+        if (!result.ok) return;
+        setFindings(result.findings.map((f) => ({ factId: f.factId, line: f.line })));
+        queryClient.invalidateQueries({ queryKey: trpc.filing.pathKey() });
+      },
+      onError: () => setSaving(null),
+    }),
+  );
+
+  const submit = (factId: string, value: AnswerValue) => {
+    setSaving(factId);
+    answer.mutate({ workspaceId: spaceId, taxYear: TAX_YEAR, factId, value });
+  };
+
+  const plan = planQuery.data as Plan | undefined;
+  const readiness = readinessQuery.data;
+
+  if (planQuery.isLoading || !plan) {
+    return (
+      <div className="mx-auto max-w-3xl px-5 py-8 md:py-12">
+        <p className="eyebrow mb-1.5">Filing</p>
+        <div className="animate-pulse">
+          <div className="mb-2 h-10 w-64 rounded-card bg-hairline/60" />
+          <div className="mb-10 h-4 w-80 rounded-card bg-hairline/40" />
+          <div className="h-40 rounded-card bg-surface shadow-card" />
+        </div>
+      </div>
+    );
+  }
+
+  const verdict = readiness?.verdict ?? 'not-started';
+
+  return (
+    <div className="rise mx-auto max-w-3xl px-5 py-8 md:py-12">
+      <p className="eyebrow mb-1.5">Filing · {TAX_YEAR}</p>
+      <h1 className="mb-1 text-[26px] font-semibold leading-tight tracking-tight">
+        {VERDICT_LABEL[verdict] ?? 'In progress'}
+      </h1>
+      <p className="mb-8 text-sm text-muted">{VERDICT_LINE[verdict] ?? ''}</p>
+
+      {/* ── What just changed ── */}
+      {findings.length > 0 && (
+        <div className="mb-8 rounded-card border border-accent/30 bg-accent/5 p-4">
+          <p className="eyebrow mb-2 text-accent">What that answer changed</p>
+          <ul className="space-y-1.5">
+            {findings.slice(0, 4).map((f) => (
+              <li key={f.factId} className="text-sm leading-snug">
+                {f.line}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ── Next up: the highest-value questions in the whole year ── */}
+      {plan.nextUp.length > 0 && (
+        <section className="mb-10">
+          <p className="eyebrow mb-3">Worth answering first</p>
+          <div className="space-y-3">
+            {plan.nextUp.map((q) => (
+              <QuestionCard
+                key={q.factId}
+                question={q}
+                saving={saving === q.factId}
+                onAnswer={submit}
+                highlight
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Blockers, when the engine has named one ── */}
+      {readiness && readiness.blockers.length > 0 && (
+        <section className="mb-10 rounded-card border border-hairline bg-surface p-4 shadow-card">
+          <p className="eyebrow mb-2">In the way</p>
+          <ul className="space-y-2">
+            {readiness.blockers.map((b) => (
+              <li key={b.id} className="text-sm leading-snug text-muted">
+                {b.reason}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* ── The sections ── */}
+      <div className="space-y-3">
+        {plan.sections.map((section) => (
+          <details
+            key={section.section}
+            className="group rounded-card border border-hairline bg-surface shadow-card"
+            open={section.answered < section.applicable}
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5">
+              <span className="text-sm font-medium">{section.title}</span>
+              <span className="tabular-nums text-xs text-muted">
+                {section.answered === section.applicable ? (
+                  <Check className="h-4 w-4 text-accent" />
+                ) : (
+                  `${section.answered} of ${section.applicable}`
+                )}
+              </span>
+            </summary>
+            <div className="space-y-3 border-t border-hairline px-4 py-4">
+              {section.questions.map((q) => (
+                <QuestionCard
+                  key={q.factId}
+                  question={q}
+                  saving={saving === q.factId}
+                  onAnswer={submit}
+                />
+              ))}
+            </div>
+          </details>
+        ))}
+      </div>
+
+      <p className="mt-10 text-xs leading-relaxed text-muted">
+        Answers save the moment you give them, so you can stop anywhere and pick it up later.
+        Anything you skip is recorded as skipped rather than forgotten — the difference matters to
+        what gets computed.
+      </p>
+    </div>
+  );
+}
+
+// ─── One question ──────────────────────────────────────────────────
+
+function QuestionCard({
+  question,
+  saving,
+  onAnswer,
+  highlight = false,
+}: {
+  question: PlannedQuestion;
+  saving: boolean;
+  onAnswer: (factId: string, value: AnswerValue) => void;
+  highlight?: boolean;
+}) {
+  const q = question;
+  const settled = q.status === 'answered' || q.status === 'from-document';
+
+  return (
+    <div
+      className={`rounded-card p-3.5 ${
+        highlight
+          ? 'border border-accent/30 bg-surface shadow-card'
+          : 'border border-hairline/70 bg-paper'
+      }`}
+    >
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <p className="text-sm font-medium leading-snug">{q.prompt}</p>
+        {q.status === 'unasked' && q.worth !== null && q.worth !== 0 && (
+          <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium tabular-nums text-accent">
+            worth {money(q.worth)}
+          </span>
+        )}
+        {q.status === 'unasked' && (q.worth === null || q.worth === 0) && q.unlocks && (
+          <span className="shrink-0 rounded-full bg-hairline px-2 py-0.5 text-[11px] font-medium text-muted">
+            unblocks
+          </span>
+        )}
+      </div>
+
+      {q.why !== null && <p className="mb-2.5 text-xs leading-relaxed text-muted">{q.why}</p>}
+
+      {q.status === 'from-document' && (
+        <p className="mb-2.5 text-xs text-muted">
+          Taken from a document you uploaded. Answering here replaces it.
+        </p>
+      )}
+      {q.status === 'contradicted' && (
+        <p className="mb-2.5 text-xs text-accent">
+          Two sources disagree about this. Answering settles it.
+        </p>
+      )}
+      {q.status === 'skipped' && (
+        <p className="mb-2.5 text-xs text-muted">
+          Recorded as: you don’t know. Answer any time to replace that.
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Control question={q} onAnswer={onAnswer} />
+        {q.status === 'unasked' && (
+          <button
+            type="button"
+            onClick={() => onAnswer(q.factId, { kind: 'unknown' })}
+            className="inline-flex items-center gap-1.5 rounded-card px-2 py-1.5 text-xs text-muted transition-colors hover:text-ink"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />I don’t know
+          </button>
+        )}
+        {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted" />}
+        {settled && !saving && <Check className="h-3.5 w-3.5 text-accent" />}
+      </div>
+    </div>
+  );
+}
+
+function Control({
+  question: q,
+  onAnswer,
+}: {
+  question: PlannedQuestion;
+  onAnswer: (factId: string, value: AnswerValue) => void;
+}) {
+  const input = q.input;
+
+  if (input.kind === 'yes-no') {
+    const current = q.value?.kind === 'bool' ? (q.value.value as boolean) : null;
+    return (
+      <div className="flex gap-2">
+        {[
+          { label: 'Yes', value: true },
+          { label: 'No', value: false },
+        ].map((option) => (
+          <button
+            key={option.label}
+            type="button"
+            onClick={() => onAnswer(q.factId, { kind: 'bool', value: option.value })}
+            className={`rounded-card border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              current === option.value
+                ? 'border-accent bg-accent text-white'
+                : 'border-hairline bg-surface hover:border-accent'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (input.kind === 'us-state' || input.kind === 'choice') {
+    const options =
+      input.kind === 'us-state'
+        ? US_STATES.filter((s) => s.code !== '').map((s) => ({ value: s.code, label: s.label }))
+        : input.options;
+    const current = q.value?.kind === 'string' ? String(q.value.value) : '';
+    return (
+      <select
+        value={current}
+        onChange={(e) => {
+          if (e.target.value === '') return;
+          onAnswer(q.factId, { kind: 'string', value: e.target.value });
+        }}
+        className="rounded-card border border-hairline bg-surface px-3 py-1.5 text-sm focus:border-accent focus:outline-none"
+      >
+        <option value="">Choose…</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (input.kind === 'date') {
+    const current = q.value?.kind === 'date' ? String(q.value.value) : '';
+    return (
+      <input
+        type="date"
+        defaultValue={current}
+        onChange={(e) => {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) return;
+          onAnswer(q.factId, { kind: 'date', value: e.target.value });
+        }}
+        className="rounded-card border border-hairline bg-surface px-3 py-1.5 text-sm focus:border-accent focus:outline-none"
+      />
+    );
+  }
+
+  if (input.kind === 'text') {
+    return (
+      <DebouncedText
+        initial={q.value?.kind === 'string' ? String(q.value.value) : ''}
+        placeholder="Type an answer"
+        onCommit={(v) => v.trim() !== '' && onAnswer(q.factId, { kind: 'string', value: v.trim() })}
+      />
+    );
+  }
+
+  const suffix = UNIT_SUFFIX[input.unit] ?? '';
+  return (
+    <div className="flex items-center gap-2">
+      {input.unit === 'dollars' && <span className="text-sm text-muted">$</span>}
+      <DebouncedText
+        initial={q.value?.kind === 'number' ? String(q.value.value) : ''}
+        placeholder="0"
+        numeric
+        onCommit={(v) => {
+          const parsed = Number.parseFloat(v);
+          if (!Number.isFinite(parsed)) return;
+          onAnswer(q.factId, { kind: 'number', value: parsed });
+        }}
+      />
+      {suffix !== '' && <span className="text-sm text-muted">{suffix}</span>}
+    </div>
+  );
+}
+
+/** Types without a round-trip per keystroke; commits once you pause. */
+function DebouncedText({
+  initial,
+  placeholder,
+  numeric = false,
+  onCommit,
+}: {
+  initial: string;
+  placeholder: string;
+  numeric?: boolean;
+  onCommit: (value: string) => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => setValue(initial), [initial]);
+  useEffect(
+    () => () => {
+      if (timer.current !== null) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  const schedule = (next: string) => {
+    setValue(next);
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = setTimeout(() => onCommit(next), SAVE_DEBOUNCE_MS);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode={numeric ? 'decimal' : 'text'}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => schedule(e.target.value)}
+      onBlur={() => {
+        if (timer.current !== null) clearTimeout(timer.current);
+        if (value !== initial) onCommit(value);
+      }}
+      className={`rounded-card border border-hairline bg-surface px-3 py-1.5 text-sm tabular-nums focus:border-accent focus:outline-none ${
+        numeric ? 'w-28' : 'w-56'
+      }`}
+    />
+  );
+}

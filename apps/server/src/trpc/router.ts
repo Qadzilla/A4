@@ -7,6 +7,7 @@ import { chatRouter } from './routers/chat';
 import { deskRouter } from './routers/desk';
 import { entityRouter } from './routers/entity';
 import { fileRouter } from './routers/file';
+import { filingRouter } from './routers/filing';
 import { financialRouter } from './routers/financial';
 import { healthRouter } from './routers/health';
 import { holdingRouter } from './routers/holding';
@@ -27,6 +28,7 @@ export const appRouter = router({
   desk: deskRouter,
   entity: entityRouter,
   file: fileRouter,
+  filing: filingRouter,
   financial: financialRouter,
   health: healthRouter,
   holding: holdingRouter,

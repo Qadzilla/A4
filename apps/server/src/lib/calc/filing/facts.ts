@@ -30,7 +30,7 @@
 export type FactValueKind = 'bool' | 'number' | 'string' | 'date';
 export type FactScope = 'year' | 'timeless';
 
-interface RegistryEntry {
+export interface RegistryEntry {
   kind: FactValueKind;
   scope: FactScope;
   /** Only a rule may assert this — it is a determination recorded as a fact. */
@@ -651,6 +651,16 @@ export const FACT_REGISTRY = {
 } as const satisfies Record<string, RegistryEntry>;
 
 export type FactId = keyof typeof FACT_REGISTRY;
+
+/**
+ * The registry entry, widened. Reading `FACT_REGISTRY[id]` directly gives
+ * the narrow literal type of that one entry, on which the optional
+ * `derived` flag does not exist — so every caller that cares goes
+ * through here rather than re-annotating.
+ */
+export function factEntry(id: FactId): RegistryEntry {
+  return FACT_REGISTRY[id];
+}
 
 export const FACT_IDS = Object.keys(FACT_REGISTRY) as FactId[];
 
