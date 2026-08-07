@@ -199,7 +199,7 @@ describe('the wiring', () => {
     if (result.liability === null) throw new Error('expected liability');
     expect(result.liability.deduction).toBe(1500);
     expect(result.liability.taxableIncome).toBe(28500);
-    // 10% × 12,250 + 12% × 16,250 = 1,225 + 1,950 = 3,175.
-    expect(result.liability.incomeTax).toBeCloseTo(3175, 0);
+    // 10% × 12,400 = 1,240, plus 12% × 16,100 = 1,932 → 3,172.
+    expect(result.liability.incomeTax).toBeCloseTo(3172, 0);
   });
 });

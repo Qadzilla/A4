@@ -126,11 +126,11 @@ describe('the evaluation wiring', () => {
       2026,
     );
     if (result.liability === null) throw new Error('expected liability');
-    // 30,000 single: tax 1,423. LLC 800 applies first; the saver's 10%-tier
+    // 30,000 single: tax 1,420. LLC 800 applies first; the saver's 10%-tier
     // credit ($200 at this AGI) fits inside what remains.
     expect(result.liability.educationCredit).toBe(800);
     expect(result.liability.saversCredit).toBe(200);
-    expect(result.liability.federalTax).toBe(1423 - 800 - 200);
+    expect(result.liability.federalTax).toBe(1420 - 800 - 200);
   });
 
   it('a student sees the credit closed and the education credit open — the disqualifiers differ', () => {

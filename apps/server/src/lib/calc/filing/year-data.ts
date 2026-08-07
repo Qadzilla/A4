@@ -24,9 +24,10 @@ export interface FilingYearData {
   /**
    * Form 8615 (kiddie tax) unearned-income threshold — above this, a
    * covered child's unearned income is taxed at the parents' rate.
-   * Source: Form 8615 instructions; 2026 $2,700 verified 2026-08. The 2025
-   * figure is deliberately absent until verified — a missing field refuses
-   * by name rather than guessing.
+   * Source: Form 8615 instructions. Both years verified 2026-08 against the
+   * revenue procedures: the threshold is twice the § 1(g)(4)(A)(ii)(I) amount,
+   * which is $1,350 for 2025 (Rev. Proc. 2024-40 §2.02) and $1,350 again for
+   * 2026 (Rev. Proc. 2025-32 §4.02) — so $2,700 in both.
    */
   kiddieUnearnedThreshold?: number;
   /**
@@ -133,6 +134,7 @@ const FILING_YEAR_DATA: Record<number, FilingYearData> = {
     qrGrossIncomeLimit: 5200,
     dependentStdFloor: 1350,
     dependentStdAddon: 450,
+    kiddieUnearnedThreshold: 2700,
     necThreshold: 600,
     kThreshold: 20000,
     educationCreditPhaseout: {

@@ -50,9 +50,10 @@ describe('kiddieGuard', () => {
   });
 
   it('names the threshold generically for a year whose figure is not loaded', () => {
-    // 2025's kiddie threshold is deliberately absent from year-data until
-    // verified — the guard still guards, without inventing a number.
-    const r = kiddieGuard({ birthDate: '2006-03-10', fullTimeStudent: true }, 2025);
+    // 2025 and 2026 both carry $2,700 now (verified against the revenue
+    // procedures). A year with no figures at all is the degradation path
+    // this guards: it still guards, without inventing a number.
+    const r = kiddieGuard({ birthDate: '2006-03-10', fullTimeStudent: true }, 2027);
     expect(r.status).toBe('exposed');
     expect(r.note).toContain('above the threshold');
     expect(r.note).not.toContain('$');

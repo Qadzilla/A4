@@ -110,6 +110,9 @@ export const FEDERAL_TAX_DATA: Record<number, FederalYearData> = {
     },
     // OBBBA (July 2025) figures, verified 2026-08 — the pre-OBBBA projections
     // this table originally carried understated every 2025 deduction by ~$750.
+    // Brackets and LTCG below transcribed from Rev. Proc. 2024-40 §2.01/§2.03
+    // and re-verified 2026-08; OBBBA left both untouched for 2025 (Rev. Proc.
+    // 2025-32 §3 modifies only the standard deduction and §179 for that year).
     standardDeduction: { single: 15750, mfj: 31500, mfs: 15750, hoh: 23625 },
     ssWageBase: 176100,
     ssRate: 0.062,
@@ -120,7 +123,9 @@ export const FEDERAL_TAX_DATA: Record<number, FederalYearData> = {
     seSSTaxRate: 0.124,
     seMedicareTaxRate: 0.029,
     seMultiplier: 0.9235,
-    childTaxCredit: 2000,
+    // OBBBA §70104 raised the credit to $2,200 for tax years beginning
+    // after 2024 (Rev. Proc. 2025-32 §4.05 confirms it for 2026).
+    childTaxCredit: 2200,
     saltCap: 10000,
     ltcgBrackets: {
       single: [
@@ -149,46 +154,48 @@ export const FEDERAL_TAX_DATA: Record<number, FederalYearData> = {
   },
   2026: {
     brackets: {
+      // Transcribed from Rev. Proc. 2025-32 §4.01 Tables 1–4 (verified
+      // 2026-08). The figures previously here were pre-OBBBA projections and
+      // were wrong in every status — single's 12% top was off by $575.
       single: [
-        { min: 0, max: 12250, rate: 0.1 },
-        { min: 12250, max: 49825, rate: 0.12 },
-        { min: 49825, max: 106250, rate: 0.22 },
-        { min: 106250, max: 202850, rate: 0.24 },
-        { min: 202850, max: 257600, rate: 0.32 },
-        { min: 257600, max: 644000, rate: 0.35 },
-        { min: 644000, max: Number.POSITIVE_INFINITY, rate: 0.37 },
+        { min: 0, max: 12400, rate: 0.1 },
+        { min: 12400, max: 50400, rate: 0.12 },
+        { min: 50400, max: 105700, rate: 0.22 },
+        { min: 105700, max: 201775, rate: 0.24 },
+        { min: 201775, max: 256225, rate: 0.32 },
+        { min: 256225, max: 640600, rate: 0.35 },
+        { min: 640600, max: Number.POSITIVE_INFINITY, rate: 0.37 },
       ],
       mfj: [
-        { min: 0, max: 24500, rate: 0.1 },
-        { min: 24500, max: 99650, rate: 0.12 },
-        { min: 99650, max: 212500, rate: 0.22 },
-        { min: 212500, max: 405700, rate: 0.24 },
-        { min: 405700, max: 515200, rate: 0.32 },
-        { min: 515200, max: 772700, rate: 0.35 },
-        { min: 772700, max: Number.POSITIVE_INFINITY, rate: 0.37 },
+        { min: 0, max: 24800, rate: 0.1 },
+        { min: 24800, max: 100800, rate: 0.12 },
+        { min: 100800, max: 211400, rate: 0.22 },
+        { min: 211400, max: 403550, rate: 0.24 },
+        { min: 403550, max: 512450, rate: 0.32 },
+        { min: 512450, max: 768700, rate: 0.35 },
+        { min: 768700, max: Number.POSITIVE_INFINITY, rate: 0.37 },
       ],
       mfs: [
-        { min: 0, max: 12250, rate: 0.1 },
-        { min: 12250, max: 49825, rate: 0.12 },
-        { min: 49825, max: 106250, rate: 0.22 },
-        { min: 106250, max: 202850, rate: 0.24 },
-        { min: 202850, max: 257600, rate: 0.32 },
-        { min: 257600, max: 386350, rate: 0.35 },
-        { min: 386350, max: Number.POSITIVE_INFINITY, rate: 0.37 },
+        { min: 0, max: 12400, rate: 0.1 },
+        { min: 12400, max: 50400, rate: 0.12 },
+        { min: 50400, max: 105700, rate: 0.22 },
+        { min: 105700, max: 201775, rate: 0.24 },
+        { min: 201775, max: 256225, rate: 0.32 },
+        { min: 256225, max: 384350, rate: 0.35 },
+        { min: 384350, max: Number.POSITIVE_INFINITY, rate: 0.37 },
       ],
       hoh: [
-        { min: 0, max: 17500, rate: 0.1 },
-        { min: 17500, max: 66700, rate: 0.12 },
-        { min: 66700, max: 106250, rate: 0.22 },
-        { min: 106250, max: 202850, rate: 0.24 },
-        { min: 202850, max: 257600, rate: 0.32 },
-        { min: 257600, max: 644000, rate: 0.35 },
-        { min: 644000, max: Number.POSITIVE_INFINITY, rate: 0.37 },
+        { min: 0, max: 17700, rate: 0.1 },
+        { min: 17700, max: 67450, rate: 0.12 },
+        { min: 67450, max: 105700, rate: 0.22 },
+        { min: 105700, max: 201750, rate: 0.24 },
+        { min: 201750, max: 256200, rate: 0.32 },
+        { min: 256200, max: 640600, rate: 0.35 },
+        { min: 640600, max: Number.POSITIVE_INFINITY, rate: 0.37 },
       ],
     },
-    // OBBBA figures, verified 2026-08. NOTE: the bracket thresholds and LTCG
-    // 0% tops in this file predate that verification pass and still need one
-    // (A8-grade, against the year's revenue procedure) before filing ships.
+    // Every 2026 figure below transcribed from Rev. Proc. 2025-32 (verified
+    // 2026-08): brackets §4.01, LTCG §4.03, child credit §4.05.
     standardDeduction: { single: 16100, mfj: 32200, mfs: 16100, hoh: 24150 },
     ssWageBase: 181200,
     ssRate: 0.062,
@@ -199,7 +206,9 @@ export const FEDERAL_TAX_DATA: Record<number, FederalYearData> = {
     seSSTaxRate: 0.124,
     seMedicareTaxRate: 0.029,
     seMultiplier: 0.9235,
-    childTaxCredit: 2000,
+    // OBBBA §70104 raised the credit to $2,200 for tax years beginning
+    // after 2024 (Rev. Proc. 2025-32 §4.05 confirms it for 2026).
+    childTaxCredit: 2200,
     saltCap: 10000,
     ltcgBrackets: {
       single: [

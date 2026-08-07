@@ -119,9 +119,9 @@ describe('the standing rules', () => {
       2026,
     );
     if (result.liability === null) throw new Error('expected liability');
-    // 30,000 single 2026: taxable 13,900 → tax 1,423. Nonrefundable 1,500
+    // 30,000 single 2026: taxable 13,900 → tax 1,420. Nonrefundable 1,500
     // bounds to the tax; the $1,000 refundable slice still pays out.
-    expect(result.liability.educationCredit).toBe(1423 + 1000);
+    expect(result.liability.educationCredit).toBe(1420 + 1000);
     expect(result.liability.federalTax).toBe(0);
     expect(result.liability.refundOrOwed).toBe(-1000);
   });

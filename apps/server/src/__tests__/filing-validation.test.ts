@@ -39,8 +39,8 @@ describe('the engine side of the comparison', () => {
     expect(lines.get(LINE_IDS.agi)).toBe(42000);
     expect(lines.get(LINE_IDS.deduction)).toBe(16100);
     expect(lines.get(LINE_IDS.taxableIncome)).toBe(25900);
-    // 10% to 12,250 = 1,225; 12% on the remaining 13,650 = 1,638.
-    expect(lines.get(LINE_IDS.tax)).toBeCloseTo(2863, 0);
+    // 10% to 12,400 = 1,240; 12% on the remaining 13,500 = 1,620.
+    expect(lines.get(LINE_IDS.tax)).toBeCloseTo(2860, 0);
     expect(blocked).toEqual([]);
   });
 
@@ -86,7 +86,7 @@ describe('comparison verdicts', () => {
       run({
         lines: [
           { id: '1040:11', label: 'AGI', amount: 42000 },
-          { id: '1040:16', label: 'Tax', amount: 2864 }, // tool rounded up
+          { id: '1040:16', label: 'Tax', amount: 2861 }, // tool rounded up
         ],
       }),
     );
