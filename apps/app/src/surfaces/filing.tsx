@@ -131,6 +131,13 @@ export function FilingSurface() {
   const priorQuery = useQuery(
     trpc.filing.priorYears.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
   );
+  const w4Query = useQuery(
+    trpc.filing.w4.queryOptions({
+      workspaceId: spaceId,
+      taxYear: TAX_YEAR,
+      payFrequency: 'biweekly',
+    }),
+  );
   const snapshot = useMutation(
     trpc.filing.snapshot.mutationOptions({
       onSuccess: () => queryClient.invalidateQueries({ queryKey: trpc.filing.pathKey() }),
@@ -161,6 +168,7 @@ export function FilingSurface() {
   const amendment = amendmentQuery.data;
   const extension = extensionQuery.data;
   const prior = priorQuery.data;
+  const w4 = w4Query.data;
   const exportUrl = (format: 'html' | 'json') =>
     `/api/exports/manifest?workspaceId=${spaceId}&taxYear=${TAX_YEAR}&format=${format}`;
 
@@ -563,6 +571,70 @@ export function FilingSurface() {
           </details>
         ))}
       </div>
+
+      {/* ── H5: this year's outcome, turned into next year's paycheck ── */}
+      {w4 && w4.direction !== 'on-target' && (
+        <section className="mt-10 rounded-card border border-hairline bg-surface p-5 shadow-card">
+          <p className="eyebrow mb-1.5">Making next April boring</p>
+          <h2 className="mb-3 text-base font-semibold">
+            {w4.direction === 'over-withheld'
+              ? `You lent the IRS ${usdWhole(Math.abs(w4.gap))} last year, interest-free`
+              : `${usdWhole(w4.gap)} was due in April that hadn’t come out of your pay`}
+          </h2>
+
+          {w4.lines.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {w4.lines.map((line) => (
+                <div
+                  key={line.step}
+                  className="rounded-card border border-hairline/70 bg-paper p-3"
+                >
+                  <div className="mb-1 flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-medium">
+                      W-4 Step {line.step} · {line.label}
+                    </span>
+                    {line.amount > 0 && (
+                      <span className="shrink-0 text-sm font-semibold tabular-nums">
+                        {usdWhole(line.amount)}
+                        <span className="ml-1 text-xs font-normal text-muted">
+                          {line.basis === 'per-pay-period' ? 'per paycheck' : 'for the year'}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted">{line.how}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {w4.instruments.length > 1 && (
+            <div className="mb-4">
+              <p className="eyebrow mb-2">Two ways to the same place</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {w4.instruments.map((i) => (
+                  <div key={i.id} className="rounded-card border border-hairline/70 bg-paper p-3">
+                    <p className="text-sm font-medium">{i.label}</p>
+                    <p className="mb-1 text-sm tabular-nums">{i.rhythm}</p>
+                    <p className="text-xs leading-relaxed text-muted">{i.note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {w4.framing.map((line) => (
+            <p key={line.slice(0, 32)} className="mb-1.5 text-sm leading-snug">
+              {line}
+            </p>
+          ))}
+          {w4.notes.map((note) => (
+            <p key={note.slice(0, 32)} className="mt-2 text-xs leading-relaxed text-muted">
+              {note}
+            </p>
+          ))}
+        </section>
+      )}
 
       <p className="mt-10 text-xs leading-relaxed text-muted">
         Answers save the moment you give them, so you can stop anywhere and pick it up later.

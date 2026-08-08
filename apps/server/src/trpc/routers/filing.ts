@@ -7,6 +7,7 @@ import { assertFact, loadFacts } from '../../services/facts';
 import { absenceBoardFor, readinessFor } from '../../services/filing-year';
 import { listSnapshots, manifestFor, markFiled, snapshotManifest } from '../../services/manifest';
 import { priorYearsFor } from '../../services/prior-years';
+import { w4For } from '../../services/w4';
 import { protectedProcedure, router } from '../trpc';
 
 /**
@@ -175,6 +176,22 @@ export const filingRouter = router({
     const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
     return priorYearsFor(ctx.db, keys, input.taxYear);
   }),
+
+  /**
+   * H5 — the only form here that changes the future: this year's
+   * outcome turned into next year's paycheck. Null until the year can
+   * be totalled.
+   */
+  w4: protectedProcedure
+    .input(
+      desk.extend({
+        payFrequency: z.enum(['weekly', 'biweekly', 'semimonthly', 'monthly']).default('biweekly'),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
+      return w4For(ctx.db, keys, input.taxYear, input.payFrequency);
+    }),
 
   /**
    * Everything ever asserted about one fact, newest first — what the
