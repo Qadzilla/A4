@@ -125,6 +125,9 @@ export function FilingSurface() {
   const amendmentQuery = useQuery(
     trpc.filing.amendment.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
   );
+  const extensionQuery = useQuery(
+    trpc.filing.extension.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
+  );
   const snapshot = useMutation(
     trpc.filing.snapshot.mutationOptions({
       onSuccess: () => queryClient.invalidateQueries({ queryKey: trpc.filing.pathKey() }),
@@ -153,6 +156,7 @@ export function FilingSurface() {
   const board = boardQuery.data;
   const manifest = manifestQuery.data;
   const amendment = amendmentQuery.data;
+  const extension = extensionQuery.data;
   const exportUrl = (format: 'html' | 'json') =>
     `/api/exports/manifest?workspaceId=${spaceId}&taxYear=${TAX_YEAR}&format=${format}`;
 
@@ -222,6 +226,76 @@ export function FilingSurface() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {/* ── H3: the deadline is close and the year isn't ready ── */}
+      {extension && extension.status === 'recommended' && (
+        <section className="mb-10 rounded-card border border-hold/40 bg-hold/5 p-5">
+          <p className="eyebrow mb-1.5">
+            {extension.daysUntilDeadline} days to {extension.deadline}
+          </p>
+          <h2 className="mb-2 text-base font-semibold">
+            An extension buys six months to file and no time at all to pay
+          </h2>
+
+          {extension.payment ? (
+            <>
+              <p className="mb-1 text-sm leading-snug">
+                Send{' '}
+                <span className="font-semibold tabular-nums">
+                  {usdWhole(extension.payment.amount)}
+                </span>{' '}
+                with Form 4868 and nothing accrues in either direction.
+              </p>
+              <p className="mb-3 text-xs leading-relaxed text-muted">{extension.payment.note}</p>
+
+              {extension.payment.assumedWorst.length > 0 && (
+                <details className="mb-3">
+                  <summary className="cursor-pointer list-none text-xs text-muted hover:text-ink">
+                    What it assumes ({extension.payment.assumedWorst.length} open questions)
+                  </summary>
+                  <ul className="mt-2 space-y-1 border-hairline border-l pl-3">
+                    {extension.payment.assumedWorst.slice(0, 6).map((a) => (
+                      <li key={a.factId} className="text-xs leading-relaxed text-muted">
+                        {a.question}
+                        {a.costsIfTrue > 0 && (
+                          <span className="ml-1 font-medium text-ink">
+                            +{usdWhole(a.costsIfTrue)} if the answer goes the expensive way
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </>
+          ) : null}
+
+          {extension.exposure && extension.exposure.unpaid > 0 && (
+            <p className="mb-3 text-xs leading-relaxed text-muted">{extension.exposure.note}</p>
+          )}
+
+          {extension.states.map((st) => (
+            <div key={st.stateCode} className="mt-2 border-hairline border-t pt-2">
+              <p className="text-xs leading-relaxed text-muted">
+                <span className="font-medium text-ink">
+                  {st.stateCode}
+                  {st.form !== null ? ` · Form ${st.form}` : ' · no form needed'}
+                </span>{' '}
+                {st.detail}
+              </p>
+              {st.condition !== null && (
+                <p className="mt-1 text-xs font-medium leading-relaxed text-ink">{st.condition}</p>
+              )}
+            </div>
+          ))}
+
+          {extension.notes.map((note) => (
+            <p key={note.slice(0, 32)} className="mt-2 text-xs leading-relaxed text-muted">
+              {note}
+            </p>
+          ))}
         </section>
       )}
 

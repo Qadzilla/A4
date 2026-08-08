@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { factSet } from '../../lib/calc/filing/facts';
 import { type IntakePlan, intakeFindings, intakePlan } from '../../lib/calc/filing/intake';
 import { amendmentFor } from '../../services/amendment';
+import { extensionFor } from '../../services/extension';
 import { assertFact, loadFacts } from '../../services/facts';
 import { absenceBoardFor, readinessFor } from '../../services/filing-year';
 import { listSnapshots, manifestFor, markFiled, snapshotManifest } from '../../services/manifest';
@@ -153,6 +154,16 @@ export const filingRouter = router({
   amendment: protectedProcedure.input(desk).query(async ({ ctx, input }) => {
     const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
     return amendmentFor(ctx.db, keys, input.taxYear);
+  }),
+
+  /**
+   * H3 — the extension option, and the payment that should ride with
+   * it. Surfaces only before the deadline, and only when the year is
+   * not ready.
+   */
+  extension: protectedProcedure.input(desk).query(async ({ ctx, input }) => {
+    const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
+    return extensionFor(ctx.db, keys, input.taxYear);
   }),
 
   /**
