@@ -109,6 +109,9 @@ export function FilingSurface() {
   const readinessQuery = useQuery(
     trpc.filing.readiness.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
   );
+  const boardQuery = useQuery(
+    trpc.filing.board.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
+  );
 
   const answer = useMutation(
     trpc.filing.answer.mutationOptions({
@@ -129,6 +132,7 @@ export function FilingSurface() {
 
   const plan = planQuery.data as Plan | undefined;
   const readiness = readinessQuery.data;
+  const board = boardQuery.data;
 
   if (planQuery.isLoading || !plan) {
     return (
@@ -199,6 +203,43 @@ export function FilingSurface() {
         </section>
       )}
 
+      {/* ── The absence board: what should exist, and what hasn't ── */}
+      {board && (board.items.length > 0 || board.noPaperTrail.length > 0) && (
+        <section className="mb-10">
+          <p className="eyebrow mb-1.5">What your year should produce</p>
+          <p className="mb-4 text-sm text-muted">{board.headline}</p>
+
+          <div className="space-y-2">
+            {board.items.map((item) => (
+              <BoardRow key={item.document} item={item} />
+            ))}
+          </div>
+
+          {board.noPaperTrail.length > 0 && (
+            <div className="mt-4 rounded-card border border-dashed border-hairline p-4">
+              <p className="eyebrow mb-2">No form will confirm this</p>
+              <ul className="space-y-2">
+                {board.noPaperTrail.map((row) => (
+                  <li key={row.factId} className="text-sm leading-snug">
+                    <span className="font-medium">{row.label}</span>
+                    <span className="text-muted"> — {row.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {board.unmatched.map((row) => (
+            <div
+              key={row.fileId}
+              className="mt-3 rounded-card border border-accent/30 bg-accent/5 p-4 text-sm leading-snug"
+            >
+              {row.prompt}
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* ── The sections ── */}
       <div className="space-y-3">
         {plan.sections.map((section) => (
@@ -236,6 +277,74 @@ export function FilingSurface() {
         Anything you skip is recorded as skipped rather than forgotten — the difference matters to
         what gets computed.
       </p>
+    </div>
+  );
+}
+
+// ─── One expected document ─────────────────────────────────────────
+// Five states, and the colour carries meaning only alongside the word —
+// a dot alone would make "arrived" and "matched" indistinguishable to
+// anyone who reads the board without seeing it.
+
+const STATE_LABEL: Record<string, string> = {
+  waiting: 'Waiting',
+  due: 'Due soon',
+  late: 'Late',
+  arrived: 'On file, not read',
+  matched: 'Done',
+};
+
+const STATE_STYLE: Record<string, string> = {
+  waiting: 'bg-hairline text-muted',
+  due: 'bg-hold/15 text-hold',
+  late: 'bg-neg/10 text-neg',
+  arrived: 'bg-hold/15 text-hold',
+  matched: 'bg-pos/10 text-pos',
+};
+
+type BoardItem = {
+  document: string;
+  from: string;
+  because: Array<{ factId: string; label: string }>;
+  arrivesBy: string | null;
+  mandatory: boolean;
+  state: string;
+  days: number | null;
+  detail: string;
+  action: string | null;
+};
+
+function BoardRow({ item }: { item: BoardItem }) {
+  return (
+    <div className="rounded-card border border-hairline/70 bg-paper p-3.5">
+      <div className="mb-1.5 flex items-start justify-between gap-3">
+        <p className="text-sm font-medium">{item.document}</p>
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+            STATE_STYLE[item.state] ?? 'bg-hairline text-muted'
+          }`}
+        >
+          {STATE_LABEL[item.state] ?? item.state}
+        </span>
+      </div>
+      <p className="text-xs leading-relaxed text-muted">{item.detail}</p>
+      {item.action !== null && (
+        <p className="mt-1.5 text-xs leading-relaxed text-ink">{item.action}</p>
+      )}
+      {item.because.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer list-none text-xs text-muted hover:text-ink">
+            Why this is expected
+          </summary>
+          <ul className="mt-1.5 space-y-1 border-l border-hairline pl-3">
+            {item.because.map((b) => (
+              <li key={b.factId} className="text-xs leading-relaxed text-muted">
+                {b.label}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }

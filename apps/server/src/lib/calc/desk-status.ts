@@ -51,7 +51,25 @@ export interface DeskStatusInput {
   } | null;
   /** Whether any trade history exists at all, in any year. */
   hasTrades: boolean;
-  documentCount: number;
+  /**
+   * G4: the absence board's verdict, not a raw file count. The desk used
+   * to compute its own documents line — "3 documents on file" — which
+   * was a parallel computation that knew nothing about which documents
+   * SHOULD exist. The board does, so this line is now a view over it and
+   * the second engine is gone.
+   */
+  documents: {
+    /** How many documents the year's answers say should arrive. */
+    expected: number;
+    /** Of those, how many are on file AND read into the year. */
+    matched: number;
+    /** On file but not yet extracted — looks finished, isn't. */
+    arrived: number;
+    /** Past their date and not on file. */
+    late: number;
+    /** The board's own line, already written about the data. */
+    headline: string;
+  };
   /** Reconciliation summary for a 1099 covering this year, if one is loaded. */
   reconciliation: {
     matches: number;
@@ -86,20 +104,42 @@ function daysHeld(acquiredAt: string, today: Date): number {
 }
 
 function documentsLine(input: DeskStatusInput): DeskLine {
-  if (input.documentCount === 0) {
+  const d = input.documents;
+  // Nothing in the year's answers implies any paperwork yet — which is a
+  // different thing from "you haven't uploaded anything", and the old
+  // count-based line couldn't tell them apart.
+  if (d.expected === 0) {
     return {
       id: 'documents',
       label: 'Documents',
       status: 'not-started',
-      detail: 'No statements or forms uploaded yet.',
+      detail: d.headline,
+      panel: null,
+    };
+  }
+  if (d.late > 0) {
+    return {
+      id: 'documents',
+      label: 'Documents',
+      status: 'attention',
+      detail: d.headline,
+      panel: null,
+    };
+  }
+  if (d.arrived > 0) {
+    return {
+      id: 'documents',
+      label: 'Documents',
+      status: 'attention',
+      detail: d.headline,
       panel: null,
     };
   }
   return {
     id: 'documents',
     label: 'Documents',
-    status: 'resolved',
-    detail: `${input.documentCount} document${input.documentCount === 1 ? '' : 's'} on file.`,
+    status: d.matched === d.expected ? 'resolved' : 'not-started',
+    detail: d.headline,
     panel: null,
   };
 }

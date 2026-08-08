@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { factSet } from '../../lib/calc/filing/facts';
 import { type IntakePlan, intakeFindings, intakePlan } from '../../lib/calc/filing/intake';
 import { assertFact, loadFacts } from '../../services/facts';
-import { readinessFor } from '../../services/filing-year';
+import { absenceBoardFor, readinessFor } from '../../services/filing-year';
 import { protectedProcedure, router } from '../trpc';
 
 /**
@@ -96,6 +96,16 @@ export const filingRouter = router({
     // document list, which told anyone who had just uploaded their W-2
     // that it was overdue and missing.
     return readinessFor(ctx.db, keys, input.taxYear);
+  }),
+
+  /**
+   * G4 — what the year should produce, and what hasn't shown up.
+   * Distinct from readiness: the verdict says whether the year can be
+   * finished, the board says what is being waited on and why.
+   */
+  board: protectedProcedure.input(desk).query(async ({ ctx, input }) => {
+    const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
+    return absenceBoardFor(ctx.db, keys, input.taxYear);
   }),
 
   /**

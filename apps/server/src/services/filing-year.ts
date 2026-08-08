@@ -22,6 +22,8 @@ import {
   trades,
   w2Forms,
 } from '../db/schema';
+import type { AbsenceBoard } from '../lib/calc/filing/board';
+import { absenceBoard } from '../lib/calc/filing/board';
 import type { CapitalGainsTrade } from '../lib/calc/filing/capital-gains';
 import type { EvaluationExtras, YearEvaluation } from '../lib/calc/filing/evaluation';
 import { evaluateYear } from '../lib/calc/filing/evaluation';
@@ -170,6 +172,17 @@ function safeParse<T>(json: string): T | null {
   } catch {
     return null;
   }
+}
+
+/** G4's board over the real year — what should exist, and what hasn't. */
+export async function absenceBoardFor(
+  db: DB,
+  keys: FactScopeKeys,
+  taxYear: number,
+  today: Date = new Date(),
+): Promise<AbsenceBoard> {
+  const year = await loadFilingYear(db, keys, taxYear);
+  return absenceBoard(year.assertions, year.docs, taxYear, today);
 }
 
 /** A6's verdict over the real year. `today` injectable, as everywhere else. */

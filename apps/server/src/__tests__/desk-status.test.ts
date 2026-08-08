@@ -12,7 +12,13 @@ function input(overrides: Partial<DeskStatusInput> = {}): DeskStatusInput {
     holdings: [],
     realized: null,
     hasTrades: false,
-    documentCount: 0,
+    documents: {
+      expected: 0,
+      matched: 0,
+      arrived: 0,
+      late: 0,
+      headline: 'Nothing in your 2026 answers yet says a document should be coming.',
+    },
     reconciliation: null,
     hasTaxProfile: false,
     ltcgZeroBracketRoom: 0,
@@ -228,7 +234,18 @@ describe('losses', () => {
 
 describe('counts', () => {
   it('adds up to the number of lines', () => {
-    const status = computeDeskStatus(input({ documentCount: 3, hasTrades: true }));
+    const status = computeDeskStatus(
+      input({
+        documents: {
+          expected: 3,
+          matched: 3,
+          arrived: 0,
+          late: 0,
+          headline: 'Everything 2026 should produce is on file.',
+        },
+        hasTrades: true,
+      }),
+    );
     const total = Object.values(status.counts).reduce((a, b) => a + b, 0);
     expect(total).toBe(status.lines.length);
   });

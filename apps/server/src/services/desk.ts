@@ -4,6 +4,7 @@ import { files, holdings, tax1099s, trades } from '../db/schema';
 import { computeDeskStatus, computeRealizedGains, reconcile1099 } from '../lib/calc';
 import type { DeskStatus, Extracted1099 } from '../lib/calc';
 import { stateTaxOnGains } from '../lib/calc/state-gains';
+import { absenceBoardFor } from './filing-year';
 import { buildTaxPicture } from './tax-picture';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -178,10 +179,17 @@ export async function getDeskStatus(
   }));
   const ledger = tradeRows.length > 0 ? computeRealizedGains(lotTrades, taxYear) : null;
 
-  const [documents] = await db
-    .select({ value: count() })
-    .from(files)
-    .where(and(eq(files.workspaceId, workspaceId), eq(files.userId, userId)));
+  // G4: the documents line is a view over the absence board now. The
+  // desk used to count rows in `files` and report the number, which
+  // could say "12 documents on file" for a year still missing its W-2.
+  const board = await absenceBoardFor(db, { userId, workspaceId }, taxYear, today);
+  const boardSummary = {
+    expected: board.items.length,
+    matched: board.counts.matched,
+    arrived: board.counts.arrived,
+    late: board.counts.late,
+    headline: board.headline,
+  };
 
   // A 1099 covering this year, reconciled against the same ledger
   const [form] = await db
@@ -235,7 +243,7 @@ export async function getDeskStatus(
         }
       : null,
     hasTrades: tradeRows.length > 0,
-    documentCount: documents?.value ?? 0,
+    documents: boardSummary,
     reconciliation,
     hasTaxProfile: profileCoversYear,
     ltcgZeroBracketRoom: profileCoversYear ? picture.result.ltcgZeroBracketRoom : 0,
