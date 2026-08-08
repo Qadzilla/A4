@@ -28,12 +28,22 @@ import { buildForm8949Rows } from '../lib/calc/exports';
 import { stateTaxOnGains } from '../lib/calc/state-gains';
 import { getPolygonService } from '../trpc/context';
 import { computeBenchmark } from './benchmark';
+import {
+  explainDeterminationTool,
+  getReadinessTool,
+  priceUnknownTool,
+  recordFactTool,
+} from './filing-tools';
 import { buildTaxPicture } from './tax-picture';
 
 export interface ToolContext {
   db: DB;
   userId: string;
   workspaceId: string;
+  /** G2: record_fact stamps the conversation an answer was given in. */
+  conversationId?: string;
+  /** The desk's tax year. The filing tools work on a year, not on "now". */
+  taxYear?: number;
 }
 
 type ToolExecutor = (
@@ -1029,7 +1039,141 @@ Put class="num" on every element containing figures so they align. Colour meanin
       return preTradeCheck(ctx, symbol, requestedUnits);
     },
   },
+
+  // ─── G2 · The filing engine's four hands ──────────────────────────
+  // None of these compute anything. They record what the person said,
+  // read what the engine decided, and hand back its reasoning verbatim.
+
+  // 16. record_fact
+  {
+    definition: {
+      name: 'record_fact',
+      description: `Record something the user just told you about their year, so the filing engine can use it. Fact ids come from a closed registry — an id outside it is rejected, with the nearest real ones returned so you can correct yourself.
+
+Record ONLY what the user actually stated in this conversation. Never record a figure you read off a document, inferred, or calculated: documents are extracted separately and a recorded guess is indistinguishable from a fact once it is written.
+
+Send the value as a plain value — true/false for yes/no facts, a number for amounts, "YYYY-MM-DD" for dates, a string otherwise. Send null when the user says they don't know: that is a real answer the engine uses, not a missing argument.`,
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          factId: {
+            type: 'string',
+            description:
+              "Fact id from the registry, e.g. 'state-of-residence', 'rent-months-california', 'unreported-tips'.",
+          },
+          value: {
+            description: "The value as the user gave it. null means they said they don't know.",
+          },
+          taxYear: { type: 'number', description: 'Tax year (defaults to the desk year)' },
+        },
+        required: ['factId'],
+      },
+    },
+    execute: async (input, ctx) => {
+      return recordFactTool(
+        ctx.db,
+        { userId: ctx.userId, workspaceId: ctx.workspaceId },
+        {
+          factId: input.factId,
+          value: 'value' in input ? input.value : null,
+          taxYear: resolveTaxYear(input, ctx),
+          conversationId: ctx.conversationId ?? null,
+        },
+      );
+    },
+  },
+
+  // 17. get_readiness
+  {
+    definition: {
+      name: 'get_readiness',
+      description:
+        "Where a tax year stands: the verdict (ready / ready-with-cautions / blocked / not-started), every line with its status, what is blocking, any contradiction between two sources, and the unanswered questions ranked by what they are worth. This is the engine's own assessment — use it for 'am I ready to file', 'what's left', 'what should I look at'.",
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          taxYear: { type: 'number', description: 'Tax year (defaults to the desk year)' },
+        },
+        required: [],
+      },
+    },
+    execute: async (input, ctx) =>
+      getReadinessTool(
+        ctx.db,
+        { userId: ctx.userId, workspaceId: ctx.workspaceId },
+        resolveTaxYear(input, ctx),
+      ),
+  },
+
+  // 18. price_unknown
+  {
+    definition: {
+      name: 'price_unknown',
+      description: `What it is worth to find something out, in dollars. With a factId, the engine evaluates the whole year both ways and returns the two branches and the difference between them. Without one, it returns the outstanding questions ranked by that difference.
+
+Use it whenever the user doesn't know an answer, or asks what matters most. Both branches are returned and neither is likely — pricing an unknown is never deciding it. A branch that cannot compute at all is reported in blockedDiffers, which is worth more than a $0 delta suggests.`,
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          factId: {
+            type: 'string',
+            description: 'Price this one fact. Omit for the ranked list.',
+          },
+          taxYear: { type: 'number', description: 'Tax year (defaults to the desk year)' },
+        },
+        required: [],
+      },
+    },
+    execute: async (input, ctx) =>
+      priceUnknownTool(
+        ctx.db,
+        { userId: ctx.userId, workspaceId: ctx.workspaceId },
+        resolveTaxYear(input, ctx),
+        input.factId,
+      ),
+  },
+
+  // 19. explain_determination
+  {
+    definition: {
+      name: 'explain_determination',
+      description: `Why the engine decided something: the rule it applied, the authority behind it, each step of the test with the value it saw, and any caveats. Names: residency, dependency, filing-status, penalty, education, savers-credit, premium-tax-credit, self-employment, capital-gains, tips-overtime, nonresident, treaties, state, multi-state.
+
+Use this before explaining any determination. Quote the citation exactly as returned — never restate it from memory, and never cite a publication this has not given you.`,
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          determination: {
+            type: 'string',
+            description: "Which determination to explain, e.g. 'residency' or 'state'.",
+          },
+          taxYear: { type: 'number', description: 'Tax year (defaults to the desk year)' },
+        },
+        required: ['determination'],
+      },
+    },
+    execute: async (input, ctx) =>
+      explainDeterminationTool(
+        ctx.db,
+        { userId: ctx.userId, workspaceId: ctx.workspaceId },
+        resolveTaxYear(input, ctx),
+        input.determination,
+      ),
+  },
 ];
+
+/**
+ * The year a filing tool works on. The desk the conversation is happening
+ * in wins over the calendar: someone doing their 2025 return in April 2026
+ * means 2025 every time they say "last year".
+ */
+function resolveTaxYear(input: Record<string, unknown>, ctx: ToolContext): number {
+  const given = input.taxYear;
+  if (typeof given === 'number' && Number.isInteger(given) && given >= 2000 && given <= 2100) {
+    return given;
+  }
+  return ctx.taxYear ?? new Date().getFullYear();
+}
 
 export function getToolDefinitions(): Tool[] {
   return TOOLS.map((t) => t.definition);

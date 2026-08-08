@@ -97,6 +97,43 @@ what they mean.
 - Use calculation tools when the user asks questions like "how much tax will I owe?" or "project my savings growth".
 - State assumptions clearly, e.g. "Assuming single filing status and CA state taxes, ..." or "Using a 7% annual return rate, ...".
 
+### The filing engine's four tools
+The engine determines; you translate. These four are how you reach it, and
+none of them computes anything — every figure they return was decided by a
+rule with an authority behind it.
+
+- record_fact(factId, value, taxYear?) — write down something the user just
+  told you. Only what they actually said, in this conversation. A fact id
+  outside the registry comes back rejected with the nearest real ones; read
+  those and correct yourself rather than guessing again. null means they said
+  they don't know, which is a real answer and not a failure to answer.
+- get_readiness(taxYear?) — where the year stands, with what is blocking it
+  and what is unanswered. Use it for "am I ready", "what's left", "what should
+  I look at". Do not assemble your own version of this from other tools.
+- price_unknown(factId?, taxYear?) — what finding something out is worth, in
+  dollars. Reach for it the moment a user says they don't know: an unknown is
+  a priced situation, not a dead end. Give BOTH branches and the difference.
+  Never present one branch as the likely one — pricing is not deciding.
+- explain_determination(name, taxYear?) — the rule, the authority, and each
+  step with the value it saw. Quote the citation it returns exactly. Never
+  cite a publication or section this tool has not handed you: an invented
+  citation reads as authority and is worse than saying you don't know.
+
+Never state a threshold, cap, rate, limit or dollar figure from a tax rule
+unless a tool in this session returned it. Not a bracket, not a deduction cap,
+not a phase-out, not a state's rate — not even one you are confident about.
+The engine holds every one of these with a citation behind it, and it is
+year-specific; the version in your memory is a different year's, or a
+half-remembered one. Asked something the tools cannot answer yet, say what is
+missing and ask for it. "I can't price that until I know your income" is a
+good answer. A recited figure that turns out to be last year's is not.
+
+Show these on the canvas rather than reading them out. Readiness is a list of
+status rows (row, with a coloured dot and a value). A priced unknown is either
+ba when there are two branches — the two figures side by side with the
+difference between them — or scen when there are three or more, and never with
+"on" set, because "on" would be you picking one.
+
 ### The desk already knows where the year stands
 When a desk section appears below, it is standing status the user can see on
 screen: what's settled, what needs a look, what hasn't been started, and what
@@ -404,6 +441,59 @@ async function buildDeskSection(
   return `## The ${taxYear} desk\n\nThe user is looking at a desk for tax year ${taxYear}. These lines are not settled:\n\n${rows}\n\n${status.counts.resolved} other line${status.counts.resolved === 1 ? '' : 's'} are settled. This is standing status, already computed and already on screen — refer to it rather than recomputing, and don't read the list back unless asked.`;
 }
 
+/**
+ * The filing year, condensed: the verdict, what is blocking, the two or
+ * three unanswered questions with a price on them, and the fact
+ * vocabulary record_fact accepts.
+ *
+ * The vocabulary is here rather than left to the rejection loop on
+ * purpose. The rejection teaches, but it costs a turn, and a model that
+ * can see the ids writes them correctly the first time.
+ */
+async function buildFilingSection(
+  db: DB,
+  userId: string,
+  workspaceId: string,
+  taxYear: number,
+): Promise<string> {
+  const { getReadinessTool, priceUnknownTool, registrySnapshot } = await import('./filing-tools');
+  const keys = { userId, workspaceId };
+
+  const readiness = (await getReadinessTool(db, keys, taxYear)) as {
+    verdict?: string;
+    blockers?: Array<{ reason: string }>;
+  };
+  const vocabulary = registrySnapshot()
+    .map((f) => f.id)
+    .join(', ');
+
+  if (readiness.verdict === 'not-started') {
+    return `## Filing ${taxYear}\n\nNothing has been recorded for ${taxYear} — no answers, no documents. The fastest way in is one or two life questions, not a form.\n\nFacts record_fact accepts: ${vocabulary}`;
+  }
+
+  const blockers = (readiness.blockers ?? []).slice(0, 3).map((b) => `- ${b.reason}`);
+  const priced = (await priceUnknownTool(db, keys, taxYear)) as {
+    available?: boolean;
+    ranked?: Array<{ at: string; question: string; worth: number | null }>;
+  };
+  const worthKnowing = (priced.ranked ?? [])
+    .slice(0, 3)
+    .map(
+      (r) =>
+        `- ${r.at} — ${r.question}${r.worth !== null && r.worth !== 0 ? ` (worth $${Math.round(r.worth)} to find out)` : ''}`,
+    );
+
+  return [
+    `## Filing ${taxYear}`,
+    `Verdict: ${readiness.verdict}. This is the engine's own assessment — call get_readiness for the full picture rather than reconstructing it.`,
+    blockers.length > 0 ? `In the way:\n${blockers.join('\n')}` : null,
+    worthKnowing.length > 0 ? `Unanswered and priced:\n${worthKnowing.join('\n')}` : null,
+    `Facts record_fact accepts: ${vocabulary}`,
+  ]
+    .filter((part): part is string => part !== null)
+    .join('\n\n');
+}
+
 export async function buildWorkspaceContext(
   db: DB,
   userId: string,
@@ -418,7 +508,8 @@ export async function buildWorkspaceContext(
     currentConversationId,
   );
   const desk = taxYear ? `\n\n${await buildDeskSection(db, userId, workspaceId, taxYear)}` : '';
-  return `${SYSTEM_PREAMBLE}\n\n## Current workspace context\n\n${dataSummary}${desk}`;
+  const filing = taxYear ? `\n\n${await buildFilingSection(db, userId, workspaceId, taxYear)}` : '';
+  return `${SYSTEM_PREAMBLE}\n\n## Current workspace context\n\n${dataSummary}${desk}${filing}`;
 }
 
 const TOKEN_BUDGET_CHARS = 8000;

@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { factSet } from '../../lib/calc/filing/facts';
 import { type IntakePlan, intakeFindings, intakePlan } from '../../lib/calc/filing/intake';
-import { assessReadiness } from '../../lib/calc/filing/readiness';
 import { assertFact, loadFacts } from '../../services/facts';
+import { readinessFor } from '../../services/filing-year';
 import { protectedProcedure, router } from '../trpc';
 
 /**
@@ -91,8 +91,11 @@ export const filingRouter = router({
    */
   readiness: protectedProcedure.input(desk).query(async ({ ctx, input }) => {
     const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
-    const assertions = await loadFacts(ctx.db, keys);
-    return assessReadiness(assertions, [], input.taxYear, new Date());
+    // Through filing-year, so expectations are assessed against the
+    // documents that actually arrived. G1 shipped this with an empty
+    // document list, which told anyone who had just uploaded their W-2
+    // that it was overdue and missing.
+    return readinessFor(ctx.db, keys, input.taxYear);
   }),
 
   /**

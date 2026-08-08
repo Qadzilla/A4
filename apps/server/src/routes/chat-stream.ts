@@ -318,7 +318,16 @@ chatStreamRouter.post('/', async (req, res) => {
       `[chat-stream] Sending ${tools.length} tools to Claude:`,
       tools.map((t) => t.name).join(', '),
     );
-    const toolCtx: ToolContext = { db, userId, workspaceId: conversation.workspaceId };
+    // G2's filing tools need both: record_fact stamps the conversation an
+    // answer was given in, and every filing tool works on the desk's year
+    // rather than on whatever year it happens to be today.
+    const toolCtx: ToolContext = {
+      db,
+      userId,
+      workspaceId: conversation.workspaceId,
+      conversationId,
+      ...(deskYear !== undefined ? { taxYear: deskYear } : {}),
+    };
 
     // 9. Send message_start event (final assistant message ID)
     const assistantMessageId = randomUUID();
