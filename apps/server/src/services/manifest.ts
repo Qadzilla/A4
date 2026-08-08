@@ -35,13 +35,35 @@ export async function manifestFor(
   today: Date = new Date(),
 ): Promise<Manifest> {
   const year = await loadFilingYear(db, keys, taxYear);
+  // The refund clock depends on when the return actually went in, and
+  // the only place that is recorded is a snapshot marked filed. Reading
+  // it here means the calendar on the live page is right for someone who
+  // filed late, rather than telling them the money is gone while it
+  // isn't.
+  const filedAt = await lastFiledDate(db, keys, taxYear);
   return buildManifest({
     assertions: year.assertions,
     docs: year.docs,
     taxYear,
     today,
+    filedAt,
     extras: year.extras,
   });
+}
+
+async function lastFiledDate(db: DB, keys: FactScopeKeys, taxYear: number): Promise<string | null> {
+  const rows = await db
+    .select({ filedAt: manifestSnapshots.filedAt })
+    .from(manifestSnapshots)
+    .where(
+      and(
+        eq(manifestSnapshots.workspaceId, keys.workspaceId),
+        eq(manifestSnapshots.userId, keys.userId),
+        eq(manifestSnapshots.taxYear, taxYear),
+      ),
+    )
+    .orderBy(desc(manifestSnapshots.createdAt));
+  return rows.find((r) => r.filedAt !== null)?.filedAt ?? null;
 }
 
 /** Freeze the year as it stands. Immutable from this moment. */

@@ -23,6 +23,7 @@
 // itself until everything was perfect would be useless in precisely the
 // situation people need it: the night before, with one form missing.
 
+import { claimClock } from './amendment';
 import type { YearEvaluation } from './evaluation';
 import { evaluateYear } from './evaluation';
 import {
@@ -160,6 +161,12 @@ export interface ManifestInput {
   taxYear: number;
   /** Injectable, as everywhere else in this engine. */
   today: Date;
+  /**
+   * When this year's return was filed, where it has been. Moves the
+   * refund-claim clock: a late filing extends it, an early one does not
+   * shorten it (§6513(a)).
+   */
+  filedAt?: string | null;
   extras?: Parameters<typeof evaluateYear>[2];
 }
 
@@ -205,7 +212,7 @@ export function buildManifest(input: ManifestInput): Manifest {
     cautions: cautionsFor(evaluation, taxYear, today),
     outOfScope: readiness.outOfScope,
     outsideTheReturn: outsideTheReturn(readiness, evaluation),
-    calendar: calendarFor(taxYear, today),
+    calendar: calendarFor(taxYear, today, input.filedAt ?? null),
     whereToFile: whereToFile(evaluation),
     headline: headlineFor(evaluation, readiness, forms, taxYear),
   };
@@ -525,7 +532,7 @@ function outsideTheReturn(readiness: Readiness, evaluation: YearEvaluation): Out
   return out;
 }
 
-function calendarFor(taxYear: number, today: Date): CalendarEntry[] {
+function calendarFor(taxYear: number, today: Date, filedAt: string | null): CalendarEntry[] {
   const out: CalendarEntry[] = [];
   // April 15 of the following year, without pretending to know which
   // weekends and DC holidays push it. The engine holds no deadline
@@ -544,12 +551,15 @@ function calendarFor(taxYear: number, today: Date): CalendarEntry[] {
     what: 'Last day to add to an IRA for this year',
     detail: 'The deadline itself, not the extended one. An extension does not move it.',
   });
-  const refundWindow = `${taxYear + 4}-04-15`;
+  // H2 owns this one: the clock depends on when the return actually
+  // went in, and hardcoding three-years-from-the-deadline here would be
+  // wrong for anyone who filed late — in the direction of telling them
+  // the money is gone while it isn't.
+  const clock = claimClock(taxYear, filedAt, today);
   out.push({
-    date: refundWindow,
+    date: clock.deadline,
     what: 'A refund for this year stops being claimable',
-    detail:
-      'Three years from the due date, an unclaimed refund becomes the Treasury’s. Nothing gives it back after that.',
+    detail: `${clock.note} After that date an unclaimed refund becomes the Treasury's, and nothing gives it back.`,
   });
 
   return out.filter(

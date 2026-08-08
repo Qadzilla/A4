@@ -122,6 +122,14 @@ export function FilingSurface() {
   const manifestQuery = useQuery(
     trpc.filing.manifest.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
   );
+  const amendmentQuery = useQuery(
+    trpc.filing.amendment.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
+  );
+  const snapshot = useMutation(
+    trpc.filing.snapshot.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: trpc.filing.pathKey() }),
+    }),
+  );
 
   const answer = useMutation(
     trpc.filing.answer.mutationOptions({
@@ -144,6 +152,7 @@ export function FilingSurface() {
   const readiness = readinessQuery.data;
   const board = boardQuery.data;
   const manifest = manifestQuery.data;
+  const amendment = amendmentQuery.data;
   const exportUrl = (format: 'html' | 'json') =>
     `/api/exports/manifest?workspaceId=${spaceId}&taxYear=${TAX_YEAR}&format=${format}`;
 
@@ -216,6 +225,61 @@ export function FilingSurface() {
         </section>
       )}
 
+      {/* ── H2: the year moved after it was filed ── */}
+      {amendment && amendment.status !== 'no-change' && (
+        <section className="mb-10 rounded-card border border-accent/40 bg-accent/5 p-5">
+          <p className="eyebrow mb-1.5 text-accent">Since you filed</p>
+          <p className="mb-3 text-sm leading-snug">{amendment.explanation}</p>
+
+          {amendment.lines.length > 0 && (
+            <table className="mb-3 w-full text-sm">
+              <thead>
+                <tr className="text-xs text-muted">
+                  <th className="py-1 text-left font-medium">Line</th>
+                  <th className="py-1 text-right font-medium">A · as filed</th>
+                  <th className="py-1 text-right font-medium">B · change</th>
+                  <th className="py-1 text-right font-medium">C · corrected</th>
+                </tr>
+              </thead>
+              <tbody>
+                {amendment.lines.map((line) => (
+                  <tr key={line.id} className="border-hairline border-t">
+                    <td className="py-1.5 pr-2">{line.label}</td>
+                    <td className="py-1.5 text-right tabular-nums text-muted">
+                      {usdWhole(line.asFiled ?? 0)}
+                    </td>
+                    <td className="py-1.5 text-right font-medium tabular-nums">
+                      {line.change > 0 ? '+' : ''}
+                      {usdWhole(line.change)}
+                    </td>
+                    <td className="py-1.5 text-right tabular-nums">
+                      {usdWhole(line.asCorrected ?? 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {amendment.claimClock && (
+            <p className="mb-2 text-xs leading-relaxed text-muted">
+              <span className="font-medium text-ink">
+                {amendment.claimClock.status === 'closed'
+                  ? `The window closed ${amendment.claimClock.deadline}.`
+                  : `You have until ${amendment.claimClock.deadline}.`}
+              </span>{' '}
+              {amendment.claimClock.note}
+            </p>
+          )}
+
+          {amendment.notes.map((note) => (
+            <p key={note.slice(0, 32)} className="mt-2 text-xs leading-relaxed text-muted">
+              {note}
+            </p>
+          ))}
+        </section>
+      )}
+
       {/* ── The deliverable: the year, worked out ── */}
       {manifest && manifest.forms.length > 0 && (
         <section className="mb-10 rounded-card border border-hairline bg-surface p-5 shadow-card">
@@ -233,6 +297,16 @@ export function FilingSurface() {
               <a href={exportUrl('json')} className="text-muted hover:text-ink">
                 Download JSON
               </a>
+              <button
+                type="button"
+                disabled={snapshot.isPending}
+                onClick={() =>
+                  snapshot.mutate({ workspaceId: spaceId, taxYear: TAX_YEAR, label: null })
+                }
+                className="text-muted hover:text-ink disabled:opacity-50"
+              >
+                {snapshot.isPending ? 'Freezing…' : 'Freeze this version'}
+              </button>
             </div>
           </div>
           <p className="mb-4 text-sm leading-snug">{manifest.headline}</p>

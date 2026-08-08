@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { factSet } from '../../lib/calc/filing/facts';
 import { type IntakePlan, intakeFindings, intakePlan } from '../../lib/calc/filing/intake';
+import { amendmentFor } from '../../services/amendment';
 import { assertFact, loadFacts } from '../../services/facts';
 import { absenceBoardFor, readinessFor } from '../../services/filing-year';
 import { listSnapshots, manifestFor, markFiled, snapshotManifest } from '../../services/manifest';
@@ -144,6 +145,15 @@ export const filingRouter = router({
       const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
       return markFiled(ctx.db, keys, input.snapshotId, input.filedAt);
     }),
+
+  /**
+   * H2 — the amendment worksheet, when a snapshotted year has moved
+   * since. Null when there is no snapshot to measure against.
+   */
+  amendment: protectedProcedure.input(desk).query(async ({ ctx, input }) => {
+    const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
+    return amendmentFor(ctx.db, keys, input.taxYear);
+  }),
 
   /**
    * Everything ever asserted about one fact, newest first — what the
