@@ -128,6 +128,9 @@ export function FilingSurface() {
   const extensionQuery = useQuery(
     trpc.filing.extension.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
   );
+  const priorQuery = useQuery(
+    trpc.filing.priorYears.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
+  );
   const snapshot = useMutation(
     trpc.filing.snapshot.mutationOptions({
       onSuccess: () => queryClient.invalidateQueries({ queryKey: trpc.filing.pathKey() }),
@@ -157,6 +160,7 @@ export function FilingSurface() {
   const manifest = manifestQuery.data;
   const amendment = amendmentQuery.data;
   const extension = extensionQuery.data;
+  const prior = priorQuery.data;
   const exportUrl = (format: 'html' | 'json') =>
     `/api/exports/manifest?workspaceId=${spaceId}&taxYear=${TAX_YEAR}&format=${format}`;
 
@@ -226,6 +230,72 @@ export function FilingSurface() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {/* ── H4: the years before this one that were never finished ── */}
+      {prior && prior.years.length > 0 && (
+        <section className="mb-10 rounded-card border border-hairline bg-surface p-5 shadow-card">
+          <p className="eyebrow mb-1.5">Years you didn’t finish</p>
+          <p className="mb-4 text-sm leading-snug">{prior.headline}</p>
+
+          <div className="space-y-3">
+            {prior.years.map((year) => (
+              <div
+                key={year.taxYear}
+                className={`rounded-card border p-3.5 ${
+                  year.status === 'forfeited'
+                    ? 'border-hairline/60 bg-paper opacity-70'
+                    : year.status === 'closing-soon'
+                      ? 'border-hold/40 bg-hold/5'
+                      : 'border-hairline/70 bg-paper'
+                }`}
+              >
+                <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-semibold tabular-nums">{year.taxYear}</span>
+                  <span className="text-xs text-muted">
+                    {year.status === 'forfeited'
+                      ? `expired ${year.forfeitDate}`
+                      : `${year.daysRemaining} days left · ${year.forfeitDate}`}
+                  </span>
+                </div>
+
+                {year.estimate && (
+                  <p className="mb-1 text-sm">
+                    {year.estimate.direction === 'refund'
+                      ? `Looks like about ${usdWhole(year.estimate.amount)} back.`
+                      : year.estimate.direction === 'owed'
+                        ? `Looks like about ${usdWhole(year.estimate.amount)} owed.`
+                        : 'Looks like it comes out even.'}
+                  </p>
+                )}
+                {year.estimate?.noPenaltyNote && (
+                  <p className="text-xs leading-relaxed text-muted">
+                    {year.estimate.noPenaltyNote}
+                  </p>
+                )}
+                {year.estimate?.owedNote && (
+                  <p className="text-xs leading-relaxed text-muted">{year.estimate.owedNote}</p>
+                )}
+                {year.refusal !== null && (
+                  <p className="text-xs leading-relaxed text-muted">{year.refusal}</p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 border-hairline border-t pt-3">
+            <p className="eyebrow mb-1.5">You don’t need your old paperwork</p>
+            <p className="text-xs leading-relaxed text-muted">
+              {prior.transcript.why} {prior.transcript.how}
+            </p>
+          </div>
+
+          {prior.notes.map((note) => (
+            <p key={note.slice(0, 32)} className="mt-2 text-xs leading-relaxed text-muted">
+              {note}
+            </p>
+          ))}
         </section>
       )}
 

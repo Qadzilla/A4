@@ -6,6 +6,8 @@
 //
 // Every figure here carries its source; nothing is written from memory.
 
+import { FEDERAL_TAX_DATA } from '../tax-data';
+
 export interface FilingYearData {
   /**
    * Qualifying-relative gross income test: income must be LESS THAN this —
@@ -260,4 +262,28 @@ const INFORMATION_RETURN_THRESHOLDS: Record<number, { nec: number; k: number }> 
 
 export function informationReturnThresholds(taxYear: number): { nec: number; k: number } | null {
   return INFORMATION_RETURN_THRESHOLDS[taxYear] ?? null;
+}
+
+/**
+ * H4's enforcement arm, and Doctrine 6 made mechanical.
+ *
+ * A prior year can only be computed if BOTH tables that govern it are
+ * loaded: this module's thresholds and limits, and the rate schedules in
+ * tax-data. Checking one and assuming the other is how a year gets
+ * computed with this year's brackets and nobody notices — the failure
+ * mode that makes a wrong answer look exactly like a right one.
+ *
+ * Adding a year means adding it to both, verified against that year's
+ * own revenue procedure. Until then the year refuses by name.
+ */
+export function yearRulesLoaded(taxYear: number): boolean {
+  return FILING_YEAR_DATA[taxYear] !== undefined && FEDERAL_TAX_DATA[taxYear] !== undefined;
+}
+
+/** Every year the engine can actually compute, ascending. */
+export function supportedFilingYears(): number[] {
+  return Object.keys(FILING_YEAR_DATA)
+    .map(Number)
+    .filter((y) => yearRulesLoaded(y))
+    .sort((a, b) => a - b);
 }

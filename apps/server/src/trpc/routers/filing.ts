@@ -6,6 +6,7 @@ import { extensionFor } from '../../services/extension';
 import { assertFact, loadFacts } from '../../services/facts';
 import { absenceBoardFor, readinessFor } from '../../services/filing-year';
 import { listSnapshots, manifestFor, markFiled, snapshotManifest } from '../../services/manifest';
+import { priorYearsFor } from '../../services/prior-years';
 import { protectedProcedure, router } from '../trpc';
 
 /**
@@ -164,6 +165,15 @@ export const filingRouter = router({
   extension: protectedProcedure.input(desk).query(async ({ ctx, input }) => {
     const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
     return extensionFor(ctx.db, keys, input.taxYear);
+  }),
+
+  /**
+   * H4 — the years before this one that were never finished, ordered by
+   * which refund evaporates soonest.
+   */
+  priorYears: protectedProcedure.input(desk).query(async ({ ctx, input }) => {
+    const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
+    return priorYearsFor(ctx.db, keys, input.taxYear);
   }),
 
   /**
