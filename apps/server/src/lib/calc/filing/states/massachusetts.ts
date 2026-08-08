@@ -26,21 +26,17 @@
 //                    phaseout, and it stacks with the federal deduction
 //                    that phases this audience out.
 //
-// THE FENCE THAT MATTERS: capital LOSSES are refused, not netted.
-// Massachusetts has its own loss-ordering rules (short against short,
-// then long against net short, then up to $2,000 against interest and
-// dividends, then carryforward) and the current authority for that
-// ordering is the Schedule B and Schedule D instructions. mass.gov
-// blocks automated retrieval of them, and the only ordering text
-// obtainable was a 2002 transition release written around repealed rate
-// classes. Implementing an ordering from that would be inventing law.
-// So: gains compute, losses refuse by name, and B1's estimate stays
-// alive until the ordering can be transcribed properly.
+// LOSSES: Massachusetts nets them in its own statutory order, and it is
+// not the intuitive one. See ma-loss-netting.ts, which reads that order
+// out of M.G.L. c. 62 § 2(c) rather than out of the form instructions
+// mass.gov would not serve. F3 shipped refusing losses; the refusal is
+// retired here, and the fixture that pinned it is kept as the record.
 
 import { type FactAssertion, type FactId, factSet, factState } from '../facts';
 import type { FilingStatus } from '../filing-status';
 import type { RuleTrace } from '../trace';
 import { massachusettsData } from './ma-data';
+import { type MaNetting, netMassachusettsGains } from './ma-loss-netting';
 
 export type MassachusettsStatus = 'computed' | 'refused' | 'not-applicable';
 
@@ -62,6 +58,8 @@ export interface MassachusettsDetermination {
   limitedIncomeCredit: number;
   /** What Massachusetts actually charges. */
   totalMassachusettsTax: number;
+  /** How the year's gains and losses netted, in the statute's order. */
+  netting: MaNetting | null;
   missingFacts: FactId[];
   refusals: string[];
   explanation: RuleTrace;
@@ -102,6 +100,7 @@ export function determineMassachusetts(
     interestDividends: 0,
     shortTermGains: 0,
     longTermGains: 0,
+    netting: null,
     personalExemption: 0,
     rentalDeduction: 0,
     studentLoanDeduction: 0,
@@ -147,19 +146,27 @@ export function determineMassachusetts(
   const longTermGains = num('realized-long-gains') ?? 0;
   const unemployment = num('unemployment-income') ?? 0;
 
-  // ── The fence: losses need MA's ordering, which isn't transcribed ──
-  if (shortTermGains < 0 || longTermGains < 0) {
-    return finish({
-      status: 'refused',
-      refusals: [
-        'This year has capital losses, and Massachusetts nets them in its own order — short-term losses against short-term gains first, then against long-term gains, then up to $2,000 against interest and dividends, with the rest carried forward. That ordering is the return, and Basis has not transcribed it from the Schedule B and D instructions yet. Applying a rate to the gains and ignoring the losses would overstate the Massachusetts tax, so it refuses instead. The federal side of this year is unaffected.',
-      ],
-    });
+  // ── Losses: netted in the statute's own order (§ 2(c)) ──
+  // F3 refused this rather than guess the ordering, and refusing was
+  // right — the guess in that refusal's own wording turned out to have
+  // the sequence backwards. The statute settles it; see ma-loss-netting.
+  const netting = netMassachusettsGains({
+    shortTerm: shortTermGains,
+    longTerm: longTermGains,
+    interestAndDividends: interest + dividends,
+  });
+  const netShortTerm = netting.taxableShortTermGain;
+  const netLongTerm = netting.taxableLongTermGain;
+  notes.push(...netting.notes);
+  if (netting.appliedAgainstInterest > 0) {
+    notes.push(
+      `$${Math.round(netting.appliedAgainstInterest)} of capital loss came off your interest and dividends before Massachusetts taxed them.`,
+    );
   }
 
   const partBIncome = wages + ctx.seNetProfit + unemployment;
-  const interestDividends = interest + dividends;
-  const grossMaIncome = partBIncome + interestDividends + shortTermGains + longTermGains;
+  const interestDividends = netting.taxableInterestAndDividends;
+  const grossMaIncome = partBIncome + interestDividends + netShortTerm + netLongTerm;
 
   if (grossMaIncome > year.surtaxRefusalFloor) {
     return finish({
@@ -204,12 +211,12 @@ export function determineMassachusetts(
   const taxBeforeMercies =
     partBTaxable * year.partBRate +
     interestDividends * year.interestDividendRate +
-    shortTermGains * year.shortTermRate +
-    longTermGains * year.longTermRate;
+    netShortTerm * year.shortTermRate +
+    netLongTerm * year.longTermRate;
 
-  if (shortTermGains > 0) {
+  if (netShortTerm > 0) {
     notes.push(
-      `Massachusetts taxes short-term gains at ${year.shortTermRate * 100}% — higher than the 5% it charges on wages, and usually higher than your federal bracket at this income. $${Math.round(shortTermGains * year.shortTermRate)} of state tax on this year's short-term sales.`,
+      `Massachusetts taxes short-term gains at ${year.shortTermRate * 100}% — higher than the 5% it charges on wages, and usually higher than your federal bracket at this income. $${Math.round(netShortTerm * year.shortTermRate)} of state tax on this year's short-term sales.`,
     );
   }
 
@@ -255,8 +262,9 @@ export function determineMassachusetts(
     status: 'computed',
     partBTaxable,
     interestDividends,
-    shortTermGains,
-    longTermGains,
+    shortTermGains: netShortTerm,
+    longTermGains: netLongTerm,
+    netting,
     personalExemption,
     rentalDeduction,
     studentLoanDeduction,

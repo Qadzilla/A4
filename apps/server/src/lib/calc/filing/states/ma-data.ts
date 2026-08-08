@@ -18,13 +18,15 @@
 //     instructions are PDF-only and the site blocks automated fetching),
 //     so the module refuses above $1,000,000 rather than coding a
 //     threshold from memory. It cannot bind this audience either way.
-//   • MA's capital-loss netting ordering. The current authority is the
-//     Schedule B and Schedule D instructions, which mass.gov would not
-//     serve; the only ordering text obtainable was TIR 02-21, a 2002
-//     transition release full of repealed rate classes. So losses are
-//     REFUSED rather than netted by a guessed ordering — see
-//     massachusetts.ts. B1's positive-only estimate therefore stays
-//     alive; the contract said F3 would retire it, and F3 has not.
+//
+// NOW MODELLED (was not, in F3):
+//   • Capital-loss netting. F3 refused losses because the Schedule B and
+//     D instructions could not be fetched — and refusing was right, since
+//     the ordering F3's own refusal text described turned out to be
+//     backwards. The rule is statutory, not an instruction-book
+//     convention: M.G.L. c. 62 § 2(c), served by malegislature.gov. See
+//     ma-loss-netting.ts. B1's positive-only clamp is retired with it —
+//     both now run the same ordering.
 
 export interface MassachusettsYearData {
   /** Part B: wages and most ordinary income. */

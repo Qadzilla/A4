@@ -229,7 +229,15 @@ export const CORPUS_LEDGER: LedgerEntry[] = [
   { id: 'ma/rental-deduction-is-half-the-rent' },
   { id: 'ma/rent-unasked-is-priced' },
   { id: 'ma/undergrad-loan-interest-in-full' },
-  { id: 'ma/losses-refuse-rather-than-overstate' },
+  // Superseded when M.G.L. c. 62 § 2(c) was transcribed and F3 stopped
+  // refusing losses. The fixture stays; only its assertion moved.
+  {
+    id: 'ma/losses-refuse-rather-than-overstate',
+    supersededBy: 'ma/short-term-loss-reaches-long-term-gains',
+  },
+  { id: 'ma/short-term-loss-reaches-long-term-gains' },
+  { id: 'ma/long-term-loss-takes-the-8.5-percent-gain-first' },
+  { id: 'ma/the-two-thousand-cap-and-what-survives-it' },
   { id: 'ma/mfs-gets-neither-mercy' },
   { id: 'ma/2026-not-verified-refuses' },
   { id: 'ma/not-a-massachusetts-year' },

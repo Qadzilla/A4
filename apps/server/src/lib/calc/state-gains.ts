@@ -11,21 +11,21 @@
 // precision the flat estimate doesn't have.
 //
 // Fences (BASIS_FILING.md B1): Massachusetts only — other states return
-// their honest status, never a guess. No netting engine: MA's own
-// loss-ordering rules live in F3; this applies rate × positive gain and
-// says it's an estimate. Federal math untouched.
+// their honest status, never a guess. Losses net through F3's
+// statutory engine (M.G.L. c. 62 § 2(c)) rather than being clamped at
+// zero — one ordering, used everywhere. Federal math untouched.
+
+import { netMassachusettsGains } from './filing/states/ma-loss-netting';
 
 export interface StateGainsTax {
   status: 'applies';
   stateCode: 'MA';
   shortTermRatePct: number;
   longTermRatePct: number;
-  /** Rate × positive gain per term — losses contribute zero here; the
-   *  netting rules that could do better are F3's. */
+  /** Rate × the gain that survives § 2(c)'s netting, per term. */
   estimatedShortTermTax: number;
   estimatedLongTermTax: number;
   estimatedTotalTax: number;
-  /** Always labelled: this is an estimate ahead of MA's netting rules. */
   note: string;
 }
 
@@ -69,8 +69,19 @@ export function stateTaxOnGains(
     };
   }
 
-  const shortTax = Math.max(0, gains.shortTerm) * (rates.shortPct / 100);
-  const longTax = Math.max(0, gains.longTerm) * (rates.longPct / 100);
+  // Netted through the statute's own ordering rather than clamped at
+  // zero. Until F3 transcribed § 2(c) this dropped losses on the floor
+  // and said so; now there is one netting engine and this is a view
+  // over it. Interest and dividends are zero here on purpose — this
+  // prices a single hypothetical sale, and the year's interest is not
+  // part of that question.
+  const netted = netMassachusettsGains({
+    shortTerm: gains.shortTerm,
+    longTerm: gains.longTerm,
+    interestAndDividends: 0,
+  });
+  const shortTax = netted.taxableShortTermGain * (rates.shortPct / 100);
+  const longTax = netted.taxableLongTermGain * (rates.longPct / 100);
   return {
     status: 'applies',
     stateCode: 'MA',
@@ -81,7 +92,7 @@ export function stateTaxOnGains(
     estimatedTotalTax: shortTax + longTax,
     note:
       gains.shortTerm > 0
-        ? `Massachusetts taxes short-term gains at ${rates.shortPct}% and long-term at ${rates.longPct}% — waiting past the one-year line also saves ${(rates.shortPct - rates.longPct).toFixed(1)}% of the gain to the state. Estimate ahead of MA's loss-netting rules.`
-        : `Massachusetts taxes long-term gains at ${rates.longPct}%. Estimate ahead of MA's loss-netting rules.`,
+        ? `Massachusetts taxes short-term gains at ${rates.shortPct}% and long-term at ${rates.longPct}% — waiting past the one-year line also saves ${(rates.shortPct - rates.longPct).toFixed(1)}% of the gain to the state.`
+        : `Massachusetts taxes long-term gains at ${rates.longPct}%.`,
   };
 }

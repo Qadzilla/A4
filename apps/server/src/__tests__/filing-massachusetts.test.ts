@@ -86,20 +86,25 @@ describe('B1 and F3 reconcile', () => {
     expect(f3.longTermGains * 0.05).toBeCloseTo(b1.estimatedLongTermTax, 6);
   });
 
-  it('B1 does NOT retire yet — losses are exactly where the two diverge', () => {
-    // B1 quietly treats a loss as zero tax and says it is an estimate.
-    const b1 = stateTaxOnGains('MA', 2025, { shortTerm: -3000, longTerm: 5000 });
-    expect(b1.status).toBe('applies');
+  it('the divergence is gone: losses net the same way in both', () => {
+    // This test used to assert the opposite. B1 clamped losses at zero
+    // and F3 refused them, because M.G.L. c. 62 § 2(c) had not been
+    // transcribed — mass.gov blocks automated fetching and the Schedule
+    // B and D instructions were unreachable. The statute itself was
+    // reachable all along on malegislature.gov, which is better
+    // authority anyway. Both now run the same netting.
+    const gains = { shortTerm: -3000, longTerm: 5000 };
+    const b1 = stateTaxOnGains('MA', 2025, gains);
+    if (b1.status !== 'applies') throw new Error('expected B1 to apply');
 
-    // F3 refuses the same year rather than guessing MA's ordering.
     const facts = assertionsOf({
       id: 'recon-loss',
-      source: { kind: 'adversarial', rationale: 'the divergence' },
+      source: { kind: 'adversarial', rationale: 'the former divergence' },
       taxYear: 2025,
       facts: [
         { factId: 'state-of-residence', value: { kind: 'string', value: 'MA' } },
-        { factId: 'realized-short-gains', value: { kind: 'number', value: -3000 } },
-        { factId: 'realized-long-gains', value: { kind: 'number', value: 5000 } },
+        { factId: 'realized-short-gains', value: { kind: 'number', value: gains.shortTerm } },
+        { factId: 'realized-long-gains', value: { kind: 'number', value: gains.longTerm } },
       ],
       expected: null,
     });
@@ -108,7 +113,44 @@ describe('B1 and F3 reconcile', () => {
       stateOfResidence: 'MA',
       seNetProfit: 0,
     });
-    expect(f3.status).toBe('refused');
+    if (f3.status !== 'computed') throw new Error('expected F3 to compute, not refuse');
+
+    // $3,000 of short-term loss against $5,000 of long-term gain leaves
+    // $2,000 taxable at 5% — and both modules say so.
+    expect(f3.longTermGains).toBe(2000);
+    expect(f3.shortTermGains).toBe(0);
+    expect(b1.estimatedLongTermTax).toBeCloseTo(f3.longTermGains * 0.05, 6);
+    expect(b1.estimatedShortTermTax).toBeCloseTo(f3.shortTermGains * 0.085, 6);
+  });
+
+  it('F3 goes further than B1 can: the interest-and-dividends leg', () => {
+    // B1 prices one hypothetical sale, so it has no interest income to
+    // offer a loss. F3 has the whole year, and the statute's FIRST stop
+    // for a short-term loss is interest and dividends.
+    const facts = assertionsOf({
+      id: 'recon-interest',
+      source: { kind: 'adversarial', rationale: 'where the year beats the trade' },
+      taxYear: 2025,
+      facts: [
+        { factId: 'state-of-residence', value: { kind: 'string', value: 'MA' } },
+        { factId: 'w2-wages', value: { kind: 'number', value: 40000 } },
+        { factId: 'interest-income', value: { kind: 'number', value: 5000 } },
+        { factId: 'realized-short-gains', value: { kind: 'number', value: -4000 } },
+      ],
+      expected: null,
+    });
+    const f3 = determineMassachusetts(facts, 2025, {
+      filingStatus: 'single',
+      stateOfResidence: 'MA',
+      seNetProfit: 0,
+    });
+    if (f3.status !== 'computed') throw new Error('expected F3 to compute');
+
+    // $2,000 of the loss comes off the interest — the aggregate cap —
+    // and the other $2,000 carries forward as a Part A loss.
+    expect(f3.interestDividends).toBe(3000);
+    expect(f3.netting?.appliedAgainstInterest).toBe(2000);
+    expect(f3.netting?.carryforward.partA).toBe(2000);
   });
 });
 
