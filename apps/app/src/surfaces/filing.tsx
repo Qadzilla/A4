@@ -65,6 +65,13 @@ type AnswerValue =
   | { kind: 'date'; value: string }
   | { kind: 'unknown' };
 
+const usdWhole = (n: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(n);
+
 const money = (n: number) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -112,6 +119,9 @@ export function FilingSurface() {
   const boardQuery = useQuery(
     trpc.filing.board.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
   );
+  const manifestQuery = useQuery(
+    trpc.filing.manifest.queryOptions({ workspaceId: spaceId, taxYear: TAX_YEAR }),
+  );
 
   const answer = useMutation(
     trpc.filing.answer.mutationOptions({
@@ -133,6 +143,9 @@ export function FilingSurface() {
   const plan = planQuery.data as Plan | undefined;
   const readiness = readinessQuery.data;
   const board = boardQuery.data;
+  const manifest = manifestQuery.data;
+  const exportUrl = (format: 'html' | 'json') =>
+    `/api/exports/manifest?workspaceId=${spaceId}&taxYear=${TAX_YEAR}&format=${format}`;
 
   if (planQuery.isLoading || !plan) {
     return (
@@ -200,6 +213,67 @@ export function FilingSurface() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {/* ── The deliverable: the year, worked out ── */}
+      {manifest && manifest.forms.length > 0 && (
+        <section className="mb-10 rounded-card border border-hairline bg-surface p-5 shadow-card">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <p className="eyebrow">Your return, worked out</p>
+            <div className="flex gap-3 text-xs font-medium">
+              <a
+                href={exportUrl('html')}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent hover:underline"
+              >
+                Open to print
+              </a>
+              <a href={exportUrl('json')} className="text-muted hover:text-ink">
+                Download JSON
+              </a>
+            </div>
+          </div>
+          <p className="mb-4 text-sm leading-snug">{manifest.headline}</p>
+
+          {manifest.forms.map((form) => (
+            <div key={form.form} className="mb-4 last:mb-0">
+              <p className="mb-1.5 text-xs font-medium text-muted">{form.label}</p>
+              <table className="w-full text-sm">
+                <tbody>
+                  {form.lines.map((line) => (
+                    <tr key={line.id} className="border-hairline border-b last:border-0">
+                      <td className="w-10 py-1.5 pr-2 align-top text-xs tabular-nums text-muted">
+                        {line.line}
+                      </td>
+                      <td className="py-1.5 pr-2 align-top">{line.label}</td>
+                      <td className="w-24 py-1.5 text-right align-top font-medium tabular-nums">
+                        {usdWhole(line.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+
+          {manifest.outsideTheReturn.length > 0 && (
+            <div className="mt-4 border-hairline border-t pt-3">
+              <p className="eyebrow mb-2">Money the return will never show</p>
+              <ul className="space-y-1.5">
+                {manifest.outsideTheReturn.map((o) => (
+                  <li key={o.id} className="text-xs leading-relaxed text-muted">
+                    <span className="font-medium text-ink">
+                      {o.label}
+                      {o.amount !== null ? ` — ${usdWhole(o.amount)}` : ''}
+                    </span>{' '}
+                    {o.detail}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       )}
 

@@ -97,11 +97,44 @@ export function ensureLaunchSchema(sqlite: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_fact_assertions_desk
       ON fact_assertions(workspace_id, tax_year);
+    CREATE TABLE IF NOT EXISTS manifest_snapshots (
+      id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
+      tax_year INTEGER NOT NULL, payload TEXT NOT NULL, filed_at TEXT,
+      label TEXT, created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_manifest_snapshots_desk
+      ON manifest_snapshots(workspace_id, tax_year);
     CREATE TABLE IF NOT EXISTS tax_1099s (
       id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, user_id TEXT NOT NULL,
       file_id TEXT NOT NULL UNIQUE, tax_year INTEGER NOT NULL, broker TEXT,
       payload TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
     );
+  `);
+
+  // H1: snapshot immutability, enforced where it cannot be argued with.
+  // Everything about a snapshot is frozen except the act of marking it
+  // filed, which is new information about an unchanged document rather
+  // than a change to it — so that one column is the single exception,
+  // and only in the direction of being set.
+  sqlite.exec(`
+    CREATE TRIGGER IF NOT EXISTS manifest_snapshots_immutable
+    BEFORE UPDATE ON manifest_snapshots
+    FOR EACH ROW WHEN
+      OLD.payload    IS NOT NEW.payload    OR
+      OLD.tax_year   IS NOT NEW.tax_year   OR
+      OLD.workspace_id IS NOT NEW.workspace_id OR
+      OLD.user_id    IS NOT NEW.user_id    OR
+      OLD.created_at IS NOT NEW.created_at OR
+      OLD.filed_at   IS NOT NULL
+    BEGIN
+      SELECT RAISE(ABORT, 'manifest snapshots are immutable');
+    END;
+    CREATE TRIGGER IF NOT EXISTS manifest_snapshots_no_delete
+    BEFORE DELETE ON manifest_snapshots
+    FOR EACH ROW
+    BEGIN
+      SELECT RAISE(ABORT, 'manifest snapshots cannot be deleted');
+    END;
   `);
 
   // holdings gained three nullable columns in P3 — ALTER only when missing

@@ -447,6 +447,29 @@ export const factAssertions = sqliteTable('fact_assertions', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
 
+/**
+ * H1 snapshots: a manifest frozen at a moment, and H2's baseline for
+ * every amendment after it.
+ *
+ * Immutable by construction and by trigger. The application never
+ * updates a row here, and the database refuses to let it — a snapshot
+ * that could drift would make "what did I actually file?" unanswerable,
+ * which is the one question an amendment is built on.
+ */
+export const manifestSnapshots = sqliteTable('manifest_snapshots', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  userId: text('user_id').notNull(),
+  taxYear: integer('tax_year').notNull(),
+  /** JSON: the whole Manifest, exactly as built. */
+  payload: text('payload').notNull(),
+  /** Set when the person says they filed it, and never before. */
+  filedAt: text('filed_at'),
+  /** Their own words about what this snapshot was. */
+  label: text('label'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
 export const conversations = sqliteTable('conversations', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull(),

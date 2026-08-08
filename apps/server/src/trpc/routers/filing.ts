@@ -3,6 +3,7 @@ import { factSet } from '../../lib/calc/filing/facts';
 import { type IntakePlan, intakeFindings, intakePlan } from '../../lib/calc/filing/intake';
 import { assertFact, loadFacts } from '../../services/facts';
 import { absenceBoardFor, readinessFor } from '../../services/filing-year';
+import { listSnapshots, manifestFor, markFiled, snapshotManifest } from '../../services/manifest';
 import { protectedProcedure, router } from '../trpc';
 
 /**
@@ -107,6 +108,42 @@ export const filingRouter = router({
     const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
     return absenceBoardFor(ctx.db, keys, input.taxYear);
   }),
+
+  /**
+   * H1 — the deliverable: every line the year concluded, where each
+   * number came from, and everything still open. Recomputed on read.
+   */
+  manifest: protectedProcedure.input(desk).query(async ({ ctx, input }) => {
+    const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
+    return manifestFor(ctx.db, keys, input.taxYear);
+  }),
+
+  /** Freeze the year as it stands. Immutable from this moment on. */
+  snapshot: protectedProcedure
+    .input(desk.extend({ label: z.string().max(120).nullable().default(null) }))
+    .mutation(async ({ ctx, input }) => {
+      const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
+      return snapshotManifest(ctx.db, keys, input.taxYear, input.label);
+    }),
+
+  snapshots: protectedProcedure.input(desk).query(async ({ ctx, input }) => {
+    const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
+    return listSnapshots(ctx.db, keys, input.taxYear);
+  }),
+
+  /** Record that a snapshot was filed. Accepted once, never rewritten. */
+  markFiled: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        snapshotId: z.string().min(1),
+        filedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const keys = { userId: ctx.userId, workspaceId: input.workspaceId };
+      return markFiled(ctx.db, keys, input.snapshotId, input.filedAt);
+    }),
 
   /**
    * Everything ever asserted about one fact, newest first — what the

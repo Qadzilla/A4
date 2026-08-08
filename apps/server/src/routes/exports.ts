@@ -5,6 +5,8 @@ import { holdings, trades } from '../db/schema';
 import { DEV_AUTH_BYPASS } from '../env';
 import { computeRealizedGains } from '../lib/calc';
 import { costBasisCsv, form8949Csv } from '../lib/calc/exports';
+import { manifestHtml } from '../lib/calc/filing/manifest-html';
+import { manifestFor } from '../services/manifest';
 
 /**
  * Documents Basis produces rather than reads. Everything here is derived from
@@ -99,4 +101,39 @@ exportsRouter.get('/cost-basis', async (req, res) => {
   );
 
   sendCsv(res, `basis-cost-basis-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+});
+
+// ─── H1: the manifest, as a page and as data ───────────────────────
+// Two shapes of the same object. The HTML is what someone prints and
+// sits with while filing; the JSON is what a preparer's software or a
+// script consumes. Both are the manifest verbatim — the renderer
+// decides how the year looks and never what it says.
+
+// GET /api/exports/manifest?workspaceId=&taxYear=&format=html|json
+exportsRouter.get('/manifest', async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  const workspaceId = String(req.query.workspaceId ?? '');
+  const taxYear = Number.parseInt(String(req.query.taxYear ?? ''), 10);
+  if (!workspaceId || !Number.isFinite(taxYear)) {
+    res.status(400).json({ error: 'workspaceId and taxYear are required' });
+    return;
+  }
+
+  const manifest = await manifestFor(db, { userId, workspaceId }, taxYear);
+
+  if (String(req.query.format ?? 'html') === 'json') {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="basis-${taxYear}.json"`);
+    res.send(JSON.stringify(manifest, null, 2));
+    return;
+  }
+
+  // Inline rather than attachment: this one is meant to be READ, and a
+  // file that lands in Downloads without opening is a file nobody reads.
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(manifestHtml(manifest));
 });

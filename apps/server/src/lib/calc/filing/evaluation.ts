@@ -88,6 +88,14 @@ export interface YearEvaluation {
   otherStates: Array<CaliforniaDetermination | NewYorkDetermination | MassachusettsDetermination>;
   /** F4 — allocation across a move, and the credit that stops double tax. */
   multiState: MultiStateDetermination | null;
+  /**
+   * H1: the income and adjustment figures this year was computed FROM,
+   * as composed for the estimator. The manifest needs the breakdown
+   * behind every total — wages apart from interest apart from other
+   * income — and re-deriving it there would be a second mapping free to
+   * drift from this one. Null on the blocked paths, like liability.
+   */
+  inputs: TaxEstimatorData | null;
   /** Null when a blocked item prevents a single number. */
   liability: {
     /** Income tax including the LTCG worksheet — the 1040's tax line. */
@@ -273,6 +281,7 @@ export function evaluateYear(
         residency,
         dependency,
         filingStatus,
+        inputs: null,
         liability: null,
         penalty: null,
         education: null,
@@ -355,6 +364,7 @@ export function evaluateYear(
       state: null,
       otherStates: [],
       multiState: null,
+      inputs: nrData,
       liability: {
         incomeTax: nrTax,
         // No NIIT (NRAs are outside §1411), no SE tax, no Schedule 2
@@ -400,6 +410,7 @@ export function evaluateYear(
       residency,
       dependency,
       filingStatus,
+      inputs: null,
       liability: null,
       penalty: null,
       education: null,
@@ -427,6 +438,7 @@ export function evaluateYear(
       residency,
       dependency,
       filingStatus,
+      inputs: null,
       liability: null,
       penalty: null,
       education: null,
@@ -455,6 +467,7 @@ export function evaluateYear(
       residency,
       dependency,
       filingStatus,
+      inputs: null,
       liability: null,
       penalty: null,
       education: null,
@@ -479,6 +492,7 @@ export function evaluateYear(
       residency,
       dependency,
       filingStatus,
+      inputs: null,
       liability: null,
       penalty: null,
       education: null,
@@ -511,6 +525,7 @@ export function evaluateYear(
       residency,
       dependency,
       filingStatus,
+      inputs: null,
       liability: null,
       penalty: null,
       education: null,
@@ -932,6 +947,7 @@ export function evaluateYear(
     state,
     otherStates,
     multiState,
+    inputs: data,
     liability: {
       incomeTax: result.federalTax + result.ltcgTax,
       federalTax:
